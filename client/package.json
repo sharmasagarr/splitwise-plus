@@ -1,0 +1,63 @@
+{
+  "name": "client",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "android": "react-native run-android --appId com.sagar.splitwiseplus.debug",
+    "android:release": "react-native build-android --mode=release --appId com.sagar.splitwiseplus",
+    "ios": "react-native run-ios",
+    "lint": "eslint .",
+    "start": "react-native start",
+    "test": "jest",
+    "codegen": "graphql-codegen --config codegen.yml"
+  },
+  "dependencies": {
+    "@apollo/client": "^4.0.10",
+    "@react-native-async-storage/async-storage": "^2.2.0",
+    "@react-native/new-app-screen": "0.83.0",
+    "@react-navigation/bottom-tabs": "^7.8.12",
+    "@react-navigation/elements": "^2.9.2",
+    "@react-navigation/native": "^7.1.25",
+    "@react-navigation/native-stack": "^7.8.6",
+    "@reduxjs/toolkit": "^2.11.1",
+    "graphql": "^16.12.0",
+    "react": "^19.2.3",
+    "react-native": "0.83.0",
+    "react-native-bootsplash": "^6.3.11",
+    "react-native-inappbrowser-reborn": "^3.7.0",
+    "react-native-safe-area-context": "^5.5.2",
+    "react-native-screens": "^4.18.0",
+    "react-native-svg": "^15.15.1",
+    "react-redux": "^9.2.0",
+    "rxjs": "^7.8.2"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.25.2",
+    "@babel/preset-env": "^7.25.3",
+    "@babel/runtime": "^7.25.0",
+    "@graphql-codegen/cli": "^6.1.0",
+    "@graphql-codegen/typescript": "^5.0.6",
+    "@graphql-codegen/typescript-operations": "^5.0.6",
+    "@graphql-codegen/typescript-react-apollo": "^4.3.4",
+    "@react-native-community/cli": "20.0.0",
+    "@react-native-community/cli-platform-android": "20.0.0",
+    "@react-native-community/cli-platform-ios": "20.0.0",
+    "@react-native/babel-preset": "0.83.0",
+    "@react-native/eslint-config": "0.83.0",
+    "@react-native/metro-config": "0.83.0",
+    "@react-native/typescript-config": "0.83.0",
+    "@testing-library/react-native": "^13.3.3",
+    "@types/jest": "^29.5.13",
+    "@types/react": "^19.2.7",
+    "@types/react-native-dotenv": "^0.2.2",
+    "eslint": "^8.19.0",
+    "eslint-plugin-testing-library": "^7.15.1",
+    "jest": "^29.6.3",
+    "prettier": "2.8.8",
+    "react-native-svg-transformer": "^1.5.2",
+    "typescript": "^5.8.3"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

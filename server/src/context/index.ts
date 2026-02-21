@@ -1,5 +1,5 @@
 import jwt from "jsonwebtoken";
-import { prisma } from "../db";
+import { prisma } from "../db/index.js";
 
 export async function buildContext({ req }: any) {
   const authHeader = req.headers.authorization;

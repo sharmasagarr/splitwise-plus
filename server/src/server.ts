@@ -5,10 +5,10 @@ import cors from "cors";
 import { ApolloServer } from "@apollo/server";
 import { ApolloServerPluginDrainHttpServer } from "@apollo/server/plugin/drainHttpServer";
 import { expressMiddleware } from "@as-integrations/express5";
-import { buildContext } from "./context";
-import { typeDefs, resolvers } from "./schema";
-import "./modules/auth/passport";
-import authRoutes from "./modules/auth/auth.routes";
+import { buildContext } from "./context/index.js";
+import { typeDefs, resolvers } from "./schema/index.js";
+import "./modules/auth/passport.js";
+import authRoutes from "./modules/auth/auth.routes.js";
 
 export async function startServer() {
   const app = express();

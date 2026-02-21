@@ -1,6 +1,6 @@
 import { Router } from "express";
 import passport from "passport";
-import { createJwt } from "./passport";
+import { createJwt } from "./passport.js";
 
 const router = Router();
 

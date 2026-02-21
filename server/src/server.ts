@@ -13,8 +13,8 @@ import authRoutes from "./modules/auth/auth.routes";
 export async function startServer() {
   const app = express();
   app.use(passport.initialize());
-  // app.use("/", (_req, res) => res.json({ status: "OK" }));
   app.use("/auth", authRoutes);
+  app.use("/", (_req, res) => res.json({ status: "OK" }));
   const httpServer = http.createServer(app);
 
   const apolloServer = new ApolloServer({

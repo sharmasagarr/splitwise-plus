@@ -8,6 +8,7 @@
     "compile": "tsc",
     "start": "npm run compile && nodemon ./dist/index.js",
     "build:watch": "tsc -w",
+    "build": "prisma generate && tsc",
     "serve": "node dist/index.js",
     "dev": "tsx watch src/index.ts"
   },

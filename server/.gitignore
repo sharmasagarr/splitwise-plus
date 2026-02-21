@@ -28,4 +28,4 @@ schema.gql
 .vscode/      # For VS Code (if user-specific settings are not shared)
 .DS_Store     # For macOS
 Thumbs.db     # For Windows
-src/generated/prisma
+generated/prisma

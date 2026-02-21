@@ -9,7 +9,7 @@
     "compile": "tsc",
     "build:watch": "tsc -w",
     "dev": "tsx watch src/index.ts",
-    "build": "prisma generate && tsc && echo 'TSC DONE' && ls dist/",
+    "build": "prisma generate && tsc && cp -r generated dist/generated",
     "start": "node dist/index.js"
   },
   "keywords": [],

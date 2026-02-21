@@ -1,6 +1,6 @@
 {
   "compilerOptions": {
-    "rootDir": "src",
+    // "rootDir": "src",
     "outDir": "dist",
     "lib": ["es2023"],
     "target": "es2023",

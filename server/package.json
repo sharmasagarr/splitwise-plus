@@ -5,12 +5,13 @@
   "type": "module",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "compile": "tsc",
-    "build:watch": "tsc -w",
-    "dev": "tsx watch src/index.ts",
-    "build": "prisma generate && tsc && cp -r generated dist/generated",
-    "start": "node dist/index.js"
+    "dev": "nodemon src/index.ts",
+    "build": "npm run migrate:deploy && tsc",
+    "start": "node dist/index.js",
+    "migrate:dev": "prisma migrate dev",
+    "migrate:deploy": "prisma migrate deploy",
+    "migrate:status": "prisma migrate status",
+    "generate": "prisma generate"
   },
   "keywords": [],
   "author": "",
@@ -40,7 +41,7 @@
     "@types/passport": "^1.0.17",
     "@types/pg": "^8.16.0",
     "concurrently": "^9.2.1",
-    "nodemon": "^3.1.11",
+    "nodemon": "^3.1.14",
     "prisma": "^7.1.0",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3"

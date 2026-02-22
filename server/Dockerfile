@@ -2,33 +2,37 @@
 FROM node:22-alpine AS builder
 WORKDIR /app
 
-# 1. Install dependencies
+# 1. Copy package files
 COPY package*.json ./
-# Note: Ensure 'prisma' CLI is in dependencies or devDependencies
+
+# 2. Copy Prisma folder BEFORE npm install
+# This satisfies the 'postinstall' script triggered by npm install
+COPY prisma ./prisma/
+
+# 3. Create the directory for the new v7 client
+RUN mkdir -p src/generated/prisma
+
+# 4. Install dependencies (this will run 'prisma generate' automatically)
 RUN npm install
 
-# 2. Copy prisma schema and generate the new v7 client
-COPY prisma ./prisma/
-RUN npx prisma generate
-
-# 3. Copy source code (which now includes the generated client in src/generated)
+# 5. Copy the rest of your source code
 COPY . .
 
-# 4. Compile TypeScript
-# This will move your code AND the generated client into the /dist folder
+# 6. Build the project
 RUN npm run build
 
 # Stage 2: Runtime
 FROM node:22-alpine
 WORKDIR /app
 
-# Copy the compiled JS (includes the generated client)
+# Copy the compiled JS and node_modules
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/package*.json ./
 
 # Railway Environment
 ENV NODE_ENV=production
+# Ensure this matches your server.listen port
 EXPOSE 3500
 
 CMD ["node", "dist/index.js"]

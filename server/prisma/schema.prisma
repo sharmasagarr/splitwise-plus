@@ -1,523 +1,523 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
-generator client {
-  provider = "prisma-client-js"
-  output   = "../generated/prisma"
-}
-
-datasource db {
-  provider = "postgresql"
-}
-
-// ===================================================================
-//                           USERS & AUTH
-// ===================================================================
-
-model User {
-  id            String    @id @default(uuid())
-  name          String
-  email         String   @unique
-  passwordHash  String?
-  imageUrl      String?
-  phone         String?   @unique
-  currency      String    @default("INR")
-  locale        String?
-  emailVerified Boolean   @default(false)
-
-  // Email OTP fields
-  emailOtpHash        String?
-  emailOtpExpiresAt  DateTime?
-  emailOtpAttempts   Int       @default(0)
-  emailOtpLastSentAt DateTime?
-
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  deletedAt     DateTime?
-
-  // relations
-  oauthAccounts         OAuthAccount[]
-  sessions              Session[]
-  groupMembers          GroupMember[]
-  expenses              Expense[]        @relation("expenseCreator")
-  messagesSent          Message[]        @relation("messages_sent")
-  transactions          Transaction[]
-  settlementsFrom       Settlement[]     @relation("settlements_from")
-  settlementsTo         Settlement[]     @relation("settlements_to")
-  notifications         Notification[]
-  expenseShares         ExpenseShare[]
-  expenseComments       ExpenseComment[]
-  paymentMethods        PaymentMethod[]
-  invoices              Invoice[]
-  conversationParticipants ConversationParticipant[]
-  messageReactions      MessageReaction[]
-  messageReadReceipts   MessageReadReceipt[]
-
-  @@index([email])
-  @@index([phone])
-}
-
-model OAuthAccount {
-  id             String   @id @default(uuid())
-  userId         String
-  provider       String
-  providerUserId String
-  createdAt      DateTime @default(now())
-
-  user           User     @relation(fields: [userId], references: [id])
-
-  @@unique([provider, providerUserId])
-  @@index([userId])
-}
-
-model Session {
-  id         String   @id @default(uuid())
-  userId     String
-  tokenHash  String
-  deviceInfo String?
-  ip         String?
-  createdAt  DateTime @default(now())
-  lastSeenAt DateTime?
-  expiresAt  DateTime
-
-  user       User     @relation(fields: [userId], references: [id])
-  @@index([userId])
-  @@index([expiresAt])
-}
-
-// ===================================================================
-//                      GROUPS / MEMBERSHIP / ROLES
-// ===================================================================
-
-model Group {
-  id             String   @id @default(uuid())
-  name           String?
-  description    String?
-  ownerId        String
-  isPublic       Boolean  @default(false)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-  deletedAt      DateTime?
-
-  members        GroupMember[]
-  expenses       Expense[]                       
-  conversationId String? @unique
-  conversation   Conversation? @relation("GroupConversation", fields: [conversationId], references: [id])
-
-  @@index([ownerId])
-}
-
-model GroupMember {
-  id        String   @id @default(uuid())
-  groupId   String
-  userId    String
-  role      String   @default("member")
-  joinedAt  DateTime @default(now())
-  leftAt    DateTime?
-
-  group     Group    @relation(fields: [groupId], references: [id])
-  user      User     @relation(fields: [userId], references: [id])
-
-  @@unique([groupId, userId])
-  @@index([userId])
-}
-
-model Role {
-  id          String @id @default(uuid())
-  name        String @unique
-  description String?
-  permissions RolePermission[]
-}
-
-model RolePermission {
-  id          String @id @default(uuid())
-  roleId      String
-  permission  String
-
-  role        Role   @relation(fields: [roleId], references: [id])
-  @@index([roleId])
-}
-
-// ===================================================================
-//                         EXPENSES & SPLITS
-// ===================================================================
-
-model Expense {
-  id            String     @id @default(uuid())
-  groupId       String?
-  createdById   String
-  totalAmount   Decimal    @db.Decimal(30,8)
-  currency      String
-  paidById      String?
-  note          String?
-  status        String     @default("active")
-  receiptCount  Int        @default(0)
-  createdAt     DateTime   @default(now())
-  updatedAt     DateTime   @updatedAt
-
-  createdBy     User       @relation("expenseCreator", fields: [createdById], references: [id])
-  group         Group?     @relation(fields: [groupId], references: [id])
-  shares        ExpenseShare[]
-  attachments   ExpenseAttachment[]
-  comments      ExpenseComment[]
-  tags          ExpenseTag[]
-  transactions  Transaction[]
-
-  @@index([groupId, createdAt])
-  @@index([createdById])
-}
-
-model ExpenseShare {
-  id          String   @id @default(uuid())
-  expenseId   String
-  userId      String
-  shareAmount Decimal  @db.Decimal(30,8)
-  paidAmount  Decimal  @db.Decimal(30,8) @default("0")
-  status      String   @default("owed")
-  createdAt   DateTime @default(now())
-
-  expense     Expense  @relation(fields: [expenseId], references: [id])
-  user        User     @relation(fields: [userId], references: [id])
-
-  @@index([userId])
-  @@index([expenseId])
-}
-
-model ExpenseAttachment {
-  id         String   @id @default(uuid())
-  expenseId  String
-  uploadedBy String
-  url        String
-  filename   String?
-  size       Int?
-  contentType String?
-  createdAt  DateTime @default(now())
-
-  expense    Expense  @relation(fields: [expenseId], references: [id])
-  @@index([expenseId])
-}
-
-model ExpenseComment {
-  id         String   @id @default(uuid())
-  expenseId  String
-  userId     String
-  text       String
-  createdAt  DateTime @default(now())
-  editedAt   DateTime?
-  deletedAt  DateTime?
-
-  expense    Expense  @relation(fields: [expenseId], references: [id])
-  user       User     @relation(fields: [userId], references: [id])
-
-  @@index([expenseId])
-  @@index([userId])
-}
-
-model Tag {
-  id        String   @id @default(uuid())
-  name      String   @unique
-  createdAt DateTime @default(now())
-  expenseTags ExpenseTag[]
-}
-
-model ExpenseTag {
-  id        String   @id @default(uuid())
-  expenseId String
-  tagId     String
-
-  expense   Expense  @relation(fields: [expenseId], references: [id])
-  tag       Tag      @relation(fields: [tagId], references: [id])
-
-  @@index([expenseId])
-  @@index([tagId])
-}
-
-// ===================================================================
-//                    ACCOUNTING / SETTLEMENTS
-// ===================================================================
-
-model Transaction {
-  id         String    @id @default(uuid())
-  userId     String
-  expenseId  String?
-  type       String
-  amount     Decimal   @db.Decimal(30,8)
-  currency   String
-  metadata   Json?
-  createdAt  DateTime  @default(now())
-
-  user       User      @relation(fields: [userId], references: [id])
-  expense    Expense?  @relation(fields: [expenseId], references: [id])
-
-  @@index([userId])
-  @@index([createdAt])
-}
-
-model Settlement {
-  id                String   @id @default(uuid())
-  fromUserId        String
-  toUserId          String
-  amount            Decimal  @db.Decimal(30,8)
-  currency          String
-  status            String   @default("pending")
-  paymentMethodId   String?
-  externalPaymentId String?
-  createdAt         DateTime @default(now())
-  completedAt       DateTime?
-
-  payer    User @relation("settlements_from", fields: [fromUserId], references: [id])
-  receiver User @relation("settlements_to", fields: [toUserId], references: [id])
-
-  @@index([fromUserId])
-  @@index([toUserId])
-}
-
-// ===================================================================
-//            RECURRING EXPENSES / PAYMENT METHODS / INVOICES
-// ===================================================================
-
-model RecurringExpense {
-  id         String   @id @default(uuid())
-  creatorId  String
-  groupId    String?
-  amount     Decimal  @db.Decimal(30,8)
-  currency   String
-  cronSpec   String
-  nextRunAt  DateTime?
-  active     Boolean  @default(true)
-  createdAt  DateTime @default(now())
-}
-
-model PaymentMethod {
-  id               String   @id @default(uuid())
-  userId           String
-  provider         String
-  providerCustomer String?
-  maskedDetails    String?
-  createdAt        DateTime @default(now())
-
-  user             User     @relation(fields: [userId], references: [id])
-}
-
-model Invoice {
-  id         String   @id @default(uuid())
-  userId     String
-  amount     Decimal  @db.Decimal(30,8)
-  currency   String
-  status     String
-  dueDate    DateTime?
-  createdAt  DateTime @default(now())
-
-  user       User     @relation(fields: [userId], references: [id])
-
-  @@index([userId])
-}
-
-// ===================================================================
-//                 NOTIFICATIONS / INVITES / AUDIT / WEBHOOKS
-// ===================================================================
-
-model Notification {
-  id         String   @id @default(uuid())
-  userId     String
-  type       String
-  payload    Json
-  read       Boolean  @default(false)
-  deliveredAt DateTime?
-  createdAt  DateTime @default(now())
-
-  user       User     @relation(fields: [userId], references: [id])
-
-  @@index([userId, read])
-}
-
-model Invite {
-  id           String   @id @default(uuid())
-  groupId      String?
-  invitedEmail String
-  token        String   @unique
-  inviterId    String
-  status       String   @default("pending")
-  expiresAt    DateTime?
-  createdAt    DateTime @default(now())
-
-  @@index([groupId])
-  @@index([invitedEmail])
-}
-
-model AuditLog {
-  id          String   @id @default(uuid())
-  actorUserId String?
-  entityType  String
-  entityId    String?
-  action      String
-  before      Json?
-  after       Json?
-  createdAt   DateTime @default(now())
-
-  @@index([actorUserId])
-  @@index([entityType, entityId])
-}
-
-model Webhook {
-  id        String   @id @default(uuid())
-  targetUrl String
-  secret    String?
-  events    String
-  active    Boolean  @default(true)
-  createdAt DateTime @default(now())
-
-  eventsOut WebhookEvent[]
-}
-
-model WebhookEvent {
-  id            String   @id @default(uuid())
-  webhookId     String
-  payload       Json
-  status        String   @default("pending")
-  attempts      Int      @default(0)
-  lastAttemptAt DateTime?
-  createdAt     DateTime @default(now())
-
-  webhook       Webhook  @relation(fields: [webhookId], references: [id])
-
-  @@index([webhookId, status])
-}
-
-model Job {
-  id        String   @id @default(uuid())
-  type      String
-  payload   Json
-  status    String   @default("pending")
-  scheduledAt DateTime?
-  attempts  Int      @default(0)
-  createdAt DateTime @default(now())
-}
-
-model JobHistory {
-  id        String   @id @default(uuid())
-  jobId     String
-  status    String
-  result    Json?
-  createdAt DateTime @default(now())
-
-  @@index([jobId])
-}
-
-// ===================================================================
-//                           CHAT SYSTEM
-// ===================================================================
-
-model Conversation {
-  id           String   @id @default(uuid())
-  type         String   // "direct" | "group"
-  title        String?
-  createdById  String
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  lastSeq      BigInt   @default(0)
-
-  participants ConversationParticipant[]
-  messages     Message[]
-  group        Group? @relation("GroupConversation")   // <-- Back-relation for Option 1
-  directConversation DirectConversation?
-
-  @@index([type])
-}
-
-model ConversationParticipant {
-  id               String   @id @default(uuid())
-  conversationId   String
-  userId           String
-  role             String   @default("member")
-  joinedAt         DateTime @default(now())
-  leftAt           DateTime?
-  muteUntil        DateTime?
-  lastReadSeq      BigInt?
-
-  conversation     Conversation @relation(fields: [conversationId], references: [id])
-  user             User         @relation(fields: [userId], references: [id])
-
-  @@unique([conversationId, userId])
-  @@index([userId])
-}
-
-model Message {
-  id             String   @id @default(uuid())
-  conversationId String
-  seq            BigInt
-  senderId       String
-  type           String   @default("text")
-  body           String?
-  metadata       Json?
-  replyToSeq     BigInt?
-  createdAt      DateTime @default(now())
-  editedAt       DateTime?
-  deletedAt      DateTime?
-
-  conversation   Conversation @relation(fields: [conversationId], references: [id])
-  sender         User         @relation("messages_sent", fields: [senderId], references: [id])
-  attachments    MessageAttachment[]
-  reactions      MessageReaction[]
-  readReceipts   MessageReadReceipt[]
-
-  @@index([conversationId, seq])
-  @@index([senderId])
-}
-
-model MessageAttachment {
-  id         String   @id @default(uuid())
-  messageId  String
-  uploadedBy String
-  url        String
-  filename   String?
-  size       Int?
-  contentType String?
-  createdAt  DateTime @default(now())
-
-  message    Message  @relation(fields: [messageId], references: [id])
-  @@index([messageId])
-}
-
-model MessageReaction {
-  id        String   @id @default(uuid())
-  messageId String
-  userId    String
-  reaction  String
-  createdAt DateTime @default(now())
-
-  message   Message  @relation(fields: [messageId], references: [id])
-  user      User     @relation(fields: [userId], references: [id])
-
-  @@unique([messageId, userId, reaction])
-  @@index([messageId])
-}
-
-model MessageReadReceipt {
-  id        String   @id @default(uuid())
-  messageId String
-  userId    String
-  readAt    DateTime @default(now())
-
-  message   Message @relation(fields: [messageId], references: [id])
-  user      User    @relation(fields: [userId], references: [id])
-
-  @@unique([messageId, userId])
-  @@index([messageId])
-}
-
-model DirectConversation {
-  id             String   @id @default(uuid())
-  conversationId String   @unique
-  userA          String
-  userB          String
-
-  conversation   Conversation @relation(fields: [conversationId], references: [id])
-
-  @@unique([userA, userB])
-  @@index([userA])
-  @@index([userB])
-}
+  // This is your Prisma schema file,
+  // learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+  // Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+  // Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+  generator client {
+    provider = "prisma-client-js"
+    // output   = "../generated/prisma"
+  }
+
+  datasource db {
+    provider = "postgresql"
+  }
+
+  // ===================================================================
+  //                           USERS & AUTH
+  // ===================================================================
+
+  model User {
+    id            String    @id @default(uuid())
+    name          String
+    email         String   @unique
+    passwordHash  String?
+    imageUrl      String?
+    phone         String?   @unique
+    currency      String    @default("INR")
+    locale        String?
+    emailVerified Boolean   @default(false)
+
+    // Email OTP fields
+    emailOtpHash        String?
+    emailOtpExpiresAt  DateTime?
+    emailOtpAttempts   Int       @default(0)
+    emailOtpLastSentAt DateTime?
+
+    createdAt     DateTime  @default(now())
+    updatedAt     DateTime  @updatedAt
+    deletedAt     DateTime?
+
+    // relations
+    oauthAccounts         OAuthAccount[]
+    sessions              Session[]
+    groupMembers          GroupMember[]
+    expenses              Expense[]        @relation("expenseCreator")
+    messagesSent          Message[]        @relation("messages_sent")
+    transactions          Transaction[]
+    settlementsFrom       Settlement[]     @relation("settlements_from")
+    settlementsTo         Settlement[]     @relation("settlements_to")
+    notifications         Notification[]
+    expenseShares         ExpenseShare[]
+    expenseComments       ExpenseComment[]
+    paymentMethods        PaymentMethod[]
+    invoices              Invoice[]
+    conversationParticipants ConversationParticipant[]
+    messageReactions      MessageReaction[]
+    messageReadReceipts   MessageReadReceipt[]
+
+    @@index([email])
+    @@index([phone])
+  }
+
+  model OAuthAccount {
+    id             String   @id @default(uuid())
+    userId         String
+    provider       String
+    providerUserId String
+    createdAt      DateTime @default(now())
+
+    user           User     @relation(fields: [userId], references: [id])
+
+    @@unique([provider, providerUserId])
+    @@index([userId])
+  }
+
+  model Session {
+    id         String   @id @default(uuid())
+    userId     String
+    tokenHash  String
+    deviceInfo String?
+    ip         String?
+    createdAt  DateTime @default(now())
+    lastSeenAt DateTime?
+    expiresAt  DateTime
+
+    user       User     @relation(fields: [userId], references: [id])
+    @@index([userId])
+    @@index([expiresAt])
+  }
+
+  // ===================================================================
+  //                      GROUPS / MEMBERSHIP / ROLES
+  // ===================================================================
+
+  model Group {
+    id             String   @id @default(uuid())
+    name           String?
+    description    String?
+    ownerId        String
+    isPublic       Boolean  @default(false)
+    createdAt      DateTime @default(now())
+    updatedAt      DateTime @updatedAt
+    deletedAt      DateTime?
+
+    members        GroupMember[]
+    expenses       Expense[]                       
+    conversationId String? @unique
+    conversation   Conversation? @relation("GroupConversation", fields: [conversationId], references: [id])
+
+    @@index([ownerId])
+  }
+
+  model GroupMember {
+    id        String   @id @default(uuid())
+    groupId   String
+    userId    String
+    role      String   @default("member")
+    joinedAt  DateTime @default(now())
+    leftAt    DateTime?
+
+    group     Group    @relation(fields: [groupId], references: [id])
+    user      User     @relation(fields: [userId], references: [id])
+
+    @@unique([groupId, userId])
+    @@index([userId])
+  }
+
+  model Role {
+    id          String @id @default(uuid())
+    name        String @unique
+    description String?
+    permissions RolePermission[]
+  }
+
+  model RolePermission {
+    id          String @id @default(uuid())
+    roleId      String
+    permission  String
+
+    role        Role   @relation(fields: [roleId], references: [id])
+    @@index([roleId])
+  }
+
+  // ===================================================================
+  //                         EXPENSES & SPLITS
+  // ===================================================================
+
+  model Expense {
+    id            String     @id @default(uuid())
+    groupId       String?
+    createdById   String
+    totalAmount   Decimal    @db.Decimal(30,8)
+    currency      String
+    paidById      String?
+    note          String?
+    status        String     @default("active")
+    receiptCount  Int        @default(0)
+    createdAt     DateTime   @default(now())
+    updatedAt     DateTime   @updatedAt
+
+    createdBy     User       @relation("expenseCreator", fields: [createdById], references: [id])
+    group         Group?     @relation(fields: [groupId], references: [id])
+    shares        ExpenseShare[]
+    attachments   ExpenseAttachment[]
+    comments      ExpenseComment[]
+    tags          ExpenseTag[]
+    transactions  Transaction[]
+
+    @@index([groupId, createdAt])
+    @@index([createdById])
+  }
+
+  model ExpenseShare {
+    id          String   @id @default(uuid())
+    expenseId   String
+    userId      String
+    shareAmount Decimal  @db.Decimal(30,8)
+    paidAmount  Decimal  @db.Decimal(30,8) @default("0")
+    status      String   @default("owed")
+    createdAt   DateTime @default(now())
+
+    expense     Expense  @relation(fields: [expenseId], references: [id])
+    user        User     @relation(fields: [userId], references: [id])
+
+    @@index([userId])
+    @@index([expenseId])
+  }
+
+  model ExpenseAttachment {
+    id         String   @id @default(uuid())
+    expenseId  String
+    uploadedBy String
+    url        String
+    filename   String?
+    size       Int?
+    contentType String?
+    createdAt  DateTime @default(now())
+
+    expense    Expense  @relation(fields: [expenseId], references: [id])
+    @@index([expenseId])
+  }
+
+  model ExpenseComment {
+    id         String   @id @default(uuid())
+    expenseId  String
+    userId     String
+    text       String
+    createdAt  DateTime @default(now())
+    editedAt   DateTime?
+    deletedAt  DateTime?
+
+    expense    Expense  @relation(fields: [expenseId], references: [id])
+    user       User     @relation(fields: [userId], references: [id])
+
+    @@index([expenseId])
+    @@index([userId])
+  }
+
+  model Tag {
+    id        String   @id @default(uuid())
+    name      String   @unique
+    createdAt DateTime @default(now())
+    expenseTags ExpenseTag[]
+  }
+
+  model ExpenseTag {
+    id        String   @id @default(uuid())
+    expenseId String
+    tagId     String
+
+    expense   Expense  @relation(fields: [expenseId], references: [id])
+    tag       Tag      @relation(fields: [tagId], references: [id])
+
+    @@index([expenseId])
+    @@index([tagId])
+  }
+
+  // ===================================================================
+  //                    ACCOUNTING / SETTLEMENTS
+  // ===================================================================
+
+  model Transaction {
+    id         String    @id @default(uuid())
+    userId     String
+    expenseId  String?
+    type       String
+    amount     Decimal   @db.Decimal(30,8)
+    currency   String
+    metadata   Json?
+    createdAt  DateTime  @default(now())
+
+    user       User      @relation(fields: [userId], references: [id])
+    expense    Expense?  @relation(fields: [expenseId], references: [id])
+
+    @@index([userId])
+    @@index([createdAt])
+  }
+
+  model Settlement {
+    id                String   @id @default(uuid())
+    fromUserId        String
+    toUserId          String
+    amount            Decimal  @db.Decimal(30,8)
+    currency          String
+    status            String   @default("pending")
+    paymentMethodId   String?
+    externalPaymentId String?
+    createdAt         DateTime @default(now())
+    completedAt       DateTime?
+
+    payer    User @relation("settlements_from", fields: [fromUserId], references: [id])
+    receiver User @relation("settlements_to", fields: [toUserId], references: [id])
+
+    @@index([fromUserId])
+    @@index([toUserId])
+  }
+
+  // ===================================================================
+  //            RECURRING EXPENSES / PAYMENT METHODS / INVOICES
+  // ===================================================================
+
+  model RecurringExpense {
+    id         String   @id @default(uuid())
+    creatorId  String
+    groupId    String?
+    amount     Decimal  @db.Decimal(30,8)
+    currency   String
+    cronSpec   String
+    nextRunAt  DateTime?
+    active     Boolean  @default(true)
+    createdAt  DateTime @default(now())
+  }
+
+  model PaymentMethod {
+    id               String   @id @default(uuid())
+    userId           String
+    provider         String
+    providerCustomer String?
+    maskedDetails    String?
+    createdAt        DateTime @default(now())
+
+    user             User     @relation(fields: [userId], references: [id])
+  }
+
+  model Invoice {
+    id         String   @id @default(uuid())
+    userId     String
+    amount     Decimal  @db.Decimal(30,8)
+    currency   String
+    status     String
+    dueDate    DateTime?
+    createdAt  DateTime @default(now())
+
+    user       User     @relation(fields: [userId], references: [id])
+
+    @@index([userId])
+  }
+
+  // ===================================================================
+  //                 NOTIFICATIONS / INVITES / AUDIT / WEBHOOKS
+  // ===================================================================
+
+  model Notification {
+    id         String   @id @default(uuid())
+    userId     String
+    type       String
+    payload    Json
+    read       Boolean  @default(false)
+    deliveredAt DateTime?
+    createdAt  DateTime @default(now())
+
+    user       User     @relation(fields: [userId], references: [id])
+
+    @@index([userId, read])
+  }
+
+  model Invite {
+    id           String   @id @default(uuid())
+    groupId      String?
+    invitedEmail String
+    token        String   @unique
+    inviterId    String
+    status       String   @default("pending")
+    expiresAt    DateTime?
+    createdAt    DateTime @default(now())
+
+    @@index([groupId])
+    @@index([invitedEmail])
+  }
+
+  model AuditLog {
+    id          String   @id @default(uuid())
+    actorUserId String?
+    entityType  String
+    entityId    String?
+    action      String
+    before      Json?
+    after       Json?
+    createdAt   DateTime @default(now())
+
+    @@index([actorUserId])
+    @@index([entityType, entityId])
+  }
+
+  model Webhook {
+    id        String   @id @default(uuid())
+    targetUrl String
+    secret    String?
+    events    String
+    active    Boolean  @default(true)
+    createdAt DateTime @default(now())
+
+    eventsOut WebhookEvent[]
+  }
+
+  model WebhookEvent {
+    id            String   @id @default(uuid())
+    webhookId     String
+    payload       Json
+    status        String   @default("pending")
+    attempts      Int      @default(0)
+    lastAttemptAt DateTime?
+    createdAt     DateTime @default(now())
+
+    webhook       Webhook  @relation(fields: [webhookId], references: [id])
+
+    @@index([webhookId, status])
+  }
+
+  model Job {
+    id        String   @id @default(uuid())
+    type      String
+    payload   Json
+    status    String   @default("pending")
+    scheduledAt DateTime?
+    attempts  Int      @default(0)
+    createdAt DateTime @default(now())
+  }
+
+  model JobHistory {
+    id        String   @id @default(uuid())
+    jobId     String
+    status    String
+    result    Json?
+    createdAt DateTime @default(now())
+
+    @@index([jobId])
+  }
+
+  // ===================================================================
+  //                           CHAT SYSTEM
+  // ===================================================================
+
+  model Conversation {
+    id           String   @id @default(uuid())
+    type         String   // "direct" | "group"
+    title        String?
+    createdById  String
+    createdAt    DateTime @default(now())
+    updatedAt    DateTime @updatedAt
+    lastSeq      BigInt   @default(0)
+
+    participants ConversationParticipant[]
+    messages     Message[]
+    group        Group? @relation("GroupConversation")   // <-- Back-relation for Option 1
+    directConversation DirectConversation?
+
+    @@index([type])
+  }
+
+  model ConversationParticipant {
+    id               String   @id @default(uuid())
+    conversationId   String
+    userId           String
+    role             String   @default("member")
+    joinedAt         DateTime @default(now())
+    leftAt           DateTime?
+    muteUntil        DateTime?
+    lastReadSeq      BigInt?
+
+    conversation     Conversation @relation(fields: [conversationId], references: [id])
+    user             User         @relation(fields: [userId], references: [id])
+
+    @@unique([conversationId, userId])
+    @@index([userId])
+  }
+
+  model Message {
+    id             String   @id @default(uuid())
+    conversationId String
+    seq            BigInt
+    senderId       String
+    type           String   @default("text")
+    body           String?
+    metadata       Json?
+    replyToSeq     BigInt?
+    createdAt      DateTime @default(now())
+    editedAt       DateTime?
+    deletedAt      DateTime?
+
+    conversation   Conversation @relation(fields: [conversationId], references: [id])
+    sender         User         @relation("messages_sent", fields: [senderId], references: [id])
+    attachments    MessageAttachment[]
+    reactions      MessageReaction[]
+    readReceipts   MessageReadReceipt[]
+
+    @@index([conversationId, seq])
+    @@index([senderId])
+  }
+
+  model MessageAttachment {
+    id         String   @id @default(uuid())
+    messageId  String
+    uploadedBy String
+    url        String
+    filename   String?
+    size       Int?
+    contentType String?
+    createdAt  DateTime @default(now())
+
+    message    Message  @relation(fields: [messageId], references: [id])
+    @@index([messageId])
+  }
+
+  model MessageReaction {
+    id        String   @id @default(uuid())
+    messageId String
+    userId    String
+    reaction  String
+    createdAt DateTime @default(now())
+
+    message   Message  @relation(fields: [messageId], references: [id])
+    user      User     @relation(fields: [userId], references: [id])
+
+    @@unique([messageId, userId, reaction])
+    @@index([messageId])
+  }
+
+  model MessageReadReceipt {
+    id        String   @id @default(uuid())
+    messageId String
+    userId    String
+    readAt    DateTime @default(now())
+
+    message   Message @relation(fields: [messageId], references: [id])
+    user      User    @relation(fields: [userId], references: [id])
+
+    @@unique([messageId, userId])
+    @@index([messageId])
+  }
+
+  model DirectConversation {
+    id             String   @id @default(uuid())
+    conversationId String   @unique
+    userA          String
+    userB          String
+
+    conversation   Conversation @relation(fields: [conversationId], references: [id])
+
+    @@unique([userA, userB])
+    @@index([userA])
+    @@index([userB])
+  }

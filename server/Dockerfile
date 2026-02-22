@@ -4,28 +4,23 @@ WORKDIR /app
 
 COPY package*.json ./
 COPY prisma ./prisma/
+# Create the directory for the client
+RUN mkdir -p generated/prisma
 
-# Create the folder so Prisma has a target
-RUN mkdir -p src/generated/prisma
-
-# This runs npm install + postinstall (prisma generate)
 RUN npm install
-
-# Copy everything else (including your updated src/db/index.ts)
 COPY . .
-
-# Compile TS to JS. This moves src/generated -> dist/generated
+# Compile only your source code
 RUN npm run build
 
 # Stage 2: Runtime
 FROM node:22-alpine
 WORKDIR /app
 
-# We only copy dist and node_modules. 
-# The client is now safely inside /app/dist/generated/prisma
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/package*.json ./
+# Copy the generated client exactly as it is
+COPY --from=builder /app/generated ./generated
 
 ENV NODE_ENV=production
 EXPOSE 3500

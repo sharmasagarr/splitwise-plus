@@ -24,6 +24,7 @@ WORKDIR /app
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/package*.json ./
+COPY --from=builder /app/generated ./generated
 
 # Railway usually provides the PORT env var, but we'll default to 8080
 ENV NODE_ENV=production

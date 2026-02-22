@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "android": "react-native run-android --appId com.sagar.splitwiseplus.debug",
-    "android:release": "react-native build-android --mode=release --appId com.sagar.splitwiseplus",
+    "android:release": "react-native build-android --mode=release",
     "ios": "react-native run-ios",
     "lint": "eslint .",
     "start": "react-native start",

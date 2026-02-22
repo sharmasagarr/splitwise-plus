@@ -27,6 +27,6 @@ COPY --from=builder /app/package*.json ./
 
 # Railway usually provides the PORT env var, but we'll default to 8080
 ENV NODE_ENV=production
-EXPOSE 8080
+EXPOSE 3500
 
 CMD ["node", "dist/index.js"]

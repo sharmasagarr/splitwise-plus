@@ -3,11 +3,13 @@
     "outDir": "dist",
     "lib": ["es2023"],
     "target": "es2023",
-    "module": "esnext",
-    "moduleResolution": "bundler",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
     "esModuleInterop": true,
     "types": ["node"],
-    "noEmit": false
+    "noEmit": false,
+    "skipLibCheck": true,
+    "rootDirs": ["src", "generated"] 
   },
-  "include": ["src/**/*"]
+  "include": ["src/**/*", "generated/**/*"]
 }

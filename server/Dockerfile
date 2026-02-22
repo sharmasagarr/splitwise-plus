@@ -4,25 +4,28 @@ WORKDIR /app
 
 COPY package*.json ./
 COPY prisma ./prisma/
-# Create the directory for the client
 RUN mkdir -p generated/prisma
 
 RUN npm install
 COPY . .
-# Compile only your source code
+# npx prisma generate happens here via postinstall or manual run
+RUN npx prisma generate
+# tsc will now compile BOTH src and generated into dist
 RUN npm run build
 
 # Stage 2: Runtime
 FROM node:22-alpine
 WORKDIR /app
 
+# We only need dist and node_modules
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/package*.json ./
-# Copy the generated client exactly as it is
-COPY --from=builder /app/generated ./generated
 
 ENV NODE_ENV=production
 EXPOSE 3500
+
+# Check where the files landed for peace of mind
+RUN ls -R /app/dist
 
 CMD ["node", "dist/index.js"]

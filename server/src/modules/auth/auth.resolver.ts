@@ -4,6 +4,25 @@ import jwt from "jsonwebtoken";
 export const authResolvers = {
   Mutation: {
     signup: async (_: any, { name, email, password }: any, { prisma }: any) => {
+      // 0. Name validation — only letters and spaces, 2-50 chars
+      const trimmedName = (name || "").trim();
+      const isValidName =
+        trimmedName.length >= 2 &&
+        trimmedName.length <= 50 &&
+        trimmedName
+          .split("")
+          .every(
+            (ch: string) =>
+              (ch >= "a" && ch <= "z") ||
+              (ch >= "A" && ch <= "Z") ||
+              ch === " ",
+          );
+      if (!isValidName) {
+        throw new Error(
+          "Invalid name. Only letters and spaces are allowed (2-50 characters).",
+        );
+      }
+
       // 1. Check if user already exists
       const existing = await prisma.user.findUnique({
         where: { email },
@@ -26,11 +45,9 @@ export const authResolvers = {
       });
 
       // 4. Issue JWT
-      const token = jwt.sign(
-        { userId: user.id },
-        process.env.JWT_SECRET,
-        { expiresIn: "7d" }
-      );
+      const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, {
+        expiresIn: "7d",
+      });
 
       return { token, user };
     },
@@ -52,13 +69,15 @@ export const authResolvers = {
       }
 
       // 3. Issue JWT
-      const token = jwt.sign(
-        { userId: user.id },
-        process.env.JWT_SECRET,
-        { expiresIn: "7d" }
-      );
+      const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, {
+        expiresIn: "7d",
+      });
 
       return { token, user };
+    },
+
+    logout: async () => {
+      return true;
     },
   },
 };

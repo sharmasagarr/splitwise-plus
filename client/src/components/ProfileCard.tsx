@@ -1,10 +1,5 @@
 import React from 'react';
-import {
-  View,
-  Text,
-  Image,
-  StyleSheet,
-} from 'react-native';
+import { View, Text, Image, StyleSheet } from 'react-native';
 import type { User } from '../types/graphql';
 
 interface ProfileCardProps extends Pick<User, 'name' | 'email' | 'imageUrl'> {
@@ -13,13 +8,23 @@ interface ProfileCardProps extends Pick<User, 'name' | 'email' | 'imageUrl'> {
   amountOwed?: string;
 }
 
+const formatAmount = (str: string) => {
+  const raw = str.replace(/[^0-9.]/g, '');
+  const num = parseFloat(raw) || 0;
+  if (num < 1000) return `₹${Math.round(num)}`;
+  if (num < 100000) return `₹${(num / 1000).toFixed(1).replace(/\.0$/, '')}k`;
+  if (num < 10000000)
+    return `₹${(num / 100000).toFixed(1).replace(/\.0$/, '')}L`;
+  return `₹${(num / 10000000).toFixed(1).replace(/\.0$/, '')}Cr`;
+};
+
 const ProfileCard: React.FC<ProfileCardProps> = ({
   name,
   email,
   imageUrl,
   groupsCount = 0,
-  amountOwe = "₹0",
-  amountOwed = "₹0",
+  amountOwe = '₹0',
+  amountOwed = '₹0',
 }) => {
   // Function to get initials from name
   const getInitials = (fullName: string) => {
@@ -31,12 +36,22 @@ const ProfileCard: React.FC<ProfileCardProps> = ({
   // Function to generate a color based on name (consistent for same person)
   const getAvatarColor = (fullName: string) => {
     const colors = [
-      '#667eea', '#764ba2', '#f56565', '#ed8936', '#48bb78', 
-      '#38b2ac', '#4299e1', '#9f7aea', '#ed64a6', '#805ad5'
+      '#667eea',
+      '#764ba2',
+      '#f56565',
+      '#ed8936',
+      '#48bb78',
+      '#38b2ac',
+      '#4299e1',
+      '#9f7aea',
+      '#ed64a6',
+      '#805ad5',
     ];
-    const index = fullName
-      .split('')
-      .reduce((acc, char) => acc + (char.codePointAt(0) || 0), 0) % colors.length;
+    const index =
+      fullName
+        .split('')
+        .reduce((acc, char) => acc + (char.codePointAt(0) || 0), 0) %
+      colors.length;
     return colors[index];
   };
 
@@ -48,45 +63,55 @@ const ProfileCard: React.FC<ProfileCardProps> = ({
       {/* Profile Image with Fallback */}
       {imageUrl ? (
         <Image
-          source={{uri: imageUrl}}
+          source={{ uri: imageUrl }}
           style={styles.profileImage}
           resizeMode="cover"
         />
       ) : (
-        <View style={[styles.avatarContainer, {backgroundColor: avatarColor}]}>
+        <View
+          style={[styles.avatarContainer, { backgroundColor: avatarColor }]}
+        >
           <Text style={styles.avatarText}>{initials}</Text>
         </View>
       )}
-      
+
       {/* User Info */}
       <View style={styles.infoContainer}>
         <View style={styles.nameRow}>
-          <Text style={styles.name} numberOfLines={1}>{name}</Text>
+          <Text style={styles.name} numberOfLines={1}>
+            {name}
+          </Text>
         </View>
-        
-        <Text style={styles.email} numberOfLines={1}>{email}</Text>
-        
+
+        <Text style={styles.email} numberOfLines={1}>
+          {email}
+        </Text>
+
         {/* Divider */}
         <View style={styles.divider} />
-        
+
         {/* Quick Stats */}
         <View style={styles.statsContainer}>
           <View style={styles.statItem}>
             <Text style={styles.statNumber}>{groupsCount}</Text>
             <Text style={styles.statLabel}>Groups</Text>
           </View>
-          
+
           <View style={styles.statSeparator} />
-          
+
           <View style={styles.statItem}>
-            <Text style={[styles.statNumber, styles.oweAmount]}>{amountOwe}</Text>
+            <Text style={[styles.statNumber, styles.oweAmount]}>
+              {formatAmount(amountOwe)}
+            </Text>
             <Text style={styles.statLabel}>Owe</Text>
           </View>
-          
+
           <View style={styles.statSeparator} />
-          
+
           <View style={styles.statItem}>
-            <Text style={[styles.statNumber, styles.owedAmount]}>{amountOwed}</Text>
+            <Text style={[styles.statNumber, styles.owedAmount]}>
+              {formatAmount(amountOwed)}
+            </Text>
             <Text style={styles.statLabel}>Owed</Text>
           </View>
         </View>
@@ -133,8 +158,8 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    justifyContent: "center",
-    alignItems: "center",
+    justifyContent: 'center',
+    alignItems: 'center',
     borderWidth: 3,
     borderColor: '#ffffff',
     shadowColor: '#000',
@@ -181,7 +206,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: -10
+    marginTop: -10,
   },
   statItem: {
     alignItems: 'center',
@@ -189,7 +214,7 @@ const styles = StyleSheet.create({
   },
   statNumber: {
     fontFamily: 'GoogleSans-Regular',
-    fontSize: 18,
+    fontSize: 17,
     color: '#334155',
     marginBottom: 2,
   },
@@ -205,7 +230,7 @@ const styles = StyleSheet.create({
     color: '#64748b',
     letterSpacing: 0.3,
     textTransform: 'uppercase',
-    marginTop: -10
+    marginTop: -10,
   },
   statSeparator: {
     width: 1,

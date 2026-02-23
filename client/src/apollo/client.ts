@@ -8,9 +8,6 @@ const PROD_URL = "https://splitwise-plus-production.up.railway.app";
 // Check if we are in development mode
 export const API_URL = __DEV__ ? DEV_URL : PROD_URL;
 
-console.log("IS_DEV:", __DEV__);
-console.log("API_URL:", API_URL);
-
 const httpLink = new HttpLink({
   uri: `${API_URL}/graphql`,
 });

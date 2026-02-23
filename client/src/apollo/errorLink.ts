@@ -1,22 +1,23 @@
-import { ErrorLink } from "@apollo/client/link/error";
-import {
-  CombinedGraphQLErrors,
-  CombinedProtocolErrors,
-} from "@apollo/client/errors";
+import { onError } from '@apollo/client/link/error';
+import { Alert } from 'react-native';
 
-export const errorLink = new ErrorLink(({ error, operation }) => {
-  if (CombinedGraphQLErrors.is(error)) {
-    error.errors.forEach(({ message, extensions }) => {
-      if (extensions?.code === "UNAUTHENTICATED") {
-        console.log("User not authenticated");
+export const errorLink = onError(({ graphQLErrors, networkError }: any) => {
+  if (graphQLErrors) {
+    graphQLErrors.forEach(({ message, extensions }: any) => {
+      if (extensions?.code === 'UNAUTHENTICATED') {
+        console.log('User not authenticated');
         // dispatch(logout()) or navigation reset
+      } else {
+        console.log(`[GraphQL error]: Message: ${message}`);
       }
     });
-  } else if (CombinedProtocolErrors.is(error)) {
-    error.errors.forEach(({ message, extensions }) => {
-      console.log(`[Protocol error]: Message: ${message}`);
-    });
-  } else {
-    console.error(`[Network error]:`, error);
+  }
+
+  if (networkError) {
+    console.error(`[Network error]:`, networkError);
+    Alert.alert(
+      'Network Error',
+      'Unable to connect to the server. Please check your internet connection.',
+    );
   }
 });

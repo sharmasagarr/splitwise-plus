@@ -9,30 +9,77 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
+import { useState } from 'react';
+import { useMutation, useQuery } from '@apollo/client/react';
 import { useAppSelector, useAppDispatch } from '../store/hooks';
-import { logoutUser } from "../store/authSlice";
+import { logoutUser, setUser } from '../store/authSlice';
+import { UPDATE_PROFILE } from '../graphql/mutations';
+import { GET_GROUPS, GET_MY_BALANCES } from '../graphql/queries';
+import AppTextInput from '../components/AppTextInput';
 import type { User } from '../types/graphql';
 
 const Profile: React.FC = () => {
-  const { user } = useAppSelector((state) => state.auth);
+  const { user } = useAppSelector(state => state.auth);
 
   const dispatch = useAppDispatch();
 
-  const handleLogout = () => {
-    Alert.alert(
-      "Logout",
-      "Are you sure you want to logout?",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Logout",
-          style: "destructive",
-          onPress: () => {
-            dispatch(logoutUser());
-          },
+  const [isEditing, setIsEditing] = useState(false);
+  const [editName, setEditName] = useState(user?.name || '');
+  const [editPhone, setEditPhone] = useState(user?.phone || '');
+  const [editImageUrl, setEditImageUrl] = useState(user?.imageUrl || '');
+  const [updateProfile, { loading: updating }] =
+    useMutation<any>(UPDATE_PROFILE);
+
+  const { data: groupsData } = useQuery<any>(GET_GROUPS, {
+    fetchPolicy: 'cache-and-network',
+  });
+  const { data: balancesData } = useQuery<any>(GET_MY_BALANCES, {
+    fetchPolicy: 'cache-and-network',
+  });
+
+  const groups = groupsData?.getGroups || [];
+  const totalOwe = balancesData?.getMyBalances?.totalOwe || 0;
+  const totalOwed = balancesData?.getMyBalances?.totalOwed || 0;
+
+  const handleSaveProfile = async () => {
+    const nameRegex = /^[a-zA-Z '-]{2,50}$/;
+    if (!nameRegex.test(editName.trim())) {
+      Alert.alert(
+        'Invalid Name',
+        'Only letters, spaces, hyphens, and apostrophes are allowed (2-50 chars).',
+      );
+      return;
+    }
+
+    try {
+      const { data } = await updateProfile({
+        variables: {
+          name: editName.trim(),
+          phone: editPhone.trim(),
+          imageUrl: editImageUrl.trim(),
         },
-      ]
-    );
+      });
+      if (data?.updateProfile) {
+        dispatch(setUser(data.updateProfile));
+        setIsEditing(false);
+        Alert.alert('Success', 'Profile updated successfully');
+      }
+    } catch (error: any) {
+      Alert.alert('Error', error.message || 'Failed to update profile');
+    }
+  };
+
+  const handleLogout = () => {
+    Alert.alert('Logout', 'Are you sure you want to logout?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Logout',
+        style: 'destructive',
+        onPress: () => {
+          dispatch(logoutUser());
+        },
+      },
+    ]);
   };
 
   // Function to get initials from name
@@ -40,22 +87,33 @@ const Profile: React.FC = () => {
     const names = fullName.trim().split(' ');
     if (names.length === 0) return '?';
     if (names.length === 1) return names[0].charAt(0).toUpperCase();
-    
+
     const lastName = names.at(-1);
-    if (!lastName || lastName.length === 0) return names[0].charAt(0).toUpperCase();
-    
+    if (!lastName || lastName.length === 0)
+      return names[0].charAt(0).toUpperCase();
+
     return (names[0].charAt(0) + lastName.charAt(0)).toUpperCase();
   };
 
   // Function to generate a color based on name
   const getAvatarColor = (fullName: string) => {
     const colors = [
-      '#667eea', '#764ba2', '#f56565', '#ed8936', '#48bb78', 
-      '#38b2ac', '#4299e1', '#9f7aea', '#ed64a6', '#805ad5'
+      '#667eea',
+      '#764ba2',
+      '#f56565',
+      '#ed8936',
+      '#48bb78',
+      '#38b2ac',
+      '#4299e1',
+      '#9f7aea',
+      '#ed64a6',
+      '#805ad5',
     ];
-    const index = fullName
-      .split('')
-      .reduce((acc, char) => acc + (char.codePointAt(0) || 0), 0) % colors.length;
+    const index =
+      fullName
+        .split('')
+        .reduce((acc, char) => acc + (char.codePointAt(0) || 0), 0) %
+      colors.length;
     return colors[index];
   };
 
@@ -88,11 +146,11 @@ const Profile: React.FC = () => {
   };
 
   // Calculate member since date (if user has createdAt, otherwise use fallback)
-  const getMemberSince = (user: User | null) => {
-    if (user?.createdAt) {
-      return formatDate(user.createdAt);
+  const getMemberSince = (userData: User | null) => {
+    if (userData?.createdAt) {
+      return formatDate(userData.createdAt);
     }
-    
+
     // Fallback: If no createdAt, assume user joined recently
     return formatDate(new Date());
   };
@@ -115,79 +173,140 @@ const Profile: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={styles.scrollView}
+        showsVerticalScrollIndicator={false}
+      >
         <View style={styles.card}>
           {/* Cover Section */}
           <View style={styles.coverImage} />
-          
+
           {/* Profile Image with Fallback */}
           <View style={styles.profileImageContainer}>
             {user.imageUrl ? (
               <Image
-                source={{uri: user.imageUrl}}
+                source={{ uri: user.imageUrl }}
                 style={styles.profileImage}
                 resizeMode="cover"
               />
             ) : (
-              <View style={[styles.avatarContainer, {backgroundColor: avatarColor}]}>
+              <View
+                style={[
+                  styles.avatarContainer,
+                  { backgroundColor: avatarColor },
+                ]}
+              >
                 <Text style={styles.avatarText}>{initials}</Text>
               </View>
             )}
           </View>
-          
+
           {/* Profile Content */}
           <View style={styles.content}>
-            <Text style={styles.name}>{user.name}</Text>
-            <Text style={styles.title}>Splitwise+ User</Text>
-            <Text style={styles.bio}>
-              Managing expenses smartly with friends and family. 
-              Making every split fair and transparent.
-            </Text>
-            
-            {/* Stats Section - Add real data here */}
+            {isEditing ? (
+              <View style={styles.editContainer}>
+                <AppTextInput
+                  placeholder="Name"
+                  value={editName}
+                  onChangeText={setEditName}
+                  style={styles.input}
+                />
+                <AppTextInput
+                  placeholder="Phone"
+                  value={editPhone}
+                  onChangeText={setEditPhone}
+                  style={styles.input}
+                />
+                <AppTextInput
+                  placeholder="Profile Picture URL"
+                  value={editImageUrl}
+                  onChangeText={setEditImageUrl}
+                  style={styles.input}
+                />
+                <View style={styles.actionButtons}>
+                  <TouchableOpacity
+                    style={styles.primaryButton}
+                    onPress={handleSaveProfile}
+                    disabled={updating}
+                  >
+                    <Text style={styles.primaryButtonText}>
+                      {updating ? 'Saving...' : 'Save'}
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.secondaryButton}
+                    onPress={() => {
+                      setIsEditing(false);
+                      setEditName(user?.name || '');
+                      setEditPhone(user?.phone || '');
+                      setEditImageUrl(user?.imageUrl || '');
+                    }}
+                  >
+                    <Text style={styles.secondaryButtonText}>Cancel</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ) : (
+              <>
+                <Text style={styles.name}>{user.name}</Text>
+                <Text style={styles.title}>Splitwise+ User</Text>
+                <Text style={styles.bio}>
+                  Managing expenses smartly with friends and family. Making
+                  every split fair and transparent.
+                </Text>
+                <TouchableOpacity
+                  onPress={() => setIsEditing(true)}
+                  style={styles.editButton}
+                >
+                  <Text style={styles.editButtonText}>Edit Profile</Text>
+                </TouchableOpacity>
+              </>
+            )}
+
             <View style={styles.statsContainer}>
               <View style={styles.statItem}>
-                <Text style={styles.statNumber}>
-                  {0}
-                </Text>
+                <Text style={styles.statNumber}>{groups.length}</Text>
                 <Text style={styles.statLabel}>Groups</Text>
               </View>
               <View style={styles.statDivider} />
               <View style={styles.statItem}>
                 <Text style={[styles.statNumber, styles.oweAmount]}>
-                  {'₹0'}
+                  {`₹${totalOwe.toFixed(0)}`}
                 </Text>
                 <Text style={styles.statLabel}>You Owe</Text>
               </View>
               <View style={styles.statDivider} />
               <View style={styles.statItem}>
                 <Text style={[styles.statNumber, styles.owedAmount]}>
-                  {'₹0'}
+                  {`₹${totalOwed.toFixed(0)}`}
                 </Text>
                 <Text style={styles.statLabel}>Owed to You</Text>
               </View>
             </View>
-            
+
             {/* Info Section */}
             <View style={styles.infoSection}>
               <View style={styles.infoItem}>
                 <Text style={styles.infoLabel}>📧 Email</Text>
                 <Text style={styles.infoValue}>{user.email}</Text>
               </View>
-              
+
               {user.phone && (
                 <View style={styles.infoItem}>
                   <Text style={styles.infoLabel}>📱 Phone</Text>
                   <Text style={styles.infoValue}>{user.phone}</Text>
                 </View>
               )}
-              
+
               <View style={styles.infoItem}>
                 <Text style={styles.infoLabel}>📅 Member Since</Text>
                 <Text style={styles.infoValue}>{memberSince}</Text>
               </View>
             </View>
-            <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
+            <TouchableOpacity
+              onPress={handleLogout}
+              style={styles.logoutButton}
+            >
               <Text style={styles.logoutText}>Logout</Text>
             </TouchableOpacity>
           </View>
@@ -196,7 +315,9 @@ const Profile: React.FC = () => {
         {/* Footer */}
         <View style={styles.footer}>
           <Text style={styles.footerText}>Splitwise+ v1.0.0</Text>
-          <Text style={styles.footerSubtext}>© {new Date().getFullYear()} All rights reserved</Text>
+          <Text style={styles.footerSubtext}>
+            © {new Date().getFullYear()} All rights reserved
+          </Text>
         </View>
       </ScrollView>
     </View>
@@ -218,9 +339,9 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     borderWidth: 1,
     borderColor: '#fecaca',
-    justifyContent: "center",
-    margin: "auto",
-    marginTop: 10
+    justifyContent: 'center',
+    margin: 'auto',
+    marginTop: 10,
   },
   logoutText: {
     color: '#dc2626',
@@ -302,6 +423,31 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 12,
     letterSpacing: 0.5,
+  },
+  editContainer: {
+    width: '100%',
+    marginBottom: 20,
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 12,
+    backgroundColor: '#f8fafc',
+  },
+  editButton: {
+    alignSelf: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: '#f1f5f9',
+    marginBottom: 20,
+  },
+  editButtonText: {
+    color: '#667eea',
+    fontWeight: '600',
+    fontSize: 14,
   },
   bio: {
     fontSize: 14,

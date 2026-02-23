@@ -16,7 +16,7 @@
     "@apollo/server": "^5.1.0",
     "@as-integrations/express5": "^1.1.2",
     "@prisma/adapter-pg": "^7.1.0",
-    "@prisma/client": "^7.1.0",
+    "@prisma/client": "^7.4.1",
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
@@ -38,7 +38,7 @@
     "@types/pg": "^8.16.0",
     "concurrently": "^9.2.1",
     "nodemon": "^3.1.11",
-    "prisma": "^7.1.0",
+    "prisma": "^7.4.1",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3"
   }

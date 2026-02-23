@@ -1,21 +1,25 @@
-import { useEffect } from "react";
-import { NavigationContainer } from "@react-navigation/native";
-import { Provider } from "react-redux";
-import { Linking } from "react-native";
-import BootSplash from "react-native-bootsplash";
-import { ApolloProvider } from "@apollo/client/react";
+import { useEffect } from 'react';
+import { NavigationContainer } from '@react-navigation/native';
+import { Provider } from 'react-redux';
+import { Linking } from 'react-native';
+import BootSplash from 'react-native-bootsplash';
+import { ApolloProvider } from '@apollo/client/react';
 
-import BottomTabs from "./src/navigations/BottomTabs";
-import AuthScreen from "./src/screens/Auth";
+import RootStack from './src/navigations/RootStack';
+import AuthScreen from './src/screens/Auth';
 
-import { client } from "./src/apollo";
-import { store } from "./src/store";
-import { restoreAuth, fetchMe, setAuthWithPersistence } from "./src/store/authSlice";
-import { useAppDispatch, useAppSelector } from "./src/store/hooks";
+import { client } from './src/apollo';
+import { store } from './src/store';
+import {
+  restoreAuth,
+  fetchMe,
+  setAuthWithPersistence,
+} from './src/store/authSlice';
+import { useAppDispatch, useAppSelector } from './src/store/hooks';
 
 const Root = () => {
   const dispatch = useAppDispatch();
-  const { ready, token } = useAppSelector((state) => state.auth);
+  const { ready, token } = useAppSelector(state => state.auth);
 
   /* ================= DEEP LINK HANDLER ================= */
   useEffect(() => {
@@ -26,21 +30,20 @@ const Root = () => {
       };
       const tokenFromUrl = getTokenFromUrl();
 
-      if (typeof tokenFromUrl === "string") {
+      if (typeof tokenFromUrl === 'string') {
         dispatch(
           setAuthWithPersistence({
             token: tokenFromUrl,
             user: null,
-          })
+          }),
         );
-
       }
     };
 
-    const subscription = Linking.addEventListener("url", handleUrl);
+    const subscription = Linking.addEventListener('url', handleUrl);
 
     // Cold start
-    Linking.getInitialURL().then((url) => {
+    Linking.getInitialURL().then(url => {
       if (url) handleUrl({ url });
     });
 
@@ -73,7 +76,7 @@ const Root = () => {
   return (
     <ApolloProvider client={client}>
       <NavigationContainer>
-        {token ? <BottomTabs /> : <AuthScreen />}
+        {token ? <RootStack /> : <AuthScreen />}
       </NavigationContainer>
     </ApolloProvider>
   );

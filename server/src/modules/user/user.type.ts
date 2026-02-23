@@ -12,4 +12,8 @@ export const userTypeDefs = `#graphql
   extend type Query {
     me: User
   }
+
+  extend type Mutation {
+    updateProfile(name: String, imageUrl: String, phone: String): User!
+  }
 `;

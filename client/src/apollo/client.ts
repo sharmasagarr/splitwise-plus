@@ -2,12 +2,14 @@ import { ApolloClient, InMemoryCache, HttpLink, ApolloLink } from "@apollo/clien
 import { authLink } from "./authLink";
 import { errorLink } from "./errorLink";
 
-
 const DEV_URL = "https://4lbp3bcd-3500.inc1.devtunnels.ms";
 const PROD_URL = "https://splitwise-plus-production.up.railway.app";
 
 // Check if we are in development mode
 export const API_URL = __DEV__ ? DEV_URL : PROD_URL;
+
+console.log("IS_DEV:", __DEV__);
+console.log("API_URL:", API_URL);
 
 const httpLink = new HttpLink({
   uri: `${API_URL}/graphql`,

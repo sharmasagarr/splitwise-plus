@@ -20,11 +20,11 @@ const Root = () => {
   /* ================= DEEP LINK HANDLER ================= */
   useEffect(() => {
     const handleUrl = ({ url }: { url: string }) => {
-      const getTokenFromUrl = (url: string): string | null => {
+      const getTokenFromUrl = (): string | null => {
         const match = url.match(/[?&]token=([^&]+)/);
         return match ? decodeURIComponent(match[1]) : null;
       };
-      const tokenFromUrl = getTokenFromUrl(url);
+      const tokenFromUrl = getTokenFromUrl();
 
       if (typeof tokenFromUrl === "string") {
         dispatch(

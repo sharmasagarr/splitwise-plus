@@ -8,3 +8,8 @@
 #   http://developer.android.com/guide/developing/tools/proguard.html
 
 # Add any project specific keep options here:
+
+# for inappbrowser
+-keep class com.proyecto26.inappbrowser.** { *; }
+-keep class com.android.chrome.** { *; }
+-keep class com.reactnativecommunity.inappbrowser.** { *; }

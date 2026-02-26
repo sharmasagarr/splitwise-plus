@@ -1,6 +1,0 @@
-﻿assets/icons/index.ts(1,18): error TS2307: Cannot find module './home.svg' or its corresponding type declarations.
-assets/icons/index.ts(2,17): error TS2307: Cannot find module './add.svg' or its corresponding type declarations.
-assets/icons/index.ts(3,21): error TS2307: Cannot find module './message.svg' or its corresponding type declarations.
-assets/icons/index.ts(4,21): error TS2307: Cannot find module './profile.svg' or its corresponding type declarations.
-assets/icons/index.ts(5,20): error TS2307: Cannot find module './group.svg' or its corresponding type declarations.
-assets/icons/index.ts(6,26): error TS2307: Cannot find module './notification.svg' or its corresponding type declarations.

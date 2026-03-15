@@ -32,7 +32,8 @@ ENV NODE_ENV=production
 COPY package*.json ./
 
 # Install production dependencies
-RUN npm install --omit=dev
+# prisma CLI is included because it is needed to run migrate deploy at startup
+RUN npm install --omit=dev && npm install prisma@7.4.1
 
 # Copy compiled application
 COPY --from=builder /app/dist ./dist
@@ -40,6 +41,9 @@ COPY --from=builder /app/dist ./dist
 # Copy generated Prisma client
 COPY --from=builder /app/generated ./generated
 
+# Copy Prisma migration files so migrate deploy can run at startup
+COPY --from=builder /app/prisma ./prisma
+
 EXPOSE 3500
 
-CMD ["node", "dist/src/index.js"]
+CMD ["sh", "-c", "npx prisma migrate deploy && node dist/src/index.js"]

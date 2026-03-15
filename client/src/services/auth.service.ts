@@ -1,15 +1,25 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { client } from "../apollo/client";
-import { LOGIN, SIGNUP } from "../graphql/mutations/auth.mutations";
+import {
+  LOGIN,
+  RESEND_SIGNUP_OTP,
+  SIGNUP,
+  VERIFY_SIGNUP_OTP,
+} from "../graphql/mutations/auth.mutations";
 import { GET_ME } from "../graphql/queries/user.queries";
 import {
+  AuthResponse,
   LoginMutation,
   LoginMutationVariables,
-  SignupMutation,
-  SignupMutationVariables,
   GetMeQuery,
   GetMeQueryVariables,
 } from "../types/graphql";
+
+type OtpResponse = {
+  success: boolean;
+  message: string;
+  email: string;
+};
 
 export const authService = {
   async login(email: string, password: string) {
@@ -31,10 +41,9 @@ export const authService = {
   },
 
   async signup(name: string, email: string, password: string) {
-    const { data } = await client.mutate<
-      SignupMutation,
-      SignupMutationVariables
-    >({
+    const { data } = await client.mutate<{
+      signup: OtpResponse;
+    }>({
       mutation: SIGNUP,
       variables: { name, email, password },
     });
@@ -43,9 +52,39 @@ export const authService = {
       throw new Error("Signup failed");
     }
 
-    await AsyncStorage.setItem("token", data.signup.token);
-
     return data.signup;
+  },
+
+  async verifySignupOtp(email: string, otp: string) {
+    const { data } = await client.mutate<{
+      verifySignupOtp: AuthResponse;
+    }>({
+      mutation: VERIFY_SIGNUP_OTP,
+      variables: { email, otp },
+    });
+
+    if (!data?.verifySignupOtp) {
+      throw new Error("OTP verification failed");
+    }
+
+    await AsyncStorage.setItem("token", data.verifySignupOtp.token);
+
+    return data.verifySignupOtp;
+  },
+
+  async resendSignupOtp(email: string) {
+    const { data } = await client.mutate<{
+      resendSignupOtp: OtpResponse;
+    }>({
+      mutation: RESEND_SIGNUP_OTP,
+      variables: { email },
+    });
+
+    if (!data?.resendSignupOtp) {
+      throw new Error("Failed to resend OTP");
+    }
+
+    return data.resendSignupOtp;
   },
 
   async getMe() {

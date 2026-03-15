@@ -1,11 +1,20 @@
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
+import {
+  generateOtp,
+  getOtpExpiry,
+  getOtpResendWaitSeconds,
+  hashOtp,
+  isOtpResendAllowed,
+  OTP_LIMITS,
+  sendSignupOtpEmail,
+} from "./otp.service.js";
 
 export const authResolvers = {
   Mutation: {
     signup: async (_: any, { name, email, password }: any, { prisma }: any) => {
-      // 0. Name validation — only letters and spaces, 2-50 chars
       const trimmedName = (name || "").trim();
+      const trimmedEmail = (email || "").trim().toLowerCase();
       const isValidName =
         trimmedName.length >= 2 &&
         trimmedName.length <= 50 &&
@@ -23,52 +32,205 @@ export const authResolvers = {
         );
       }
 
-      // 1. Check if user already exists
+      if (!trimmedEmail.includes("@") || !trimmedEmail.includes(".")) {
+        throw new Error("Invalid email address");
+      }
+
+      if (!password || password.length < 6) {
+        throw new Error("Password must be at least 6 characters");
+      }
+
       const existing = await prisma.user.findUnique({
-        where: { email },
+        where: { email: trimmedEmail },
       });
 
-      if (existing) {
+      if (existing?.emailVerified) {
         throw new Error("User already exists with this email");
       }
 
-      // 2. Hash password
       const hash = await bcrypt.hash(password, 10);
+      const otp = generateOtp();
+      const otpHash = hashOtp(otp);
+      const otpExpiry = getOtpExpiry();
 
-      // 3. Create user
-      const user = await prisma.user.create({
+      if (existing && !isOtpResendAllowed(existing.emailOtpLastSentAt)) {
+        const waitSeconds = getOtpResendWaitSeconds(existing.emailOtpLastSentAt);
+        throw new Error(`Please wait ${waitSeconds}s before requesting another OTP`);
+      }
+
+      let user = existing;
+
+      if (!user) {
+        user = await prisma.user.create({
+          data: {
+            name: trimmedName,
+            email: trimmedEmail,
+            passwordHash: hash,
+            emailVerified: false,
+            emailOtpHash: otpHash,
+            emailOtpExpiresAt: otpExpiry,
+            emailOtpAttempts: 0,
+            emailOtpLastSentAt: new Date(),
+          },
+        });
+      } else {
+        user = await prisma.user.update({
+          where: { id: user.id },
+          data: {
+            name: trimmedName,
+            passwordHash: hash,
+            emailVerified: false,
+            emailOtpHash: otpHash,
+            emailOtpExpiresAt: otpExpiry,
+            emailOtpAttempts: 0,
+            emailOtpLastSentAt: new Date(),
+          },
+        });
+      }
+
+      await sendSignupOtpEmail({
+        to: trimmedEmail,
+        name: user.name,
+        otp,
+      });
+
+      return {
+        success: true,
+        message: "OTP sent to your email",
+        email: trimmedEmail,
+      };
+    },
+
+    verifySignupOtp: async (_: any, { email, otp }: any, { prisma }: any) => {
+      const trimmedEmail = (email || "").trim().toLowerCase();
+      const cleanOtp = String(otp || "").trim();
+
+      if (!/^\d{6}$/.test(cleanOtp)) {
+        throw new Error("Invalid OTP format");
+      }
+
+      const user = await prisma.user.findUnique({
+        where: { email: trimmedEmail },
+      });
+
+      if (!user || !user.passwordHash) {
+        throw new Error("User not found");
+      }
+
+      if (user.emailVerified) {
+        const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, {
+          expiresIn: "7d",
+        });
+        return { token, user };
+      }
+
+      if (!user.emailOtpHash || !user.emailOtpExpiresAt) {
+        throw new Error("OTP not requested. Please sign up again.");
+      }
+
+      if (user.emailOtpAttempts >= OTP_LIMITS.OTP_MAX_VERIFY_ATTEMPTS) {
+        throw new Error("Too many failed attempts. Please request a new OTP.");
+      }
+
+      if (user.emailOtpExpiresAt.getTime() < Date.now()) {
+        throw new Error("OTP has expired. Please request a new OTP.");
+      }
+
+      const isValidOtp = hashOtp(cleanOtp) === user.emailOtpHash;
+
+      if (!isValidOtp) {
+        await prisma.user.update({
+          where: { id: user.id },
+          data: { emailOtpAttempts: { increment: 1 } },
+        });
+        throw new Error("Invalid OTP");
+      }
+
+      const verifiedUser = await prisma.user.update({
+        where: { id: user.id },
         data: {
-          name,
-          email,
-          passwordHash: hash,
+          emailVerified: true,
+          emailOtpHash: null,
+          emailOtpExpiresAt: null,
+          emailOtpAttempts: 0,
+          emailOtpLastSentAt: null,
         },
       });
 
-      // 4. Issue JWT
-      const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, {
+      const token = jwt.sign({ userId: verifiedUser.id }, process.env.JWT_SECRET, {
         expiresIn: "7d",
       });
 
-      return { token, user };
+      return { token, user: verifiedUser };
+    },
+
+    resendSignupOtp: async (_: any, { email }: any, { prisma }: any) => {
+      const trimmedEmail = (email || "").trim().toLowerCase();
+
+      const user = await prisma.user.findUnique({
+        where: { email: trimmedEmail },
+      });
+
+      if (!user || !user.passwordHash) {
+        throw new Error("User not found");
+      }
+
+      if (user.emailVerified) {
+        throw new Error("Email already verified");
+      }
+
+      if (!isOtpResendAllowed(user.emailOtpLastSentAt)) {
+        const waitSeconds = getOtpResendWaitSeconds(user.emailOtpLastSentAt);
+        throw new Error(`Please wait ${waitSeconds}s before requesting another OTP`);
+      }
+
+      const otp = generateOtp();
+      const otpHash = hashOtp(otp);
+      const otpExpiry = getOtpExpiry();
+
+      await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          emailOtpHash: otpHash,
+          emailOtpExpiresAt: otpExpiry,
+          emailOtpAttempts: 0,
+          emailOtpLastSentAt: new Date(),
+        },
+      });
+
+      await sendSignupOtpEmail({
+        to: trimmedEmail,
+        name: user.name,
+        otp,
+      });
+
+      return {
+        success: true,
+        message: "OTP resent to your email",
+        email: trimmedEmail,
+      };
     },
 
     login: async (_: any, { email, password }: any, { prisma }: any) => {
-      // 1. Find user
+      const trimmedEmail = (email || "").trim().toLowerCase();
+
       const user = await prisma.user.findUnique({
-        where: { email },
+        where: { email: trimmedEmail },
       });
 
       if (!user?.passwordHash) {
         throw new Error("Invalid email or password");
       }
 
-      // 2. Compare password
       const isValid = await bcrypt.compare(password, user.passwordHash);
       if (!isValid) {
         throw new Error("Invalid email or password");
       }
 
-      // 3. Issue JWT
+      if (!user.emailVerified) {
+        throw new Error("Email not verified. Please verify your OTP.");
+      }
+
       const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, {
         expiresIn: "7d",
       });

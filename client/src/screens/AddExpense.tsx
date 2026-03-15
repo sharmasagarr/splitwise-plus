@@ -1,9 +1,7 @@
 import React, { useState } from 'react';
 import {
   StyleSheet,
-  Text,
   View,
-  TextInput,
   TouchableOpacity,
   Alert,
   ActivityIndicator,
@@ -12,14 +10,9 @@ import {
   Platform,
   FlatList,
 } from 'react-native';
-import { useQuery, useMutation } from '@apollo/client/react';
-import {
-  CREATE_EXPENSE,
-  GET_GROUPS,
-  GET_MY_BALANCES,
-  SETTLE_EXPENSE,
-  GET_RECENT_ACTIVITIES,
-} from '../graphql';
+import AppText from '../components/AppText';
+import AppTextInput from '../components/AppTextInput';
+import { useGetGroups, useGetMyBalances, useCreateExpense, useSettleExpense } from '../services';
 import { useAppSelector } from '../store/hooks';
 
 const AddExpense = () => {
@@ -28,25 +21,18 @@ const AddExpense = () => {
 
   // ============ ADD EXPENSE ============
   const { data: groupsData, loading: loadingGroups } =
-    useQuery<any>(GET_GROUPS);
-  const [createExpense, { loading: creating }] = useMutation<any>(
-    CREATE_EXPENSE,
-    {
-      refetchQueries: [
-        { query: GET_MY_BALANCES },
-        { query: GET_RECENT_ACTIVITIES },
-      ],
-      onCompleted: () => {
-        Alert.alert('Success', 'Expense added successfully!');
-        setDescription('');
-        setAmount('');
-        setSelectedGroupId('');
-      },
-      onError: (err: any) => {
-        Alert.alert('Error', err.message);
-      },
+    useGetGroups();
+  const [createExpense, { loading: creating }] = useCreateExpense({
+    onCompleted: () => {
+      Alert.alert('Success', 'Expense added successfully!');
+      setDescription('');
+      setAmount('');
+      setSelectedGroupId('');
     },
-  );
+    onError: (err: any) => {
+      Alert.alert('Error', err.message);
+    },
+  });
   const [selectedGroupId, setSelectedGroupId] = useState('');
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('');
@@ -87,27 +73,20 @@ const AddExpense = () => {
     data: balancesData,
     loading: loadingBalances,
     refetch: refetchBalances,
-  } = useQuery<any>(GET_MY_BALANCES, { fetchPolicy: 'cache-and-network' });
+  } = useGetMyBalances();
 
-  const [settleExpense, { loading: settling }] = useMutation<any>(
-    SETTLE_EXPENSE,
-    {
-      refetchQueries: [
-        { query: GET_MY_BALANCES },
-        { query: GET_RECENT_ACTIVITIES },
-      ],
-      onCompleted: () => {
-        Alert.alert('Success', 'Settlement recorded!');
-        setSettleAmount('');
-        setSelectedSettleUserId('');
-        setSelectedPaymentMode('upi');
-        refetchBalances();
-      },
-      onError: (err: any) => {
-        Alert.alert('Error', err.message);
-      },
+  const [settleExpense, { loading: settling }] = useSettleExpense({
+    onCompleted: () => {
+      Alert.alert('Success', 'Settlement recorded!');
+      setSettleAmount('');
+      setSelectedSettleUserId('');
+      setSelectedPaymentMode('upi');
+      refetchBalances();
     },
-  );
+    onError: (err: any) => {
+      Alert.alert('Error', err.message);
+    },
+  });
 
   const [selectedSettleUserId, setSelectedSettleUserId] = useState('');
   const [settleAmount, setSettleAmount] = useState('');
@@ -155,37 +134,37 @@ const AddExpense = () => {
           style={[styles.tab, activeTab === 'expense' && styles.tabActive]}
           onPress={() => setActiveTab('expense')}
         >
-          <Text
+          <AppText
             style={[
               styles.tabText,
               activeTab === 'expense' && styles.tabTextActive,
             ]}
           >
             Add Expense
-          </Text>
+          </AppText>
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.tab, activeTab === 'settle' && styles.tabActive]}
           onPress={() => setActiveTab('settle')}
         >
-          <Text
+          <AppText
             style={[
               styles.tabText,
               activeTab === 'settle' && styles.tabTextActive,
             ]}
           >
             Settle Up
-          </Text>
+          </AppText>
         </TouchableOpacity>
       </View>
 
       {activeTab === 'expense' ? (
         <ScrollView contentContainerStyle={styles.scroll}>
-          <Text style={styles.label}>Select Group</Text>
+          <AppText style={styles.label}>Select Group</AppText>
           {groups.length === 0 ? (
-            <Text style={styles.errorText}>
+            <AppText style={styles.errorText}>
               You need to join a group first.
-            </Text>
+            </AppText>
           ) : (
             <View style={styles.groupSelection}>
               {groups.map((g: any) => (
@@ -197,21 +176,21 @@ const AddExpense = () => {
                   ]}
                   onPress={() => setSelectedGroupId(g.id)}
                 >
-                  <Text
+                  <AppText
                     style={[
                       styles.groupBtnText,
                       selectedGroupId === g.id && styles.groupBtnTextSelected,
                     ]}
                   >
                     {g.name}
-                  </Text>
+                  </AppText>
                 </TouchableOpacity>
               ))}
             </View>
           )}
 
-          <Text style={styles.label}>Description</Text>
-          <TextInput
+          <AppText style={styles.label}>Description</AppText>
+          <AppTextInput
             style={styles.input}
             placeholder="What was this for? (e.g. Dinner)"
             value={description}
@@ -219,8 +198,8 @@ const AddExpense = () => {
             placeholderTextColor="#999"
           />
 
-          <Text style={styles.label}>Amount</Text>
-          <TextInput
+          <AppText style={styles.label}>Amount</AppText>
+          <AppTextInput
             style={styles.input}
             placeholder="0.00"
             value={amount}
@@ -237,30 +216,30 @@ const AddExpense = () => {
             onPress={handleCreate}
             disabled={!selectedGroupId || creating}
           >
-            <Text style={styles.submitBtnText}>
+            <AppText style={styles.submitBtnText}>
               {creating ? 'Saving...' : 'Save Expense'}
-            </Text>
+            </AppText>
           </TouchableOpacity>
         </ScrollView>
       ) : (
         <ScrollView contentContainerStyle={styles.scroll}>
           {/* Summary card */}
           <View style={styles.settleCard}>
-            <Text style={styles.settleCardTitle}>You Owe</Text>
-            <Text style={styles.settleCardAmount}>₹{totalOwe.toFixed(2)}</Text>
+            <AppText style={styles.settleCardTitle}>You Owe</AppText>
+            <AppText style={styles.settleCardAmount}>₹{totalOwe.toFixed(2)}</AppText>
           </View>
 
           {oweList.length === 0 ? (
             <View style={styles.emptyState}>
-              <Text style={styles.emptyIcon}>🎉</Text>
-              <Text style={styles.emptyTitle}>All Settled!</Text>
-              <Text style={styles.emptySubtitle}>
+              <AppText style={styles.emptyIcon}>🎉</AppText>
+              <AppText style={styles.emptyTitle}>All Settled!</AppText>
+              <AppText style={styles.emptySubtitle}>
                 You don't owe anyone right now.
-              </Text>
+              </AppText>
             </View>
           ) : (
             <>
-              <Text style={styles.label}>Select who to pay</Text>
+              <AppText style={styles.label}>Select who to pay</AppText>
               <FlatList
                 data={oweList}
                 keyExtractor={(item: any) => item.userId}
@@ -278,18 +257,18 @@ const AddExpense = () => {
                     }}
                   >
                     <View style={styles.userAvatar}>
-                      <Text style={styles.userAvatarText}>
+                      <AppText style={styles.userAvatarText}>
                         {item.userName?.charAt(0).toUpperCase() || '?'}
-                      </Text>
+                      </AppText>
                     </View>
                     <View style={styles.userInfo}>
-                      <Text style={styles.userName}>{item.userName}</Text>
-                      <Text style={styles.userAmount}>
+                      <AppText style={styles.userName}>{item.userName}</AppText>
+                      <AppText style={styles.userAmount}>
                         ₹{item.amount.toFixed(2)}
-                      </Text>
+                      </AppText>
                     </View>
                     {selectedSettleUserId === item.userId && (
-                      <Text style={styles.checkMark}>✓</Text>
+                      <AppText style={styles.checkMark}>✓</AppText>
                     )}
                   </TouchableOpacity>
                 )}
@@ -297,8 +276,8 @@ const AddExpense = () => {
 
               {selectedSettleUserId ? (
                 <>
-                  <Text style={styles.label}>Amount to Settle</Text>
-                  <TextInput
+                  <AppText style={styles.label}>Amount to Settle</AppText>
+                  <AppTextInput
                     style={styles.input}
                     placeholder="0.00"
                     value={settleAmount}
@@ -307,7 +286,7 @@ const AddExpense = () => {
                     placeholderTextColor="#999"
                   />
 
-                  <Text style={styles.label}>Payment Mode</Text>
+                  <AppText style={styles.label}>Payment Mode</AppText>
                   <View style={styles.paymentModes}>
                     {['upi', 'cash', 'bank', 'card'].map(mode => (
                       <TouchableOpacity
@@ -319,7 +298,7 @@ const AddExpense = () => {
                         ]}
                         onPress={() => setSelectedPaymentMode(mode)}
                       >
-                        <Text
+                        <AppText
                           style={[
                             styles.modeBtnText,
                             selectedPaymentMode === mode &&
@@ -327,7 +306,7 @@ const AddExpense = () => {
                           ]}
                         >
                           {mode.toUpperCase()}
-                        </Text>
+                        </AppText>
                       </TouchableOpacity>
                     ))}
                   </View>
@@ -340,9 +319,9 @@ const AddExpense = () => {
                     onPress={handleSettle}
                     disabled={settling}
                   >
-                    <Text style={styles.settleBtnText}>
+                    <AppText style={styles.settleBtnText}>
                       {settling ? 'Settling...' : '✓ Settle Up'}
-                    </Text>
+                    </AppText>
                   </TouchableOpacity>
                 </>
               ) : null}
@@ -379,7 +358,6 @@ const styles = StyleSheet.create({
   },
   tabText: {
     fontSize: 15,
-    fontWeight: '600',
     color: '#94a3b8',
   },
   tabTextActive: {
@@ -388,7 +366,6 @@ const styles = StyleSheet.create({
   // Form
   label: {
     fontSize: 16,
-    fontWeight: '600',
     color: '#475569',
     marginBottom: 8,
     marginTop: 16,
@@ -409,7 +386,7 @@ const styles = StyleSheet.create({
     borderColor: '#cbd5e1',
   },
   groupBtnSelected: { backgroundColor: '#667eea', borderColor: '#4f46e5' },
-  groupBtnText: { color: '#475569', fontWeight: '600' },
+  groupBtnText: { color: '#475569' },
   groupBtnTextSelected: { color: '#fff' },
   input: {
     borderWidth: 1,
@@ -432,7 +409,7 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   submitBtnDisabled: { backgroundColor: '#94a3b8', shadowOpacity: 0 },
-  submitBtnText: { color: '#fff', fontSize: 18, fontWeight: '700' },
+  submitBtnText: { color: '#fff', fontSize: 15 },
   // Settle tab
   settleCard: {
     backgroundColor: '#fef2f2',

@@ -48,6 +48,8 @@ const Auth = () => {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [otp, setOtp] = useState('');
+  const [isOtpStep, setIsOtpStep] = useState(false);
   const [loading, setLoading] = useState(false);
   const [keyboardVisible, setKeyboardVisible] = useState(false);
 
@@ -69,14 +71,19 @@ const Auth = () => {
   const handleSubmit = async () => {
     const trimmedName = name.trim();
     const trimmedEmail = email.trim().toLowerCase();
+    const trimmedOtp = otp.trim();
 
-    if (!trimmedEmail || !password || (mode === 'signup' && !trimmedName)) {
+    if (mode === 'login' && (!trimmedEmail || !password)) {
       Alert.alert('Error', 'Please fill all required fields');
       return;
     }
 
-    if (mode === 'signup') {
-      // Name: only letters and spaces, min 2 chars
+    if (mode === 'signup' && !isOtpStep) {
+      if (!trimmedEmail || !password || !trimmedName) {
+        Alert.alert('Error', 'Please fill all required fields');
+        return;
+      }
+
       const isValidName =
         trimmedName.length >= 2 &&
         trimmedName
@@ -95,15 +102,25 @@ const Auth = () => {
         return;
       }
 
-      // Email: basic email format
       if (!trimmedEmail.includes('@') || !trimmedEmail.includes('.')) {
         Alert.alert('Invalid Email', 'Please enter a valid email address.');
         return;
       }
 
-      // Password: min 6 chars
       if (password.length < 6) {
         Alert.alert('Weak Password', 'Password must be at least 6 characters.');
+        return;
+      }
+    }
+
+    if (mode === 'signup' && isOtpStep) {
+      if (!trimmedEmail || !trimmedOtp) {
+        Alert.alert('Error', 'Please enter your OTP');
+        return;
+      }
+
+      if (!/^\d{6}$/.test(trimmedOtp)) {
+        Alert.alert('Invalid OTP', 'OTP must be a 6-digit code.');
         return;
       }
     }
@@ -111,10 +128,17 @@ const Auth = () => {
     try {
       setLoading(true);
 
+      if (mode === 'signup' && !isOtpStep) {
+        const result = await authService.signup(trimmedName, trimmedEmail, password);
+        setIsOtpStep(true);
+        Alert.alert('OTP Sent', result.message);
+        return;
+      }
+
       const result =
         mode === 'login'
           ? await authService.login(trimmedEmail, password)
-          : await authService.signup(trimmedName, trimmedEmail, password);
+          : await authService.verifySignupOtp(trimmedEmail, trimmedOtp);
 
       dispatch(
         setAuth({
@@ -132,6 +156,31 @@ const Auth = () => {
     }
   };
 
+  const handleResendOtp = async () => {
+    const trimmedEmail = email.trim().toLowerCase();
+
+    if (!trimmedEmail) {
+      Alert.alert('Error', 'Email is required to resend OTP');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const result = await authService.resendSignupOtp(trimmedEmail);
+      Alert.alert('OTP Resent', result.message);
+    } catch (err: any) {
+      Alert.alert('Resend Failed', err?.message || 'Something went wrong');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const toggleMode = () => {
+    setMode(mode === 'login' ? 'signup' : 'login');
+    setIsOtpStep(false);
+    setOtp('');
+  };
+
   return (
     <KeyboardAvoidingView
       style={styles.root}
@@ -142,7 +191,11 @@ const Auth = () => {
           {/* Title */}
           <View style={styles.title}>
             <AppText style={styles.titleText}>
-              {mode === 'login' ? 'Welcome Back 👋' : 'Create Account ✨'}
+              {mode === 'login'
+                ? 'Welcome Back 👋'
+                : isOtpStep
+                ? 'Verify Email OTP ✉️'
+                : 'Create Account ✨'}
             </AppText>
           </View>
 
@@ -173,7 +226,7 @@ const Auth = () => {
 
           <AppText style={styles.orText}>OR</AppText>
 
-          {mode === 'signup' && (
+          {mode === 'signup' && !isOtpStep && (
             <AppTextInput
               placeholder="Name"
               value={name}
@@ -191,16 +244,35 @@ const Auth = () => {
             placeholderTextColor="#999"
             keyboardType="email-address"
             autoCapitalize="none"
+            editable={mode !== 'signup' || !isOtpStep}
           />
 
-          <AppTextInput
-            placeholder="Password"
-            value={password}
-            onChangeText={setPassword}
-            style={styles.input}
-            placeholderTextColor="#999"
-            secureTextEntry
-          />
+          {mode === 'signup' && isOtpStep ? (
+            <>
+              <AppText style={styles.otpHint}>Enter the 6-digit OTP sent to your email</AppText>
+              <AppTextInput
+                placeholder="OTP"
+                value={otp}
+                onChangeText={setOtp}
+                style={styles.input}
+                placeholderTextColor="#999"
+                keyboardType="number-pad"
+                maxLength={6}
+              />
+              <TouchableOpacity onPress={handleResendOtp} disabled={loading}>
+                <AppText style={styles.resendText}>Resend OTP</AppText>
+              </TouchableOpacity>
+            </>
+          ) : (
+            <AppTextInput
+              placeholder="Password"
+              value={password}
+              onChangeText={setPassword}
+              style={styles.input}
+              placeholderTextColor="#999"
+              secureTextEntry
+            />
+          )}
 
           <TouchableOpacity
             style={[styles.submitBtn, loading && styles.disabledSubmitBtn]}
@@ -212,17 +284,21 @@ const Auth = () => {
                 ? 'Please wait...'
                 : mode === 'login'
                 ? 'Login'
+                : isOtpStep
+                ? 'Verify OTP'
                 : 'Sign Up'}
             </AppText>
           </TouchableOpacity>
 
           <TouchableOpacity
-            onPress={() => setMode(mode === 'login' ? 'signup' : 'login')}
+            onPress={toggleMode}
             disabled={loading}
           >
             <AppText style={styles.toggleText}>
               {mode === 'login'
                 ? 'Don’t have an account? Sign up'
+                : isOtpStep
+                ? 'Back to Login'
                 : 'Already have an account? Login'}
             </AppText>
           </TouchableOpacity>
@@ -331,6 +407,17 @@ const styles = StyleSheet.create({
     marginTop: 16,
     textAlign: 'center',
     color: '#4f46e5',
+  },
+  otpHint: {
+    marginBottom: 8,
+    color: '#555',
+    fontSize: 12,
+  },
+  resendText: {
+    color: '#4f46e5',
+    textAlign: 'right',
+    marginBottom: 4,
+    fontSize: 12,
   },
   bottomLogoContainer: {
     position: 'absolute',

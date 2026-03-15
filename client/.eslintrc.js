@@ -8,4 +8,7 @@ module.exports = {
       extends: ['plugin:testing-library/react'],
     },
   ],
+  parserOptions: {
+    requireConfigFile: false,
+  },
 };

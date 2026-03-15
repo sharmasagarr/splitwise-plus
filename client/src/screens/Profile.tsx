@@ -1,21 +1,30 @@
 import React from 'react';
 import {
   View,
-  Text,
   Image,
   StyleSheet,
   TouchableOpacity,
   ScrollView,
   ActivityIndicator,
   Alert,
+  Platform,
 } from 'react-native';
-import { useState } from 'react';
-import { useMutation, useQuery } from '@apollo/client/react';
+import AppText from '../components/AppText';
+import { useState, useCallback } from 'react';
 import { useAppSelector, useAppDispatch } from '../store/hooks';
 import { logoutUser, setUser } from '../store/authSlice';
-import { UPDATE_PROFILE } from '../graphql/mutations';
-import { GET_GROUPS, GET_MY_BALANCES } from '../graphql/queries';
+import {
+  useUpdateProfile,
+  useGetGroupsForProfile,
+  useGetBalancesForProfile,
+  uploadProfilePicture,
+} from '../services';
 import AppTextInput from '../components/AppTextInput';
+import { launchImageLibrary } from 'react-native-image-picker';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { API_URL } from '../apollo/client';
+import ReactNativeBlobUtil from 'react-native-blob-util';
+import { useImagePickerWithCrop } from '../components/ImagePickerModal';
 import type { User } from '../types/graphql';
 
 const Profile: React.FC = () => {
@@ -26,16 +35,12 @@ const Profile: React.FC = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState(user?.name || '');
   const [editPhone, setEditPhone] = useState(user?.phone || '');
-  const [editImageUrl, setEditImageUrl] = useState(user?.imageUrl || '');
-  const [updateProfile, { loading: updating }] =
-    useMutation<any>(UPDATE_PROFILE);
+  const [editUpiId, setEditUpiId] = useState(user?.upiId || '');
+  const [uploadingPicture, setUploadingPicture] = useState(false);
+  const [updateProfile, { loading: updating }] = useUpdateProfile();
 
-  const { data: groupsData } = useQuery<any>(GET_GROUPS, {
-    fetchPolicy: 'cache-and-network',
-  });
-  const { data: balancesData } = useQuery<any>(GET_MY_BALANCES, {
-    fetchPolicy: 'cache-and-network',
-  });
+  const { data: groupsData } = useGetGroupsForProfile();
+  const { data: balancesData } = useGetBalancesForProfile();
 
   const groups = groupsData?.getGroups || [];
   const totalOwe = balancesData?.getMyBalances?.totalOwe || 0;
@@ -56,7 +61,7 @@ const Profile: React.FC = () => {
         variables: {
           name: editName.trim(),
           phone: editPhone.trim(),
-          imageUrl: editImageUrl.trim(),
+          upiId: editUpiId.trim() || null,
         },
       });
       if (data?.updateProfile) {
@@ -68,6 +73,147 @@ const Profile: React.FC = () => {
       Alert.alert('Error', error.message || 'Failed to update profile');
     }
   };
+
+  const handleUploadProfilePictureDirect = useCallback(
+    async (imageUri: string) => {
+      try {
+        setUploadingPicture(true);
+
+        console.log('🚀 Starting profile picture upload');
+
+        const json = await uploadProfilePicture(imageUri);
+
+        console.log('✅ Upload successful:', json);
+
+        if (json.user) {
+          dispatch(setUser(json.user));
+        }
+
+        Alert.alert('Success', 'Profile picture updated successfully!');
+      } catch (error: any) {
+        console.error('❌ Upload error:', error.message);
+        Alert.alert('Upload Error', error.message || 'Failed to upload profile picture');
+      } finally {
+        setUploadingPicture(false);
+      }
+    },
+    [dispatch]
+  );
+
+  const {
+    handlePickImage: openProfileImagePicker,
+    previewVisible,
+    croppedImage,
+    handleConfirmImage,
+    handleClosePreview,
+    ImagePreviewModal: ProfileImagePreviewModal,
+  } = useImagePickerWithCrop({
+    onImageSelected: handleUploadProfilePictureDirect,
+    cropShape: 'circle',
+  });
+
+  const handleUploadProfilePicture = useCallback(async () => {
+    try {
+      const result = await launchImageLibrary({
+        mediaType: 'photo',
+        quality: 0.8,
+        selectionLimit: 1,
+      });
+
+      if (result.didCancel || !result.assets || result.assets.length === 0) {
+        return;
+      }
+
+      const asset = result.assets[0];
+      if (!asset.uri) {
+        return;
+      }
+
+      setUploadingPicture(true);
+
+      const token = await AsyncStorage.getItem('token');
+      if (!token) {
+        Alert.alert('Error', 'You need to be logged in');
+        setUploadingPicture(false);
+        return;
+      }
+
+      // Validate file size (5MB limit)
+      if (asset.fileSize && asset.fileSize > 5 * 1024 * 1024) {
+        Alert.alert('Error', 'Image size must be less than 5MB');
+        setUploadingPicture(false);
+        return;
+      }
+
+      const fileUri = Platform.OS === 'android' 
+        ? asset.uri 
+        : asset.uri?.replace('file://', '');
+      
+      const fileName = asset.fileName || `profile_${Date.now()}.jpg`;
+      const fileType = asset.type || 'image/jpeg';
+
+      console.log('🚀 Starting profile picture upload:', {
+        fileName,
+        fileSize: asset.fileSize,
+        fileType,
+        apiUrl: `${API_URL}/api/upload/profile-picture`,
+      });
+
+      const uploadUrl = `${API_URL}/api/upload/profile-picture`;
+
+      const uploadResponse = await ReactNativeBlobUtil.fetch(
+        'POST',
+        uploadUrl,
+        {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json',
+          'Content-Type': 'multipart/form-data',
+        },
+        [
+          {
+            name: 'file',
+            filename: fileName,
+            type: fileType,
+            data: ReactNativeBlobUtil.wrap(fileUri.replace('file://', '')),
+          },
+        ]
+      );
+
+      const statusCode = uploadResponse.info().status;
+      const rawText = await Promise.resolve(uploadResponse.text());
+      const responseText =
+        typeof rawText === 'string' ? rawText : JSON.stringify(rawText ?? '');
+
+      console.log('📡 Response received:', { status: statusCode });
+
+      let json: any;
+      try {
+        json = await Promise.resolve(uploadResponse.json());
+      } catch (parseError) {
+        console.error('❌ JSON parse error:', parseError);
+        throw new Error(`Invalid server response: ${responseText.substring(0, 100)}`);
+      }
+
+      if (statusCode < 200 || statusCode >= 300) {
+        console.error('❌ Upload failed:', json);
+        throw new Error(json.error || `Upload failed: HTTP ${statusCode}`);
+      }
+
+      console.log('✅ Upload successful:', json);
+      
+      // Update the user in Redux with new image URL
+      if (json.user) {
+        dispatch(setUser(json.user));
+      }
+      
+      Alert.alert('Success', 'Profile picture updated successfully!');
+    } catch (error: any) {
+      console.error('❌ Upload error:', error.message);
+      Alert.alert('Upload Error', error.message || 'Failed to upload profile picture');
+    } finally {
+      setUploadingPicture(false);
+    }
+  }, [dispatch]);
 
   const handleLogout = () => {
     Alert.alert('Logout', 'Are you sure you want to logout?', [
@@ -161,7 +307,7 @@ const Profile: React.FC = () => {
       <View style={styles.center}>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#667eea" />
-          <Text style={styles.loadingText}>Loading profile...</Text>
+          <AppText style={styles.loadingText}>Loading profile...</AppText>
         </View>
       </View>
     );
@@ -172,8 +318,9 @@ const Profile: React.FC = () => {
   const memberSince = getMemberSince(user);
 
   return (
-    <View style={styles.container}>
-      <ScrollView
+    <>
+      <View style={styles.container}>
+        <ScrollView
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
       >
@@ -181,8 +328,12 @@ const Profile: React.FC = () => {
           {/* Cover Section */}
           <View style={styles.coverImage} />
 
-          {/* Profile Image with Fallback */}
-          <View style={styles.profileImageContainer}>
+          {/* Profile Image with Fallback + Edit Button */}
+          <TouchableOpacity 
+            style={styles.profileImageContainer}
+            onPress={openProfileImagePicker}
+            activeOpacity={0.7}
+          >
             {user.imageUrl ? (
               <Image
                 source={{ uri: user.imageUrl }}
@@ -196,10 +347,16 @@ const Profile: React.FC = () => {
                   { backgroundColor: avatarColor },
                 ]}
               >
-                <Text style={styles.avatarText}>{initials}</Text>
+                <AppText style={styles.avatarText}>{initials}</AppText>
               </View>
             )}
-          </View>
+            {/* Pencil Icon Overlay - Only show in edit mode */}
+            {isEditing && (
+              <View style={styles.editIconOverlay}>
+                <AppText style={styles.editIcon}>✏️</AppText>
+              </View>
+            )}
+          </TouchableOpacity>
 
           {/* Profile Content */}
           <View style={styles.content}>
@@ -218,9 +375,9 @@ const Profile: React.FC = () => {
                   style={styles.input}
                 />
                 <AppTextInput
-                  placeholder="Profile Picture URL"
-                  value={editImageUrl}
-                  onChangeText={setEditImageUrl}
+                  placeholder="UPI ID (e.g. name@upi)"
+                  value={editUpiId}
+                  onChangeText={setEditUpiId}
                   style={styles.input}
                 />
                 <View style={styles.actionButtons}>
@@ -229,9 +386,9 @@ const Profile: React.FC = () => {
                     onPress={handleSaveProfile}
                     disabled={updating}
                   >
-                    <Text style={styles.primaryButtonText}>
+                    <AppText style={styles.primaryButtonText}>
                       {updating ? 'Saving...' : 'Save'}
-                    </Text>
+                    </AppText>
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={styles.secondaryButton}
@@ -239,88 +396,97 @@ const Profile: React.FC = () => {
                       setIsEditing(false);
                       setEditName(user?.name || '');
                       setEditPhone(user?.phone || '');
-                      setEditImageUrl(user?.imageUrl || '');
+                      setEditUpiId(user?.upiId || '');
                     }}
                   >
-                    <Text style={styles.secondaryButtonText}>Cancel</Text>
+                    <AppText style={styles.secondaryButtonText}>Cancel</AppText>
                   </TouchableOpacity>
                 </View>
               </View>
             ) : (
               <>
-                <Text style={styles.name}>{user.name}</Text>
-                <Text style={styles.title}>Splitwise+ User</Text>
-                <Text style={styles.bio}>
+                <AppText style={styles.name}>{user.name}</AppText>
+                <AppText style={styles.title}>Splitwise+ User</AppText>
+                <AppText style={styles.bio}>
                   Managing expenses smartly with friends and family. Making
                   every split fair and transparent.
-                </Text>
+                </AppText>
                 <TouchableOpacity
                   onPress={() => setIsEditing(true)}
                   style={styles.editButton}
                 >
-                  <Text style={styles.editButtonText}>Edit Profile</Text>
+                  <AppText style={styles.editButtonText}>Edit Profile</AppText>
                 </TouchableOpacity>
               </>
             )}
 
             <View style={styles.statsContainer}>
               <View style={styles.statItem}>
-                <Text style={styles.statNumber}>{groups.length}</Text>
-                <Text style={styles.statLabel}>Groups</Text>
+                <AppText style={styles.statNumber}>{groups.length}</AppText>
+                <AppText style={styles.statLabel}>Groups</AppText>
               </View>
               <View style={styles.statDivider} />
               <View style={styles.statItem}>
-                <Text style={[styles.statNumber, styles.oweAmount]}>
+                <AppText style={[styles.statNumber, styles.oweAmount]}>
                   {`₹${totalOwe.toFixed(0)}`}
-                </Text>
-                <Text style={styles.statLabel}>You Owe</Text>
+                </AppText>
+                <AppText style={styles.statLabel}>You Owe</AppText>
               </View>
               <View style={styles.statDivider} />
               <View style={styles.statItem}>
-                <Text style={[styles.statNumber, styles.owedAmount]}>
+                <AppText style={[styles.statNumber, styles.owedAmount]}>
                   {`₹${totalOwed.toFixed(0)}`}
-                </Text>
-                <Text style={styles.statLabel}>Owed to You</Text>
+                </AppText>
+                <AppText style={styles.statLabel}>Owed to You</AppText>
               </View>
             </View>
 
             {/* Info Section */}
             <View style={styles.infoSection}>
               <View style={styles.infoItem}>
-                <Text style={styles.infoLabel}>📧 Email</Text>
-                <Text style={styles.infoValue}>{user.email}</Text>
+                <AppText style={styles.infoLabel}>📧 Email</AppText>
+                <AppText style={styles.infoValue}>{user.email}</AppText>
               </View>
 
               {user.phone && (
                 <View style={styles.infoItem}>
-                  <Text style={styles.infoLabel}>📱 Phone</Text>
-                  <Text style={styles.infoValue}>{user.phone}</Text>
+                  <AppText style={styles.infoLabel}>📱 Phone</AppText>
+                  <AppText style={styles.infoValue}>{user.phone}</AppText>
                 </View>
               )}
 
               <View style={styles.infoItem}>
-                <Text style={styles.infoLabel}>📅 Member Since</Text>
-                <Text style={styles.infoValue}>{memberSince}</Text>
+                <AppText style={styles.infoLabel}>📅 Member Since</AppText>
+                <AppText style={styles.infoValue}>{memberSince}</AppText>
               </View>
+
+              {user.upiId && (
+                <View style={styles.infoItem}>
+                  <AppText style={styles.infoLabel}>💳 UPI ID</AppText>
+                  <AppText style={styles.infoValue}>{user.upiId}</AppText>
+                </View>
+              )}
             </View>
             <TouchableOpacity
               onPress={handleLogout}
               style={styles.logoutButton}
             >
-              <Text style={styles.logoutText}>Logout</Text>
+              <AppText style={styles.logoutText}>Logout</AppText>
             </TouchableOpacity>
           </View>
         </View>
 
         {/* Footer */}
         <View style={styles.footer}>
-          <Text style={styles.footerText}>Splitwise+ v1.0.0</Text>
-          <Text style={styles.footerSubtext}>
+          <AppText style={styles.footerText}>Splitwise+ v1.0.0</AppText>
+          <AppText style={styles.footerSubtext}>
             © {new Date().getFullYear()} All rights reserved
-          </Text>
+          </AppText>
         </View>
       </ScrollView>
+      {ProfileImagePreviewModal}
     </View>
+    </>
   );
 };
 
@@ -385,6 +551,31 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     elevation: 8,
     backgroundColor: '#ffffff',
+    position: 'relative',
+  },
+  editIconOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#667eea',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 3,
+    borderColor: '#ffffff',
+    shadowColor: '#667eea',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 6,
+  },
+  editIcon: {
+    fontSize: 20,
   },
   profileImage: {
     width: 120,
@@ -673,6 +864,33 @@ const styles = StyleSheet.create({
     color: '#64748b',
     textAlign: 'center',
     lineHeight: 20,
+  },
+  uploadPictureBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#667eea',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 12,
+    marginBottom: 12,
+    gap: 8,
+    shadowColor: '#667eea',
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  uploadPictureBtnDisabled: {
+    backgroundColor: '#94a3b8',
+    shadowOpacity: 0,
+  },
+  uploadPictureBtnIcon: {
+    fontSize: 16,
+  },
+  uploadPictureBtnText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '700',
   },
 });
 

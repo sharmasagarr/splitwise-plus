@@ -1,31 +1,34 @@
 import React, { useState } from 'react';
 import {
   StyleSheet,
-  Text,
   View,
   FlatList,
   TouchableOpacity,
   ActivityIndicator,
   Alert,
   Modal,
-  TextInput,
 } from 'react-native';
-import { useQuery, useMutation } from '@apollo/client/react';
+import AppText from '../components/AppText';
+import AppTextInput from '../components/AppTextInput';
 import {
-  GET_GROUP_DETAILS,
-  GET_GROUP_EXPENSES,
-  GET_MY_BALANCES,
-  INVITE_TO_GROUP,
-  SETTLE_EXPENSE,
-  GET_RECENT_ACTIVITIES,
-} from '../graphql';
+  useGetGroupDetails,
+  useGetGroupExpenses,
+  useInviteToGroup,
+  useSettleExpense,
+} from '../services';
+import { GET_GROUP_EXPENSES } from '../graphql';
 import { useAppSelector } from '../store/hooks';
+import {
+  openUpiPayment,
+  confirmUpiPayment,
+  promptForUpiId,
+} from '../utils/upiHelper';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigations/RootStack';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'GroupDetail'>;
 
-const GroupDetail: React.FC<Props> = ({ route }) => {
+const GroupDetail: React.FC<Props> = ({ route, navigation }) => {
   const { groupId } = route.params;
   const { user } = useAppSelector(state => state.auth);
 
@@ -33,13 +36,13 @@ const GroupDetail: React.FC<Props> = ({ route }) => {
     data: groupData,
     loading: loadingGroup,
     refetch: refetchGroup,
-  } = useQuery<any>(GET_GROUP_DETAILS, { variables: { id: groupId } });
+  } = useGetGroupDetails(groupId);
 
   const {
     data: expensesData,
     loading: loadingExpenses,
     refetch: refetchExpenses,
-  } = useQuery<any>(GET_GROUP_EXPENSES, { variables: { groupId } });
+  } = useGetGroupExpenses(groupId);
 
   const [inviteModalVisible, setInviteModalVisible] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
@@ -49,40 +52,32 @@ const GroupDetail: React.FC<Props> = ({ route }) => {
   const [settleUserName, setSettleUserName] = useState('');
   const [selectedPaymentMode, setSelectedPaymentMode] = useState('upi');
 
-  const [inviteToGroup, { loading: inviting }] = useMutation<any>(
-    INVITE_TO_GROUP,
-    {
-      onCompleted: () => {
-        setInviteModalVisible(false);
-        setInviteEmail('');
-        Alert.alert('Success', 'Invitation sent!');
-      },
-      onError: (err: any) => {
-        Alert.alert('Error', err.message);
-      },
+  const [inviteToGroup, { loading: inviting }] = useInviteToGroup({
+    onCompleted: () => {
+      setInviteModalVisible(false);
+      setInviteEmail('');
+      Alert.alert('Success', 'Invitation sent!');
     },
-  );
+    onError: (err: any) => {
+      Alert.alert('Error', err.message);
+    },
+  });
 
-  const [settleExpense, { loading: settling }] = useMutation<any>(
-    SETTLE_EXPENSE,
-    {
-      refetchQueries: [
-        { query: GET_MY_BALANCES },
-        { query: GET_RECENT_ACTIVITIES },
-        { query: GET_GROUP_EXPENSES, variables: { groupId } },
-      ],
-      onCompleted: () => {
-        setSettleModalVisible(false);
-        setSettleAmount('');
-        setSettleUserId('');
-        Alert.alert('Success', 'Settlement recorded!');
-        refetchExpenses();
-      },
-      onError: (err: any) => {
-        Alert.alert('Error', err.message);
-      },
+  const [settleExpense, { loading: settling }] = useSettleExpense({
+    refetchQueries: [
+      { query: GET_GROUP_EXPENSES, variables: { groupId } },
+    ],
+    onCompleted: () => {
+      setSettleModalVisible(false);
+      setSettleAmount('');
+      setSettleUserId('');
+      Alert.alert('Success', 'Settlement recorded!');
+      refetchExpenses();
     },
-  );
+    onError: (err: any) => {
+      Alert.alert('Error', err.message);
+    },
+  });
 
   const handleInvite = () => {
     if (!inviteEmail.trim()) {
@@ -92,19 +87,63 @@ const GroupDetail: React.FC<Props> = ({ route }) => {
     inviteToGroup({ variables: { groupId, email: inviteEmail.trim() } });
   };
 
-  const handleSettle = () => {
+  const handleSettle = async () => {
     const numericAmount = parseFloat(settleAmount);
     if (isNaN(numericAmount) || numericAmount <= 0) {
       Alert.alert('Error', 'Amount must be greater than zero');
       return;
     }
-    settleExpense({
-      variables: {
-        toUserId: settleUserId,
-        amount: numericAmount,
-        paymentMode: selectedPaymentMode,
-      },
-    });
+
+    if (selectedPaymentMode === 'upi') {
+      // Find payee's UPI ID from group members
+      const payeeMember = group?.members?.find(
+        (m: any) => m.user.id === settleUserId,
+      );
+      let payeeUpiId = payeeMember?.user?.upiId;
+
+      if (!payeeUpiId) {
+        // Prompt user to enter UPI ID
+        const enteredId = await promptForUpiId();
+        if (!enteredId) return;
+        payeeUpiId = enteredId;
+      }
+
+      const payeeName = payeeMember?.user?.name || 'User';
+
+      // Open UPI app
+      const opened = await openUpiPayment(
+        payeeUpiId,
+        payeeName,
+        numericAmount,
+        `Splitwise+ settlement to ${payeeName}`,
+      );
+      if (!opened) return;
+
+      // Wait a moment for the app switch, then show confirmation
+      setTimeout(async () => {
+        const confirmed = await confirmUpiPayment();
+        if (confirmed) {
+          settleExpense({
+            variables: {
+              toUserId: settleUserId,
+              amount: numericAmount,
+              paymentMode: selectedPaymentMode,
+              groupId,
+            },
+          });
+        }
+      }, 1000);
+    } else {
+      // Non-UPI: direct settle
+      settleExpense({
+        variables: {
+          toUserId: settleUserId,
+          amount: numericAmount,
+          paymentMode: selectedPaymentMode,
+          groupId,
+        },
+      });
+    }
   };
 
   const openSettleForUser = (memberId: string, memberName: string) => {
@@ -130,7 +169,7 @@ const GroupDetail: React.FC<Props> = ({ route }) => {
   if (!group) {
     return (
       <View style={styles.center}>
-        <Text style={styles.errorText}>Group not found</Text>
+        <AppText style={styles.errorText}>Group not found</AppText>
       </View>
     );
   }
@@ -176,25 +215,25 @@ const GroupDetail: React.FC<Props> = ({ route }) => {
         }}
       >
         <View style={styles.memberAvatar}>
-          <Text style={styles.memberAvatarText}>
+          <AppText style={styles.memberAvatarText}>
             {item.user.name.charAt(0).toUpperCase()}
-          </Text>
+          </AppText>
         </View>
         <View style={styles.memberInfo}>
-          <Text style={styles.memberName}>
+          <AppText style={styles.memberName}>
             {item.user.name}
             {isMe ? ' (You)' : ''}
-          </Text>
-          <Text style={styles.memberEmail}>{item.user.email}</Text>
+          </AppText>
+          <AppText style={styles.memberEmail}>{item.user.email}</AppText>
         </View>
         {!isMe && net !== 0 && (
           <View style={styles.balanceBadge}>
             {net > 0 ? (
-              <Text style={styles.balanceOwes}>owes ₹{net.toFixed(0)}</Text>
+              <AppText style={styles.balanceOwes}>owes ₹{net.toFixed(0)}</AppText>
             ) : (
-              <Text style={styles.balanceOwed}>
+              <AppText style={styles.balanceOwed}>
                 you owe ₹{Math.abs(net).toFixed(0)}
-              </Text>
+              </AppText>
             )}
           </View>
         )}
@@ -203,44 +242,52 @@ const GroupDetail: React.FC<Props> = ({ route }) => {
   };
 
   const renderExpense = ({ item }: any) => (
-    <View style={styles.expenseCard}>
+    <TouchableOpacity
+      style={styles.expenseCard}
+      onPress={() =>
+        navigation.navigate('ExpenseDetail', { expenseId: item.id })
+      }
+    >
       <View style={styles.expenseInfo}>
-        <Text style={styles.expenseDesc}>{item.note || 'Expense'}</Text>
-        <Text style={styles.expenseBy}>
+        <AppText style={styles.expenseDesc}>{item.note || 'Expense'}</AppText>
+        <AppText style={styles.expenseBy}>
           by {item.createdBy?.name || 'Unknown'}
-        </Text>
+        </AppText>
       </View>
-      <Text style={styles.expenseAmount}>
-        ₹{parseFloat(item.totalAmount).toFixed(2)}
-      </Text>
-    </View>
+      <View style={styles.expenseRight}>
+        <AppText style={styles.expenseAmount}>
+          ₹{parseFloat(item.totalAmount).toFixed(2)}
+        </AppText>
+        <AppText style={styles.expenseChevron}>›</AppText>
+      </View>
+    </TouchableOpacity>
   );
 
-  const ListHeader = () => (
+  const listHeader = (
     <View>
       {/* Group Info */}
       <View style={styles.groupHeader}>
         <View style={styles.groupIcon}>
-          <Text style={styles.groupIconText}>
+          <AppText style={styles.groupIconText}>
             {group.name?.charAt(0).toUpperCase()}
-          </Text>
+          </AppText>
         </View>
-        <Text style={styles.groupName}>{group.name}</Text>
+        <AppText style={styles.groupName}>{group.name}</AppText>
         {group.description && (
-          <Text style={styles.groupDescription}>{group.description}</Text>
+          <AppText style={styles.groupDescription}>{group.description}</AppText>
         )}
       </View>
 
       {/* Members Section */}
       <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>
+        <AppText style={styles.sectionTitle}>
           Members ({group.members.length})
-        </Text>
+        </AppText>
         <TouchableOpacity
           style={styles.inviteBtn}
           onPress={() => setInviteModalVisible(true)}
         >
-          <Text style={styles.inviteBtnText}>+ Invite</Text>
+          <AppText style={styles.inviteBtnText}>+ Invite</AppText>
         </TouchableOpacity>
       </View>
 
@@ -254,7 +301,7 @@ const GroupDetail: React.FC<Props> = ({ route }) => {
 
       {/* Expenses Section */}
       <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Expenses ({expenses.length})</Text>
+        <AppText style={styles.sectionTitle}>Expenses ({expenses.length})</AppText>
       </View>
 
       {loadingExpenses && (
@@ -267,7 +314,7 @@ const GroupDetail: React.FC<Props> = ({ route }) => {
 
       {!loadingExpenses && expenses.length === 0 && (
         <View style={styles.emptyExpenses}>
-          <Text style={styles.emptyText}>No expenses yet</Text>
+          <AppText style={styles.emptyText}>No expenses yet</AppText>
         </View>
       )}
     </View>
@@ -279,7 +326,7 @@ const GroupDetail: React.FC<Props> = ({ route }) => {
         data={expenses}
         keyExtractor={(item: any) => item.id}
         renderItem={renderExpense}
-        ListHeaderComponent={ListHeader}
+        ListHeaderComponent={<>{listHeader}</>}
         refreshing={loadingGroup}
         onRefresh={() => {
           refetchGroup();
@@ -292,8 +339,8 @@ const GroupDetail: React.FC<Props> = ({ route }) => {
       <Modal visible={inviteModalVisible} animationType="fade" transparent>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Invite Member</Text>
-            <TextInput
+            <AppText style={styles.modalTitle}>Invite Member</AppText>
+            <AppTextInput
               style={styles.modalInput}
               placeholder="Enter email address"
               value={inviteEmail}
@@ -308,16 +355,16 @@ const GroupDetail: React.FC<Props> = ({ route }) => {
                 onPress={() => setInviteModalVisible(false)}
                 disabled={inviting}
               >
-                <Text style={styles.modalBtnCancelText}>Cancel</Text>
+                <AppText style={styles.modalBtnCancelText}>Cancel</AppText>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.modalBtn, styles.modalBtnSend]}
                 onPress={handleInvite}
                 disabled={inviting}
               >
-                <Text style={styles.modalBtnSendText}>
+                <AppText style={styles.modalBtnSendText}>
                   {inviting ? 'Sending...' : 'Send Invite'}
-                </Text>
+                </AppText>
               </TouchableOpacity>
             </View>
           </View>
@@ -328,12 +375,12 @@ const GroupDetail: React.FC<Props> = ({ route }) => {
       <Modal visible={settleModalVisible} animationType="fade" transparent>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>
+            <AppText style={styles.modalTitle}>
               💰 Settle with {settleUserName}
-            </Text>
+            </AppText>
 
-            <Text style={styles.settleLabel}>Amount</Text>
-            <TextInput
+            <AppText style={styles.settleLabel}>Amount</AppText>
+            <AppTextInput
               style={styles.modalInput}
               placeholder="0.00"
               value={settleAmount}
@@ -342,7 +389,7 @@ const GroupDetail: React.FC<Props> = ({ route }) => {
               placeholderTextColor="#94a3b8"
             />
 
-            <Text style={styles.settleLabel}>Payment Mode</Text>
+            <AppText style={styles.settleLabel}>Payment Mode</AppText>
             <View style={styles.paymentModes}>
               {['upi', 'cash', 'bank', 'card'].map(mode => (
                 <TouchableOpacity
@@ -353,7 +400,7 @@ const GroupDetail: React.FC<Props> = ({ route }) => {
                   ]}
                   onPress={() => setSelectedPaymentMode(mode)}
                 >
-                  <Text
+                  <AppText
                     style={[
                       styles.modeBtnText,
                       selectedPaymentMode === mode &&
@@ -361,7 +408,7 @@ const GroupDetail: React.FC<Props> = ({ route }) => {
                     ]}
                   >
                     {mode.toUpperCase()}
-                  </Text>
+                  </AppText>
                 </TouchableOpacity>
               ))}
             </View>
@@ -372,16 +419,16 @@ const GroupDetail: React.FC<Props> = ({ route }) => {
                 onPress={() => setSettleModalVisible(false)}
                 disabled={settling}
               >
-                <Text style={styles.modalBtnCancelText}>Cancel</Text>
+                <AppText style={styles.modalBtnCancelText}>Cancel</AppText>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.modalBtn, styles.modalBtnSend]}
                 onPress={handleSettle}
                 disabled={settling}
               >
-                <Text style={styles.modalBtnSendText}>
+                <AppText style={styles.modalBtnSendText}>
                   {settling ? 'Settling...' : 'Settle'}
-                </Text>
+                </AppText>
               </TouchableOpacity>
             </View>
           </View>
@@ -502,6 +549,16 @@ const styles = StyleSheet.create({
   expenseDesc: { fontSize: 15, fontWeight: '600', color: '#1e293b' },
   expenseBy: { fontSize: 12, color: '#64748b', marginTop: 4 },
   expenseAmount: { fontSize: 17, fontWeight: '700', color: '#10b981' },
+  expenseRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  expenseChevron: {
+    fontSize: 20,
+    color: '#94a3b8',
+    fontWeight: '600',
+  },
   expenseLoader: { padding: 20 },
   emptyExpenses: { padding: 20, alignItems: 'center' },
   emptyText: { fontSize: 14, color: '#94a3b8', fontStyle: 'italic' },

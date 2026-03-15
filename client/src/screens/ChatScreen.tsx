@@ -1,24 +1,23 @@
 import React, { useState, useRef, useEffect } from 'react';
 import {
   StyleSheet,
-  Text,
   View,
   FlatList,
-  TextInput,
   TouchableOpacity,
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   Modal,
 } from 'react-native';
-import { useQuery, useMutation } from '@apollo/client/react';
+import AppText from '../components/AppText';
+import AppTextInput from '../components/AppTextInput';
 import {
-  GET_MESSAGES,
-  GET_CONVERSATIONS,
-  SEND_MESSAGE,
-  ADD_REACTION,
-  REMOVE_REACTION,
-} from '../graphql';
+  useGetMessages,
+  useGetConversations,
+  useSendMessage,
+  useAddReaction,
+  useRemoveReaction,
+} from '../services';
 import { useAppSelector } from '../store/hooks';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigations/RootStack';
@@ -57,16 +56,13 @@ const ChatScreen: React.FC<Props> = ({ route, navigation }) => {
     navigation.setOptions({ headerTitle: title });
   }, [navigation, title]);
 
-  const { data, loading, refetch, fetchMore } = useQuery<any>(GET_MESSAGES, {
-    variables: { conversationId, limit: 50 },
-    fetchPolicy: 'cache-and-network',
-    pollInterval: 3000,
-  });
+  const { data, loading, refetch, fetchMore } = useGetMessages(
+    conversationId,
+    { limit: 50, pollInterval: 3000 },
+  );
 
   // Get conversation details for participants (used for group payment reminders)
-  const { data: convData } = useQuery<any>(GET_CONVERSATIONS, {
-    fetchPolicy: 'cache-first',
-  });
+  const { data: convData } = useGetConversations({ fetchPolicy: 'cache-first' });
 
   const currentConversation = convData?.getConversations?.find(
     (c: any) => c.id === conversationId,
@@ -76,7 +72,7 @@ const ChatScreen: React.FC<Props> = ({ route, navigation }) => {
       (p: any) => p.userId !== user?.id,
     ) || [];
 
-  const [sendMessage] = useMutation<any>(SEND_MESSAGE, {
+  const [sendMessage] = useSendMessage({
     onCompleted: () => {
       refetch();
       setTimeout(
@@ -86,11 +82,11 @@ const ChatScreen: React.FC<Props> = ({ route, navigation }) => {
     },
   });
 
-  const [addReaction] = useMutation<any>(ADD_REACTION, {
+  const [addReaction] = useAddReaction({
     onCompleted: () => refetch(),
   });
 
-  const [removeReaction] = useMutation<any>(REMOVE_REACTION, {
+  const [removeReaction] = useRemoveReaction({
     onCompleted: () => refetch(),
   });
 
@@ -217,17 +213,17 @@ const ChatScreen: React.FC<Props> = ({ route, navigation }) => {
       return (
         <View style={styles.reminderContainer}>
           <View style={styles.reminderCard}>
-            <Text style={styles.reminderIcon}>💰</Text>
+            <AppText style={styles.reminderIcon}>💰</AppText>
             <View style={styles.reminderContent}>
-              <Text style={styles.reminderTitle}>Payment Reminder</Text>
-              <Text style={styles.reminderBody}>
+              <AppText style={styles.reminderTitle}>Payment Reminder</AppText>
+              <AppText style={styles.reminderBody}>
                 {isMe ? 'You sent' : item.sender?.name + ' sent'} a payment
                 reminder
-              </Text>
+              </AppText>
             </View>
-            <Text style={styles.reminderTime}>
+            <AppText style={styles.reminderTime}>
               {formatTime(item.createdAt)}
-            </Text>
+            </AppText>
           </View>
         </View>
       );
@@ -242,29 +238,29 @@ const ChatScreen: React.FC<Props> = ({ route, navigation }) => {
           isMe ? styles.bubbleWrapperRight : styles.bubbleWrapperLeft,
         ]}
       >
-        {!isMe && <Text style={styles.senderName}>{item.sender?.name}</Text>}
+        {!isMe && <AppText style={styles.senderName}>{item.sender?.name}</AppText>}
         <View
           style={[
             styles.bubble,
             isMe ? styles.bubbleSent : styles.bubbleReceived,
           ]}
         >
-          <Text
+          <AppText
             style={[
               styles.bubbleText,
               isMe ? styles.bubbleTextSent : styles.bubbleTextReceived,
             ]}
           >
             {item.body}
-          </Text>
-          <Text
+          </AppText>
+          <AppText
             style={[
               styles.bubbleTime,
               isMe ? styles.bubbleTimeSent : styles.bubbleTimeReceived,
             ]}
           >
             {formatTime(item.createdAt)}
-          </Text>
+          </AppText>
         </View>
 
         {item.reactions && item.reactions.length > 0 && (
@@ -275,9 +271,9 @@ const ChatScreen: React.FC<Props> = ({ route, navigation }) => {
                 style={styles.reactionBadge}
                 onPress={() => handleReaction(item.id, r.reaction)}
               >
-                <Text style={styles.reactionText}>
+                <AppText style={styles.reactionText}>
                   {r.reaction} {r.count > 1 ? r.count : ''}
-                </Text>
+                </AppText>
               </TouchableOpacity>
             ))}
           </View>
@@ -291,7 +287,7 @@ const ChatScreen: React.FC<Props> = ({ route, navigation }) => {
                 onPress={() => handleReaction(item.id, emoji)}
                 style={styles.quickReactionBtn}
               >
-                <Text style={styles.quickReactionText}>{emoji}</Text>
+                <AppText style={styles.quickReactionText}>{emoji}</AppText>
               </TouchableOpacity>
             ))}
           </View>
@@ -327,7 +323,7 @@ const ChatScreen: React.FC<Props> = ({ route, navigation }) => {
               style={styles.loadMoreBtn}
               onPress={handleLoadEarlier}
             >
-              <Text style={styles.loadMoreText}>Load earlier messages</Text>
+              <AppText style={styles.loadMoreText}>Load earlier messages</AppText>
             </TouchableOpacity>
           ) : null
         }
@@ -342,7 +338,7 @@ const ChatScreen: React.FC<Props> = ({ route, navigation }) => {
               onPress={() => handleEmojiSelect(emoji)}
               style={styles.emojiBtn}
             >
-              <Text style={styles.emojiText}>{emoji}</Text>
+              <AppText style={styles.emojiText}>{emoji}</AppText>
             </TouchableOpacity>
           ))}
         </View>
@@ -354,17 +350,17 @@ const ChatScreen: React.FC<Props> = ({ route, navigation }) => {
           style={styles.emojiToggle}
           onPress={() => setShowEmojiPicker(!showEmojiPicker)}
         >
-          <Text style={styles.emojiToggleText}>😊</Text>
+          <AppText style={styles.emojiToggleText}>😊</AppText>
         </TouchableOpacity>
 
         <TouchableOpacity
           style={styles.reminderIconBtn}
           onPress={handlePaymentReminderPress}
         >
-          <Text style={styles.reminderBtnText}>💰</Text>
+          <AppText style={styles.reminderBtnText}>💰</AppText>
         </TouchableOpacity>
 
-        <TextInput
+        <AppTextInput
           style={styles.input}
           placeholder="Type a message..."
           value={inputText}
@@ -379,7 +375,7 @@ const ChatScreen: React.FC<Props> = ({ route, navigation }) => {
           onPress={handleSend}
           disabled={!inputText.trim()}
         >
-          <Text style={styles.sendBtnText}>➤</Text>
+          <AppText style={styles.sendBtnText}>➤</AppText>
         </TouchableOpacity>
       </View>
 
@@ -387,11 +383,11 @@ const ChatScreen: React.FC<Props> = ({ route, navigation }) => {
       <Modal visible={reminderModalVisible} animationType="fade" transparent>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>💰 Payment Reminder</Text>
+            <AppText style={styles.modalTitle}>💰 Payment Reminder</AppText>
 
             {type === 'group' && !selectedReminderUser ? (
               <>
-                <Text style={styles.modalSubtitle}>Select a member:</Text>
+                <AppText style={styles.modalSubtitle}>Select a member:</AppText>
                 {participants.map((p: any) => (
                   <TouchableOpacity
                     key={p.userId}
@@ -399,27 +395,27 @@ const ChatScreen: React.FC<Props> = ({ route, navigation }) => {
                     onPress={() => setSelectedReminderUser(p.user)}
                   >
                     <View style={styles.memberAvatar}>
-                      <Text style={styles.memberAvatarText}>
+                      <AppText style={styles.memberAvatarText}>
                         {p.user?.name?.charAt(0).toUpperCase() || '?'}
-                      </Text>
+                      </AppText>
                     </View>
-                    <Text style={styles.memberName}>{p.user?.name}</Text>
+                    <AppText style={styles.memberName}>{p.user?.name}</AppText>
                   </TouchableOpacity>
                 ))}
               </>
             ) : (
               <>
-                <Text style={styles.modalSubtitle}>
+                <AppText style={styles.modalSubtitle}>
                   Send reminder to {selectedReminderUser?.name || 'User'}
-                </Text>
+                </AppText>
                 <View style={styles.reminderActions}>
                   <TouchableOpacity
                     style={styles.sendReminderBtn}
                     onPress={sendPaymentReminder}
                   >
-                    <Text style={styles.sendReminderBtnText}>
+                    <AppText style={styles.sendReminderBtnText}>
                       Send Reminder
-                    </Text>
+                    </AppText>
                   </TouchableOpacity>
                 </View>
               </>
@@ -432,7 +428,7 @@ const ChatScreen: React.FC<Props> = ({ route, navigation }) => {
                 setSelectedReminderUser(null);
               }}
             >
-              <Text style={styles.cancelModalBtnText}>Cancel</Text>
+              <AppText style={styles.cancelModalBtnText}>Cancel</AppText>
             </TouchableOpacity>
           </View>
         </View>

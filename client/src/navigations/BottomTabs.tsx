@@ -1,7 +1,15 @@
 import React, { useMemo, useState, useEffect } from 'react';
-import { View, StyleSheet, Keyboard, Platform } from 'react-native';
+import {
+  View,
+  StyleSheet,
+  Keyboard,
+  Platform,
+  TouchableOpacity,
+  Text as RNText,
+} from 'react-native';
 import { useLinkBuilder } from '@react-navigation/native';
-import { Text, PlatformPressable } from '@react-navigation/elements';
+import { PlatformPressable } from '@react-navigation/elements';
+import AppText from '../components/AppText';
 import {
   createBottomTabNavigator,
   BottomTabBarProps,
@@ -14,6 +22,9 @@ import Profile from '../screens/Profile';
 import { lightTheme } from '../utility/themeColors';
 import { useAppSelector } from '../store/hooks';
 import Icon from '../components/Icon';
+import { useQuery } from '@apollo/client/react';
+import { GET_MY_NOTIFICATIONS } from '../graphql/queries';
+import { useNavigation } from '@react-navigation/native';
 
 import { IconName } from '../../assets/icons';
 
@@ -145,14 +156,14 @@ function MyTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
               color: isFocused ? theme.primary : theme.text,
               size: 24,
             })}
-            <Text
+            <AppText
               style={[
                 styles.tabText,
                 { color: isFocused ? theme.primary : theme.text },
               ]}
             >
               {typeof label === 'string' ? label : route.name}
-            </Text>
+            </AppText>
           </PlatformPressable>
         );
       })}
@@ -188,6 +199,7 @@ export default function BottomTabs() {
         tabBarIcon: GroupsTabIcon,
       },
       AddExpense: {
+        headerShown: false,
         tabBarIcon: AddExpenseTabIcon,
       },
       Messages: {
@@ -195,10 +207,47 @@ export default function BottomTabs() {
         tabBarIcon: MessagesTabIcon,
       },
       Profile: {
+        headerTitle: 'Profile',
+        headerTitleStyle: {
+          fontFamily: 'GoogleSans-Regular',
+          color: '#104d98',
+          fontSize: 16,
+        },
         tabBarIcon: ProfileTabIcon,
       },
     }),
     [],
+  );
+
+  const navigation = useNavigation<any>();
+
+  const { data: notifData } = useQuery<any>(GET_MY_NOTIFICATIONS, {
+    pollInterval: 30000,
+    fetchPolicy: 'cache-and-network',
+  });
+
+  const unreadCount = (notifData?.getMyNotifications ?? []).filter(
+    (n: any) => !n.read,
+  ).length;
+
+  const bellButton = useMemo(
+    () => (
+      <TouchableOpacity
+        onPress={() => navigation.navigate('Notifications')}
+        style={bellStyles.container}
+        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+      >
+        <RNText style={bellStyles.bell}>🔔</RNText>
+        {unreadCount > 0 && (
+          <View style={bellStyles.badge}>
+            <RNText style={bellStyles.badgeText}>
+              {unreadCount > 9 ? '9+' : unreadCount}
+            </RNText>
+          </View>
+        )}
+      </TouchableOpacity>
+    ),
+    [navigation, unreadCount],
   );
 
   if (!token) {
@@ -210,7 +259,10 @@ export default function BottomTabs() {
       <Tab.Screen
         name="Home"
         component={Home}
-        options={screenOptions.Home as any}
+        options={{
+          ...(screenOptions.Home as any),
+          headerRight: () => bellButton,
+        }}
       />
       <Tab.Screen
         name="Groups"
@@ -259,5 +311,34 @@ const styles = StyleSheet.create({
   },
   iconTransparent: {
     backgroundColor: 'transparent',
+  },
+});
+
+const bellStyles = StyleSheet.create({
+  container: {
+    marginRight: 15,
+    position: 'relative',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  bell: {
+    fontSize: 22,
+  },
+  badge: {
+    position: 'absolute',
+    top: -4,
+    right: -6,
+    backgroundColor: '#ef4444',
+    borderRadius: 10,
+    minWidth: 18,
+    height: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+  },
+  badgeText: {
+    color: 'white',
+    fontSize: 10,
+    fontWeight: 'bold',
   },
 });

@@ -1,4 +1,4 @@
-import { gql } from "@apollo/client";
+import { gql } from '@apollo/client';
 
 export const USER_FRAGMENT = gql`
   fragment UserFragment on User {
@@ -7,6 +7,7 @@ export const USER_FRAGMENT = gql`
     email
     phone
     imageUrl
+    upiId
     createdAt
     updatedAt
   }

@@ -1,9 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import {
   StyleSheet,
-  Text,
   View,
-  TextInput,
   TouchableOpacity,
   ActivityIndicator,
   Alert,
@@ -11,12 +9,13 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { useMutation, useLazyQuery } from '@apollo/client/react';
-import { CREATE_GROUP, SEARCH_USERS } from '../graphql';
+import AppText from '../components/AppText';
+import AppTextInput from '../components/AppTextInput';
+import { useCreateGroup, useSearchUsers } from '../services';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import type { GroupsStackParamList } from '../navigations/GroupsStack';
+import type { RootStackParamList } from '../navigations/RootStack';
 
-type Props = NativeStackScreenProps<GroupsStackParamList, 'CreateGroup'>;
+type Props = NativeStackScreenProps<RootStackParamList, 'CreateGroup'>;
 
 type UserResult = {
   id: string;
@@ -31,9 +30,9 @@ const CreateGroup: React.FC<Props> = ({ navigation }) => {
   const [selectedMembers, setSelectedMembers] = useState<UserResult[]>([]);
 
   const [searchUsers, { data: searchData, loading: searching }] =
-    useLazyQuery<any>(SEARCH_USERS);
+    useSearchUsers();
 
-  const [createGroup, { loading: creating }] = useMutation<any>(CREATE_GROUP, {
+  const [createGroup, { loading: creating }] = useCreateGroup({
     onCompleted: () => {
       Alert.alert('Success', 'Group created successfully!');
       navigation.goBack();
@@ -84,8 +83,8 @@ const CreateGroup: React.FC<Props> = ({ navigation }) => {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <ScrollView contentContainerStyle={styles.content}>
-        <Text style={styles.label}>Group Name</Text>
-        <TextInput
+        <AppText style={styles.label}>Group Name</AppText>
+        <AppTextInput
           style={styles.input}
           placeholder="e.g., Goa Trip 2026"
           value={groupName}
@@ -93,8 +92,8 @@ const CreateGroup: React.FC<Props> = ({ navigation }) => {
           placeholderTextColor="#94a3b8"
         />
 
-        <Text style={styles.label}>Add Members</Text>
-        <TextInput
+        <AppText style={styles.label}>Add Members</AppText>
+        <AppTextInput
           style={styles.input}
           placeholder="Search by email..."
           value={searchQuery}
@@ -121,15 +120,15 @@ const CreateGroup: React.FC<Props> = ({ navigation }) => {
                 onPress={() => addMember(user)}
               >
                 <View style={styles.resultAvatar}>
-                  <Text style={styles.resultAvatarText}>
+                  <AppText style={styles.resultAvatarText}>
                     {user.name.charAt(0).toUpperCase()}
-                  </Text>
+                  </AppText>
                 </View>
                 <View style={styles.resultInfo}>
-                  <Text style={styles.resultName}>{user.name}</Text>
-                  <Text style={styles.resultEmail}>{user.email}</Text>
+                  <AppText style={styles.resultName}>{user.name}</AppText>
+                  <AppText style={styles.resultEmail}>{user.email}</AppText>
                 </View>
-                <Text style={styles.addIcon}>+</Text>
+                <AppText style={styles.addIcon}>+</AppText>
               </TouchableOpacity>
             ))}
           </View>
@@ -137,19 +136,19 @@ const CreateGroup: React.FC<Props> = ({ navigation }) => {
 
         {searchQuery.length >= 2 &&
           searchResults.length === 0 &&
-          !searching && <Text style={styles.noResults}>No users found</Text>}
+          !searching && <AppText style={styles.noResults}>No users found</AppText>}
 
         {selectedMembers.length > 0 && (
           <View style={styles.chipsSection}>
-            <Text style={styles.chipsLabel}>
+            <AppText style={styles.chipsLabel}>
               Selected ({selectedMembers.length})
-            </Text>
+            </AppText>
             <View style={styles.chipsContainer}>
               {selectedMembers.map(member => (
                 <View key={member.id} style={styles.chip}>
-                  <Text style={styles.chipText}>{member.name}</Text>
+                  <AppText style={styles.chipText}>{member.name}</AppText>
                   <TouchableOpacity onPress={() => removeMember(member.id)}>
-                    <Text style={styles.chipRemove}>✕</Text>
+                    <AppText style={styles.chipRemove}>✕</AppText>
                   </TouchableOpacity>
                 </View>
               ))}
@@ -164,9 +163,9 @@ const CreateGroup: React.FC<Props> = ({ navigation }) => {
           onPress={handleCreate}
           disabled={creating}
         >
-          <Text style={styles.createBtnText}>
+          <AppText style={styles.createBtnText}>
             {creating ? 'Creating...' : 'Create Group'}
-          </Text>
+          </AppText>
         </TouchableOpacity>
       </View>
     </KeyboardAvoidingView>

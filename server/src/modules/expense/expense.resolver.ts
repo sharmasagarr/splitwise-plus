@@ -1,3 +1,5 @@
+import { sendNotification } from "../notification/notification.service.js";
+
 export const expenseResolvers = {
   Query: {
     getGroupExpenses: async (
@@ -8,7 +10,12 @@ export const expenseResolvers = {
       if (!user) throw new Error("Unauthorized");
       return prisma.expense.findMany({
         where: { groupId },
-        include: { shares: { include: { user: true } }, createdBy: true },
+        include: {
+          shares: { include: { user: true } },
+          createdBy: true,
+          attachments: true,
+          group: { include: { members: { include: { user: true } } } },
+        },
         orderBy: { createdAt: "desc" },
       });
     },
@@ -21,7 +28,12 @@ export const expenseResolvers = {
             { shares: { some: { userId: user.id } } },
           ],
         },
-        include: { shares: { include: { user: true } }, createdBy: true },
+        include: {
+          shares: { include: { user: true } },
+          createdBy: true,
+          attachments: true,
+          group: { include: { members: { include: { user: true } } } },
+        },
         orderBy: { createdAt: "desc" },
         take: 20,
       });
@@ -103,6 +115,35 @@ export const expenseResolvers = {
         owedList: Object.values(owedMap),
       };
     },
+
+    getExpenseDetail: async (
+      _: any,
+      { expenseId }: any,
+      { prisma, user }: any,
+    ) => {
+      if (!user) throw new Error("Unauthorized");
+
+      const expense = await prisma.expense.findUnique({
+        where: { id: expenseId },
+        include: {
+          shares: { include: { user: true } },
+          createdBy: true,
+          attachments: true,
+          group: { include: { members: { include: { user: true } } } },
+        },
+      });
+
+      if (!expense) throw new Error("Expense not found");
+
+      // Verify the user is a participant
+      const isParticipant =
+        expense.createdById === user.id ||
+        expense.shares.some((s: any) => s.userId === user.id);
+      if (!isParticipant)
+        throw new Error("Not authorized to view this expense");
+
+      return expense;
+    },
   },
   Mutation: {
     createExpense: async (
@@ -134,15 +175,35 @@ export const expenseResolvers = {
             })),
           },
         },
-        include: { shares: { include: { user: true } }, createdBy: true },
+        include: {
+          shares: { include: { user: true } },
+          createdBy: true,
+          attachments: true,
+          group: { include: { members: { include: { user: true } } } },
+        },
       });
+
+      // Send notifications to all participants except the creator
+      const creator = expense.createdBy;
+      const perPersonAmount = (Math.round(perPerson * 100) / 100).toFixed(2);
+      for (const participantId of participants) {
+        if (participantId === user.id) continue;
+        sendNotification({
+          prisma,
+          recipientId: participantId,
+          type: "expense_added",
+          title: "New Expense",
+          body: `${creator.name} added '${description}' — you owe ₹${perPersonAmount}`,
+          data: { groupId, expenseId: expense.id },
+        }).catch((err: any) => console.error("Notification error:", err));
+      }
 
       return expense;
     },
 
     settleExpense: async (
       _: any,
-      { toUserId, amount, paymentMode }: any,
+      { toUserId, amount, paymentMode, groupId }: any,
       { prisma, user }: any,
     ) => {
       if (!user) throw new Error("Unauthorized");
@@ -201,8 +262,25 @@ export const expenseResolvers = {
           currency: "INR",
           status: "completed",
           paymentMethodId: paymentMode,
+          ...(groupId ? { groupId } : {}),
         },
       });
+
+      // Notify the payee
+      const payer = await prisma.user.findUnique({
+        where: { id: user.id },
+        select: { name: true },
+      });
+      const formattedAmount = (Math.round(amount * 100) / 100).toFixed(2);
+      sendNotification({
+        prisma,
+        recipientId: toUserId,
+        type: "settlement_received",
+        title: "Payment Received",
+        body: `${payer?.name || "Someone"} paid you ₹${formattedAmount}`,
+        data: { settlementId: settlement.id },
+      }).catch((err: any) => console.error("Notification error:", err));
+
       return settlement;
     },
   },

@@ -1,21 +1,20 @@
 import React, { useState } from 'react';
 import {
   StyleSheet,
-  Text,
   View,
   FlatList,
   TouchableOpacity,
   ActivityIndicator,
   Modal,
-  TextInput,
   Alert,
 } from 'react-native';
-import { useQuery, useMutation, useLazyQuery } from '@apollo/client/react';
+import AppText from '../components/AppText';
+import AppTextInput from '../components/AppTextInput';
 import {
-  GET_CONVERSATIONS,
-  SEARCH_USERS,
-  START_DIRECT_CONVERSATION,
-} from '../graphql';
+  useGetConversations,
+  useSearchUsers,
+  useStartDirectConversation,
+} from '../services';
 import { useAppSelector } from '../store/hooks';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -27,37 +26,32 @@ const Messages = () => {
   const navigation = useNavigation<NavProp>();
   const { user } = useAppSelector(state => state.auth);
 
-  const { data, loading, refetch } = useQuery<any>(GET_CONVERSATIONS, {
-    fetchPolicy: 'cache-and-network',
-  });
+  const { data, loading, refetch } = useGetConversations();
 
   const [activeTab, setActiveTab] = useState<'group' | 'direct'>('group');
   const [dmModalVisible, setDmModalVisible] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
   const [searchUsers, { data: searchData, loading: searching }] =
-    useLazyQuery<any>(SEARCH_USERS);
+    useSearchUsers();
 
-  const [startDM, { loading: startingDM }] = useMutation<any>(
-    START_DIRECT_CONVERSATION,
-    {
-      onCompleted: (result: any) => {
-        setDmModalVisible(false);
-        setSearchQuery('');
-        refetch();
-        const conv = result.startDirectConversation;
-        const otherUser = conv.participants?.find(
-          (p: any) => p.userId !== user?.id,
-        )?.user;
-        navigation.navigate('ChatScreen', {
-          conversationId: conv.id,
-          title: otherUser?.name || 'Chat',
-          type: 'direct',
-        });
-      },
-      onError: (err: any) => Alert.alert('Error', err.message),
+  const [startDM, { loading: startingDM }] = useStartDirectConversation({
+    onCompleted: (result: any) => {
+      setDmModalVisible(false);
+      setSearchQuery('');
+      refetch();
+      const conv = result.startDirectConversation;
+      const otherUser = conv.participants?.find(
+        (p: any) => p.userId !== user?.id,
+      )?.user;
+      navigation.navigate('ChatScreen', {
+        conversationId: conv.id,
+        title: otherUser?.name || 'Chat',
+        type: 'direct',
+      });
     },
-  );
+    onError: (err: any) => Alert.alert('Error', err.message),
+  });
 
   React.useLayoutEffect(() => {
     navigation.setOptions({
@@ -68,7 +62,7 @@ const Messages = () => {
             style={styles.newDmBtn}
             onPress={() => setDmModalVisible(true)}
           >
-            <Text style={styles.newDmBtnText}>+ New</Text>
+            <AppText style={styles.newDmBtnText}>+ New</AppText>
           </TouchableOpacity>
         ) : null,
     });
@@ -134,26 +128,26 @@ const Messages = () => {
       }
     >
       <View style={styles.convAvatar}>
-        <Text style={styles.convAvatarText}>
+        <AppText style={styles.convAvatarText}>
           {item.type === 'group'
             ? '👥'
             : getConversationTitle(item).charAt(0).toUpperCase()}
-        </Text>
+        </AppText>
       </View>
       <View style={styles.convInfo}>
         <View style={styles.convHeader}>
-          <Text style={styles.convTitle} numberOfLines={1}>
+          <AppText style={styles.convTitle} numberOfLines={1}>
             {getConversationTitle(item)}
-          </Text>
+          </AppText>
           {item.lastMessage && (
-            <Text style={styles.convTime}>
+            <AppText style={styles.convTime}>
               {formatTime(item.lastMessage.createdAt)}
-            </Text>
+            </AppText>
           )}
         </View>
-        <Text style={styles.convPreview} numberOfLines={1}>
+        <AppText style={styles.convPreview} numberOfLines={1}>
           {getLastMessagePreview(item)}
-        </Text>
+        </AppText>
       </View>
     </TouchableOpacity>
   );
@@ -174,27 +168,27 @@ const Messages = () => {
           style={[styles.tab, activeTab === 'group' && styles.tabActive]}
           onPress={() => setActiveTab('group')}
         >
-          <Text
+          <AppText
             style={[
               styles.tabText,
               activeTab === 'group' && styles.tabTextActive,
             ]}
           >
             Group Chats ({groupChats.length})
-          </Text>
+          </AppText>
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.tab, activeTab === 'direct' && styles.tabActive]}
           onPress={() => setActiveTab('direct')}
         >
-          <Text
+          <AppText
             style={[
               styles.tabText,
               activeTab === 'direct' && styles.tabTextActive,
             ]}
           >
             Direct ({directChats.length})
-          </Text>
+          </AppText>
         </TouchableOpacity>
       </View>
 
@@ -207,11 +201,11 @@ const Messages = () => {
         contentContainerStyle={styles.listContent}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>
+            <AppText style={styles.emptyText}>
               {activeTab === 'group'
                 ? 'No group chats yet. Create a group to start chatting!'
                 : 'No direct messages yet.'}
-            </Text>
+            </AppText>
           </View>
         }
       />
@@ -220,8 +214,8 @@ const Messages = () => {
       <Modal visible={dmModalVisible} animationType="fade" transparent>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>New Message</Text>
-            <TextInput
+            <AppText style={styles.modalTitle}>New Message</AppText>
+            <AppTextInput
               style={styles.modalInput}
               placeholder="Search user by email..."
               value={searchQuery}
@@ -247,13 +241,13 @@ const Messages = () => {
                 disabled={startingDM}
               >
                 <View style={styles.searchAvatar}>
-                  <Text style={styles.searchAvatarText}>
+                  <AppText style={styles.searchAvatarText}>
                     {u.name.charAt(0).toUpperCase()}
-                  </Text>
+                  </AppText>
                 </View>
                 <View style={styles.searchInfo}>
-                  <Text style={styles.searchName}>{u.name}</Text>
-                  <Text style={styles.searchEmail}>{u.email}</Text>
+                  <AppText style={styles.searchName}>{u.name}</AppText>
+                  <AppText style={styles.searchEmail}>{u.email}</AppText>
                 </View>
               </TouchableOpacity>
             ))}
@@ -265,7 +259,7 @@ const Messages = () => {
                 setSearchQuery('');
               }}
             >
-              <Text style={styles.cancelBtnText}>Cancel</Text>
+              <AppText style={styles.cancelBtnText}>Cancel</AppText>
             </TouchableOpacity>
           </View>
         </View>

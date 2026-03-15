@@ -24,14 +24,17 @@ export const SETTLE_EXPENSE = gql`
     $toUserId: String!
     $amount: Float!
     $paymentMode: String!
+    $groupId: String
   ) {
     settleExpense(
       toUserId: $toUserId
       amount: $amount
       paymentMode: $paymentMode
+      groupId: $groupId
     ) {
       id
       status
+      groupId
     }
   }
 `;

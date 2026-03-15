@@ -5,6 +5,7 @@ export const userTypeDefs = `#graphql
     email: String!
     phone: String
     imageUrl: String
+    upiId: String
     createdAt: String!
     updatedAt: String!
   }
@@ -14,6 +15,6 @@ export const userTypeDefs = `#graphql
   }
 
   extend type Mutation {
-    updateProfile(name: String, imageUrl: String, phone: String): User!
+    updateProfile(name: String, imageUrl: String, phone: String, upiId: String): User!
   }
 `;

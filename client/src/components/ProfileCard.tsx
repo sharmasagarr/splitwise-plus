@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, Image, StyleSheet } from 'react-native';
+import { View, Image, StyleSheet } from 'react-native';
+import AppText from './AppText';
 import type { User } from '../types/graphql';
 
 interface ProfileCardProps extends Pick<User, 'name' | 'email' | 'imageUrl'> {
@@ -71,21 +72,21 @@ const ProfileCard: React.FC<ProfileCardProps> = ({
         <View
           style={[styles.avatarContainer, { backgroundColor: avatarColor }]}
         >
-          <Text style={styles.avatarText}>{initials}</Text>
+          <AppText style={styles.avatarText}>{initials}</AppText>
         </View>
       )}
 
       {/* User Info */}
       <View style={styles.infoContainer}>
         <View style={styles.nameRow}>
-          <Text style={styles.name} numberOfLines={1}>
+          <AppText style={styles.name} numberOfLines={1}>
             {name}
-          </Text>
+          </AppText>
         </View>
 
-        <Text style={styles.email} numberOfLines={1}>
+        <AppText style={styles.email} numberOfLines={1}>
           {email}
-        </Text>
+        </AppText>
 
         {/* Divider */}
         <View style={styles.divider} />
@@ -93,26 +94,26 @@ const ProfileCard: React.FC<ProfileCardProps> = ({
         {/* Quick Stats */}
         <View style={styles.statsContainer}>
           <View style={styles.statItem}>
-            <Text style={styles.statNumber}>{groupsCount}</Text>
-            <Text style={styles.statLabel}>Groups</Text>
+            <AppText style={styles.statNumber}>{groupsCount}</AppText>
+            <AppText style={styles.statLabel}>Groups</AppText>
           </View>
 
           <View style={styles.statSeparator} />
 
           <View style={styles.statItem}>
-            <Text style={[styles.statNumber, styles.oweAmount]}>
+            <AppText style={[styles.statNumber, styles.oweAmount]}>
               {formatAmount(amountOwe)}
-            </Text>
-            <Text style={styles.statLabel}>Owe</Text>
+            </AppText>
+            <AppText style={styles.statLabel}>Owe</AppText>
           </View>
 
           <View style={styles.statSeparator} />
 
           <View style={styles.statItem}>
-            <Text style={[styles.statNumber, styles.owedAmount]}>
+            <AppText style={[styles.statNumber, styles.owedAmount]}>
               {formatAmount(amountOwed)}
-            </Text>
-            <Text style={styles.statLabel}>Owed</Text>
+            </AppText>
+            <AppText style={styles.statLabel}>Owed</AppText>
           </View>
         </View>
       </View>

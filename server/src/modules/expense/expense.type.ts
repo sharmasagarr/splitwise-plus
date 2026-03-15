@@ -9,6 +9,8 @@ export const expenseTypeDefs = `#graphql
     createdAt: String!
     shares: [ExpenseShare!]!
     createdBy: User!
+    attachments: [ExpenseAttachment!]!
+    group: Group
   }
 
   type ExpenseShare {
@@ -21,6 +23,16 @@ export const expenseTypeDefs = `#graphql
     user: User!
   }
 
+  type ExpenseAttachment {
+    id: ID!
+    expenseId: String!
+    uploadedBy: String!
+    url: String!
+    filename: String
+    contentType: String
+    createdAt: String!
+  }
+
   type Settlement {
     id: ID!
     fromUserId: String!
@@ -29,6 +41,7 @@ export const expenseTypeDefs = `#graphql
     currency: String!
     status: String!
     paymentMethodId: String
+    groupId: String
     createdAt: String!
   }
 
@@ -49,10 +62,11 @@ export const expenseTypeDefs = `#graphql
     getGroupExpenses(groupId: String!): [Expense!]!
     getRecentActivities: [Expense!]!
     getMyBalances: BalanceSummary!
+    getExpenseDetail(expenseId: String!): Expense!
   }
 
   extend type Mutation {
     createExpense(groupId: String!, description: String!, amount: Float!, participants: [String!]!): Expense!
-    settleExpense(toUserId: String!, amount: Float!, paymentMode: String!): Settlement!
+    settleExpense(toUserId: String!, amount: Float!, paymentMode: String!, groupId: String): Settlement!
   }
 `;

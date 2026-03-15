@@ -4,6 +4,8 @@ import BottomTabs from './BottomTabs';
 import CreateGroup from '../screens/CreateGroup';
 import GroupDetail from '../screens/GroupDetail';
 import ChatScreen from '../screens/ChatScreen';
+import Notifications from '../screens/Notifications';
+import ExpenseDetail from '../screens/ExpenseDetail';
 
 export type RootStackParamList = {
   MainTabs: undefined;
@@ -14,6 +16,8 @@ export type RootStackParamList = {
     title: string;
     type: string;
   };
+  Notifications: undefined;
+  ExpenseDetail: { expenseId: string };
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -49,6 +53,24 @@ export default function RootStack() {
         component={ChatScreen}
         options={{
           headerBackTitle: 'Messages',
+          headerShadowVisible: false,
+        }}
+      />
+      <Stack.Screen
+        name="Notifications"
+        component={Notifications}
+        options={{
+          headerTitle: 'Notifications',
+          headerBackTitle: 'Home',
+          headerShadowVisible: false,
+        }}
+      />
+      <Stack.Screen
+        name="ExpenseDetail"
+        component={ExpenseDetail}
+        options={{
+          headerTitle: 'Expense Details',
+          headerBackTitle: 'Back',
           headerShadowVisible: false,
         }}
       />

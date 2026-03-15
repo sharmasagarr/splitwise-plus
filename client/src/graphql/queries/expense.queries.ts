@@ -73,3 +73,53 @@ export const GET_MY_BALANCES = gql`
     }
   }
 `;
+
+export const GET_EXPENSE_DETAIL = gql`
+  query GetExpenseDetail($expenseId: String!) {
+    getExpenseDetail(expenseId: $expenseId) {
+      id
+      groupId
+      totalAmount
+      currency
+      note
+      createdAt
+      createdBy {
+        id
+        name
+        email
+      }
+      shares {
+        id
+        userId
+        shareAmount
+        paidAmount
+        status
+        user {
+          id
+          name
+          email
+        }
+      }
+      attachments {
+        id
+        url
+        filename
+        contentType
+        createdAt
+      }
+      group {
+        id
+        name
+        members {
+          id
+          userId
+          user {
+            id
+            name
+            email
+          }
+        }
+      }
+    }
+  }
+`;

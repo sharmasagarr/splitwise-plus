@@ -39,6 +39,7 @@ export const GET_GROUP_DETAILS = gql`
           name
           email
           imageUrl
+          upiId
         }
       }
     }

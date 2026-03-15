@@ -8,7 +8,7 @@ export const userResolvers = {
   Mutation: {
     updateProfile: async (
       _: any,
-      { name, imageUrl, phone }: any,
+      { name, imageUrl, phone, upiId }: any,
       { prisma, user }: any,
     ) => {
       if (!user) throw new Error("Unauthorized");
@@ -38,6 +38,7 @@ export const userResolvers = {
 
       if (imageUrl !== undefined) dataToUpdate.imageUrl = imageUrl;
       if (phone !== undefined) dataToUpdate.phone = phone;
+      if (upiId !== undefined) dataToUpdate.upiId = upiId;
 
       return prisma.user.update({
         where: { id: user.id },

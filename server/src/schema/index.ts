@@ -10,6 +10,8 @@ import { expenseTypeDefs } from "../modules/expense/expense.type.js";
 import { expenseResolvers } from "../modules/expense/expense.resolver.js";
 import { messageTypeDefs } from "../modules/message/message.type.js";
 import { messageResolvers } from "../modules/message/message.resolver.js";
+import { notificationTypeDefs } from "../modules/notification/notification.type.js";
+import { notificationResolvers } from "../modules/notification/notification.resolver.js";
 
 export const typeDefs = mergeTypeDefs([
   baseTypeDefs,
@@ -18,6 +20,7 @@ export const typeDefs = mergeTypeDefs([
   groupTypeDefs,
   expenseTypeDefs,
   messageTypeDefs,
+  notificationTypeDefs,
 ]);
 
 export const resolvers = mergeResolvers([
@@ -26,4 +29,5 @@ export const resolvers = mergeResolvers([
   groupResolvers,
   expenseResolvers,
   messageResolvers,
+  notificationResolvers,
 ]);

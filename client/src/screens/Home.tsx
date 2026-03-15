@@ -1,64 +1,61 @@
 import React, { useState } from 'react';
 import {
   View,
-  Text,
   StyleSheet,
   ActivityIndicator,
   FlatList,
   RefreshControl,
   TouchableOpacity,
   Modal,
-  TextInput,
   Alert,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import AppText from '../components/AppText';
+import AppTextInput from '../components/AppTextInput';
 import { useAppSelector } from '../store/hooks';
-import ProfileCard from '../components/ProfileCard';
-import { useQuery, useMutation } from '@apollo/client/react';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { RootStackParamList } from '../navigations/RootStack';
 import {
-  GET_RECENT_ACTIVITIES,
-  GET_GROUPS,
-  GET_MY_INVITES,
-  GET_MY_BALANCES,
-  SETTLE_EXPENSE,
-  RESPOND_TO_INVITE,
-} from '../graphql';
+  openUpiPayment,
+  confirmUpiPayment,
+  promptForUpiId,
+} from '../utils/upiHelper';
+import ProfileCard from '../components/ProfileCard';
+import {
+  useGetRecentActivities,
+  useGetGroups,
+  useGetMyInvites,
+  useGetMyBalances,
+  useSettleExpense,
+  useRespondToInvite,
+} from '../services';
 
 const Home: React.FC = () => {
   const { user } = useAppSelector(state => state.auth);
-  const { data, loading, refetch } = useQuery<any>(GET_RECENT_ACTIVITIES, {
-    fetchPolicy: 'cache-and-network',
+  const navigation =
+    useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const { data, loading, refetch } = useGetRecentActivities();
+
+  const { data: groupsData } = useGetGroups();
+
+  const { data: invitesData, refetch: refetchInvites } = useGetMyInvites();
+
+  const [settleExpense, { loading: settling }] = useSettleExpense({
+    onCompleted: () => {
+      Alert.alert('Success', 'Expense settled successfully!');
+      setModalVisible(false);
+      setAmount('');
+      refetch();
+    },
+    onError: (err: any) => {
+      Alert.alert('Error', err.message);
+    },
   });
 
-  const { data: groupsData } = useQuery<any>(GET_GROUPS, {
-    fetchPolicy: 'cache-and-network',
-  });
-
-  const { data: invitesData, refetch: refetchInvites } = useQuery<any>(
-    GET_MY_INVITES,
-    {
-      fetchPolicy: 'cache-and-network',
-    },
-  );
-
-  const [settleExpense, { loading: settling }] = useMutation<any>(
-    SETTLE_EXPENSE,
-    {
-      onCompleted: () => {
-        Alert.alert('Success', 'Expense settled successfully!');
-        setModalVisible(false);
-        setAmount('');
-        refetch();
-      },
-      onError: (err: any) => {
-        Alert.alert('Error', err.message);
-      },
-    },
-  );
-
-  const [respondToInvite] = useMutation<any>(RESPOND_TO_INVITE, {
+  const [respondToInvite] = useRespondToInvite({
     onCompleted: () => {
       refetchInvites();
       Alert.alert('Success', 'Invitation updated!');
@@ -78,9 +75,7 @@ const Home: React.FC = () => {
   const invites = invitesData?.getMyInvites || [];
 
   // Fetch server-computed balances
-  const { data: balancesData } = useQuery<any>(GET_MY_BALANCES, {
-    fetchPolicy: 'cache-and-network',
-  });
+  const { data: balancesData } = useGetMyBalances();
   const totalOwe = balancesData?.getMyBalances?.totalOwe || 0;
   const totalOwed = balancesData?.getMyBalances?.totalOwed || 0;
 
@@ -95,7 +90,7 @@ const Home: React.FC = () => {
     );
   }
 
-  const handleSettle = () => {
+  const handleSettle = async () => {
     const numAmount = parseFloat(amount);
     if (isNaN(numAmount) || numAmount <= 0) {
       Alert.alert('Validation Error', 'Amount must be greater than zero');
@@ -109,13 +104,43 @@ const Home: React.FC = () => {
       );
       return;
     }
-    settleExpense({
-      variables: {
-        toUserId: selectedUserId,
-        amount: numAmount,
-        paymentMode: paymentMode.toLowerCase(),
-      },
-    });
+
+    const mode = paymentMode.toLowerCase();
+
+    if (mode === 'upi') {
+      // Prompt for payee UPI ID
+      const payeeUpiId = await promptForUpiId();
+      if (!payeeUpiId) return;
+
+      const opened = await openUpiPayment(
+        payeeUpiId,
+        'User',
+        numAmount,
+        'Splitwise+ Settlement',
+      );
+      if (!opened) return;
+
+      setTimeout(async () => {
+        const confirmed = await confirmUpiPayment();
+        if (confirmed) {
+          settleExpense({
+            variables: {
+              toUserId: selectedUserId,
+              amount: numAmount,
+              paymentMode: mode,
+            },
+          });
+        }
+      }, 1000);
+    } else {
+      settleExpense({
+        variables: {
+          toUserId: selectedUserId,
+          amount: numAmount,
+          paymentMode: mode,
+        },
+      });
+    }
   };
 
   const openSettleModal = (toUserId: string, defaultAmount: number) => {
@@ -154,30 +179,35 @@ const Home: React.FC = () => {
       : `You owe ₹${myShare?.shareAmount || 0}`;
 
     return (
-      <View style={styles.activityCard}>
+      <TouchableOpacity
+        style={styles.activityCard}
+        onPress={() =>
+          navigation.navigate('ExpenseDetail', { expenseId: item.id })
+        }
+      >
         <View style={styles.activityContent}>
-          <Text style={styles.activityDesc}>{description}</Text>
-          <Text
+          <AppText style={styles.activityDesc}>{description}</AppText>
+          <AppText
             style={[
               styles.activityOwed,
               isPayer ? styles.activityOwedGreen : styles.activityOwedRed,
             ]}
           >
             {owedText}
-          </Text>
-          <Text style={styles.activityDate}>
+          </AppText>
+          <AppText style={styles.activityDate}>
             {new Date(Number(item.createdAt)).toLocaleDateString()}
-          </Text>
+          </AppText>
         </View>
         {!isPayer && myShare?.status === 'owed' && (
           <TouchableOpacity
             style={styles.settleBtn}
             onPress={() => openSettleModal(payer.id, myShare.shareAmount)}
           >
-            <Text style={styles.settleText}>Settle</Text>
+            <AppText style={styles.settleText}>Settle</AppText>
           </TouchableOpacity>
         )}
-      </View>
+      </TouchableOpacity>
     );
   };
 
@@ -218,7 +248,7 @@ const Home: React.FC = () => {
 
           return (
             <View style={styles.chartContainer}>
-              <Text style={styles.chartTitle}>📊 Spending (Last 7 Days)</Text>
+              <AppText style={styles.chartTitle}>📊 Spending (Last 7 Days)</AppText>
               <View style={styles.chartBars}>
                 {days.map((day, idx) => (
                   <View key={idx} style={styles.chartBarCol}>
@@ -236,11 +266,11 @@ const Home: React.FC = () => {
                       />
                     </View>
                     {day.amount > 0 && (
-                      <Text style={styles.chartBarAmount}>
+                      <AppText style={styles.chartBarAmount}>
                         ₹{day.amount.toFixed(0)}
-                      </Text>
+                      </AppText>
                     )}
-                    <Text style={styles.chartBarLabel}>{day.label}</Text>
+                    <AppText style={styles.chartBarLabel}>{day.label}</AppText>
                   </View>
                 ))}
               </View>
@@ -251,31 +281,31 @@ const Home: React.FC = () => {
       {/* Pending Invitations */}
       {invites.length > 0 && (
         <View style={styles.invitesSection}>
-          <Text style={styles.invitesSectionTitle}>
+          <AppText style={styles.invitesSectionTitle}>
             📬 Pending Invitations ({invites.length})
-          </Text>
+          </AppText>
           {invites.map((invite: any) => (
             <View key={invite.id} style={styles.inviteCard}>
               <View style={styles.inviteInfo}>
-                <Text style={styles.inviteGroupName}>
+                <AppText style={styles.inviteGroupName}>
                   {invite.group?.name || 'Unknown Group'}
-                </Text>
-                <Text style={styles.inviteMembers}>
+                </AppText>
+                <AppText style={styles.inviteMembers}>
                   {invite.group?.members?.length || 0} members
-                </Text>
+                </AppText>
               </View>
               <View style={styles.inviteActions}>
                 <TouchableOpacity
                   style={styles.acceptBtn}
                   onPress={() => handleAcceptInvite(invite.id)}
                 >
-                  <Text style={styles.acceptBtnText}>Accept</Text>
+                  <AppText style={styles.acceptBtnText}>Accept</AppText>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={styles.rejectBtn}
                   onPress={() => handleRejectInvite(invite.id)}
                 >
-                  <Text style={styles.rejectBtnText}>Reject</Text>
+                  <AppText style={styles.rejectBtnText}>Reject</AppText>
                 </TouchableOpacity>
               </View>
             </View>
@@ -283,12 +313,12 @@ const Home: React.FC = () => {
         </View>
       )}
 
-      <Text style={styles.sectionTitle}>Recent Activity</Text>
+      <AppText style={styles.sectionTitle}>Recent Activity</AppText>
       {activities.length === 0 && !loading && (
         <View style={styles.placeholderSection}>
-          <Text style={styles.placeholderText}>
+          <AppText style={styles.placeholderText}>
             No recent activities found.
-          </Text>
+          </AppText>
         </View>
       )}
     </View>
@@ -319,10 +349,10 @@ const Home: React.FC = () => {
           style={styles.modalOverlay}
         >
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Settle Expense</Text>
+            <AppText style={styles.modalTitle}>Settle Expense</AppText>
 
-            <Text style={styles.label}>Amount to Pay</Text>
-            <TextInput
+            <AppText style={styles.label}>Amount to Pay</AppText>
+            <AppTextInput
               style={styles.input}
               placeholder="0.00"
               value={amount}
@@ -330,10 +360,10 @@ const Home: React.FC = () => {
               keyboardType="numeric"
             />
 
-            <Text style={styles.label}>
+            <AppText style={styles.label}>
               Payment Mode (cash, upi, bank, card)
-            </Text>
-            <TextInput
+            </AppText>
+            <AppTextInput
               style={styles.input}
               placeholder="e.g. upi"
               value={paymentMode}
@@ -347,16 +377,16 @@ const Home: React.FC = () => {
                 onPress={() => setModalVisible(false)}
                 disabled={settling}
               >
-                <Text style={styles.btnTextCancel}>Cancel</Text>
+                <AppText style={styles.btnTextCancel}>Cancel</AppText>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.btn, styles.btnCreate]}
                 onPress={handleSettle}
                 disabled={settling}
               >
-                <Text style={styles.btnTextCreate}>
+                <AppText style={styles.btnTextCreate}>
                   {settling ? 'Settling...' : 'Settle Now'}
-                </Text>
+                </AppText>
               </TouchableOpacity>
             </View>
           </View>
@@ -370,8 +400,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f8fafc' },
   content: { paddingHorizontal: 15, paddingTop: 10 },
   sectionTitle: {
-    fontSize: 20,
-    fontWeight: '700',
+    fontSize: 13,
     color: '#1e293b',
     marginVertical: 16,
     paddingHorizontal: 15,
@@ -390,13 +419,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   activityDesc: {
-    fontSize: 16,
+    fontSize: 12,
     color: '#334155',
-    fontWeight: '500',
     marginBottom: 4,
   },
-  activityOwed: { fontSize: 14, fontWeight: '700', marginBottom: 4 },
-  activityDate: { fontSize: 12, color: '#94a3b8' },
+  activityOwed: { fontSize: 10, marginBottom: 4 },
+  activityDate: { fontSize: 10, color: '#94a3b8' },
   activityOwedGreen: { color: '#10b981' },
   activityOwedRed: { color: '#ef4444' },
   activityContent: { flex: 1 },
@@ -406,7 +434,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 8,
   },
-  settleText: { color: '#fff', fontWeight: 'bold' },
+  settleText: { color: '#fff', fontSize: 10 },
   center: {
     flex: 1,
     justifyContent: 'center',
@@ -524,8 +552,7 @@ const styles = StyleSheet.create({
     borderColor: '#e2e8f0',
   },
   chartTitle: {
-    fontSize: 16,
-    fontWeight: '700',
+    fontSize: 10,
     color: '#1e293b',
     marginBottom: 16,
   },

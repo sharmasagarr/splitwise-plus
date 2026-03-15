@@ -1,15 +1,14 @@
 import React from 'react';
 import {
   StyleSheet,
-  Text,
   View,
   FlatList,
   TouchableOpacity,
   ActivityIndicator,
   Alert,
 } from 'react-native';
-import { useQuery, useMutation } from '@apollo/client/react';
-import { GET_GROUPS, GET_MY_INVITES, RESPOND_TO_INVITE } from '../graphql';
+import AppText from '../components/AppText';
+import { useGetGroups, useGetMyInvites, useRespondToInvite } from '../services';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigations/RootStack';
@@ -19,19 +18,15 @@ type NavProp = NativeStackNavigationProp<RootStackParamList>;
 const Groups = () => {
   const navigation = useNavigation<NavProp>();
 
-  const { data, loading, refetch } = useQuery<any>(GET_GROUPS, {
-    fetchPolicy: 'cache-and-network',
-  });
+  const { data, loading, refetch } = useGetGroups();
 
   const {
     data: invitesData,
     loading: loadingInvites,
     refetch: refetchInvites,
-  } = useQuery<any>(GET_MY_INVITES, {
-    fetchPolicy: 'cache-and-network',
-  });
+  } = useGetMyInvites();
 
-  const [respondToInvite] = useMutation<any>(RESPOND_TO_INVITE, {
+  const [respondToInvite] = useRespondToInvite({
     onCompleted: () => {
       refetchInvites();
       refetch();
@@ -68,7 +63,7 @@ const Groups = () => {
           style={styles.addButton}
           onPress={() => navigation.navigate('CreateGroup')}
         >
-          <Text style={styles.addButtonText}>+ New</Text>
+          <AppText style={styles.addButtonText}>+ New</AppText>
         </TouchableOpacity>
       ),
     });
@@ -89,31 +84,31 @@ const Groups = () => {
     <View>
       {invites.length > 0 && (
         <View style={styles.invitesSection}>
-          <Text style={styles.invitesSectionTitle}>
+          <AppText style={styles.invitesSectionTitle}>
             Pending Invitations ({invites.length})
-          </Text>
+          </AppText>
           {invites.map((invite: any) => (
             <View key={invite.id} style={styles.inviteCard}>
               <View style={styles.inviteInfo}>
-                <Text style={styles.inviteGroupName}>
+                <AppText style={styles.inviteGroupName}>
                   {invite.group?.name || 'Unknown Group'}
-                </Text>
-                <Text style={styles.inviteMembers}>
+                </AppText>
+                <AppText style={styles.inviteMembers}>
                   {invite.group?.members?.length || 0} members
-                </Text>
+                </AppText>
               </View>
               <View style={styles.inviteActions}>
                 <TouchableOpacity
                   style={styles.acceptBtn}
                   onPress={() => handleAcceptInvite(invite.id)}
                 >
-                  <Text style={styles.acceptBtnText}>Accept</Text>
+                  <AppText style={styles.acceptBtnText}>Accept</AppText>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={styles.rejectBtn}
                   onPress={() => handleRejectInvite(invite.id)}
                 >
-                  <Text style={styles.rejectBtnText}>Reject</Text>
+                  <AppText style={styles.rejectBtnText}>Reject</AppText>
                 </TouchableOpacity>
               </View>
             </View>
@@ -123,12 +118,12 @@ const Groups = () => {
 
       {groups.length === 0 && (
         <View style={styles.emptyContainer}>
-          <Text style={styles.emptyText}>
+          <AppText style={styles.emptyText}>
             You are not part of any groups yet.
-          </Text>
-          <Text style={styles.emptySubText}>
+          </AppText>
+          <AppText style={styles.emptySubText}>
             Create one to get started splitting expenses!
-          </Text>
+          </AppText>
         </View>
       )}
     </View>
@@ -158,17 +153,17 @@ const Groups = () => {
             activeOpacity={0.7}
           >
             <View style={styles.groupIconContainer}>
-              <Text style={styles.groupIconText}>
+              <AppText style={styles.groupIconText}>
                 {item.name.charAt(0).toUpperCase()}
-              </Text>
+              </AppText>
             </View>
             <View style={styles.groupInfoContainer}>
-              <Text style={styles.groupName}>{item.name}</Text>
-              <Text style={styles.groupInfo}>
+              <AppText style={styles.groupName}>{item.name}</AppText>
+              <AppText style={styles.groupInfo}>
                 {item.members.length} members
-              </Text>
+              </AppText>
             </View>
-            <Text style={styles.chevron}>›</Text>
+            <AppText style={styles.chevron}>›</AppText>
           </TouchableOpacity>
         )}
       />
@@ -187,7 +182,7 @@ const styles = StyleSheet.create({
     paddingVertical: 7,
     borderRadius: 8,
   },
-  addButtonText: { color: '#fff', fontWeight: '700', fontSize: 13 },
+  addButtonText: { color: '#fff', fontSize: 10 },
   emptyContainer: {
     justifyContent: 'center',
     alignItems: 'center',
@@ -196,7 +191,6 @@ const styles = StyleSheet.create({
   emptyText: {
     color: '#475569',
     fontSize: 18,
-    fontWeight: '600',
     marginBottom: 8,
   },
   emptySubText: { color: '#94a3b8', fontSize: 14, textAlign: 'center' },
@@ -224,16 +218,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginRight: 16,
   },
-  groupIconText: { fontSize: 20, fontWeight: 'bold', color: '#667eea' },
+  groupIconText: { color: '#667eea' },
   groupInfoContainer: { flex: 1 },
   groupName: {
-    fontSize: 18,
-    fontWeight: '700',
+    fontSize: 15,
     color: '#1e293b',
     marginBottom: 4,
   },
-  groupInfo: { color: '#64748b', fontSize: 14 },
-  chevron: { fontSize: 24, color: '#cbd5e1', fontWeight: '300' },
+  groupInfo: { color: '#64748b', fontSize: 11 },
+  chevron: { fontSize: 24, color: '#cbd5e1', },
   invitesSection: {
     marginBottom: 20,
     backgroundColor: '#fffbeb',
@@ -244,7 +237,6 @@ const styles = StyleSheet.create({
   },
   invitesSectionTitle: {
     fontSize: 16,
-    fontWeight: '700',
     color: '#92400e',
     marginBottom: 12,
   },
@@ -259,7 +251,7 @@ const styles = StyleSheet.create({
     borderColor: '#fde68a',
   },
   inviteInfo: { flex: 1 },
-  inviteGroupName: { fontSize: 15, fontWeight: '600', color: '#1e293b' },
+  inviteGroupName: { fontSize: 15, color: '#1e293b' },
   inviteMembers: { fontSize: 12, color: '#64748b', marginTop: 2 },
   inviteActions: { flexDirection: 'row', gap: 8 },
   acceptBtn: {
@@ -268,12 +260,12 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 8,
   },
-  acceptBtnText: { color: '#fff', fontWeight: '700', fontSize: 13 },
+  acceptBtnText: { color: '#fff', fontSize: 13 },
   rejectBtn: {
     backgroundColor: '#fee2e2',
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 8,
   },
-  rejectBtnText: { color: '#dc2626', fontWeight: '700', fontSize: 13 },
+  rejectBtnText: { color: '#dc2626', fontSize: 13 },
 });

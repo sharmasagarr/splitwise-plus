@@ -6,6 +6,7 @@ import {
   PermissionsAndroid,
   Platform,
   StyleSheet,
+  StatusBar,
 } from 'react-native';
 import BootSplash from 'react-native-bootsplash';
 import { ApolloProvider, useMutation } from '@apollo/client/react';
@@ -21,6 +22,7 @@ import {
 } from '@react-native-firebase/messaging';
 import { getApp } from '@react-native-firebase/app';
 import Toast, { BaseToast, ToastConfig } from 'react-native-toast-message';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 
 import RootStack from './src/navigations/RootStack';
 import AuthScreen from './src/screens/Auth';
@@ -186,6 +188,10 @@ const Root = () => {
 };
 
 const styles = StyleSheet.create({
+  appSafeArea: {
+    flex: 1,
+    backgroundColor: '#fff',
+  },
   toastStyle: {
     borderLeftColor: '#34d399',
     backgroundColor: '#faf6f6ff',
@@ -220,11 +226,20 @@ const toastConfig: ToastConfig = {
 
 export default function App() {
   return (
-    <ApolloProvider client={client}>
-      <Provider store={store}>
-        <Root />
-        <Toast config={toastConfig} />
-      </Provider>
-    </ApolloProvider>
+    <SafeAreaProvider>
+      <ApolloProvider client={client}>
+        <Provider store={store}>
+          <StatusBar
+            translucent={false}
+            backgroundColor="#ffffff"
+            barStyle="dark-content"
+          />
+          <SafeAreaView style={styles.appSafeArea} edges={['top']}>
+            <Root />
+          </SafeAreaView>
+          <Toast config={toastConfig} />
+        </Provider>
+      </ApolloProvider>
+    </SafeAreaProvider>
   );
 }

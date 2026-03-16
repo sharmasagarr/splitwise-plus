@@ -56,12 +56,22 @@ const Auth = () => {
   const [keyboardVisible, setKeyboardVisible] = useState(false);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const formScrollRef = useRef<ScrollView>(null);
+  const isSignupPasswordStep = mode === 'signup' && !isOtpStep;
+
+  const scrollFormToBottom = (delay = 120) => {
+    setTimeout(() => {
+      formScrollRef.current?.scrollToEnd({ animated: true });
+    }, delay);
+  };
 
   // ✅ Keyboard visibility listener
   useEffect(() => {
     const showSub = Keyboard.addListener('keyboardDidShow', event => {
       setKeyboardVisible(true);
       setKeyboardHeight(event.endCoordinates?.height ?? 0);
+      if (isSignupPasswordStep || mode === 'login') {
+        scrollFormToBottom(100);
+      }
     });
     const hideSub = Keyboard.addListener('keyboardDidHide', () => {
       setKeyboardVisible(false);
@@ -73,7 +83,7 @@ const Auth = () => {
       showSub.remove();
       hideSub.remove();
     };
-  }, []);
+  }, [isSignupPasswordStep, mode]);
 
   const handleSubmit = async () => {
     const trimmedName = name.trim();
@@ -289,6 +299,7 @@ const Auth = () => {
               placeholder="Password"
               value={password}
               onChangeText={setPassword}
+              onFocus={() => scrollFormToBottom(80)}
               style={styles.input}
               placeholderTextColor="#999"
               secureTextEntry

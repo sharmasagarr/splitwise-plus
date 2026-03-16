@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   TouchableOpacity,
@@ -9,6 +9,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Keyboard,
+  ScrollView,
 } from 'react-native';
 import { useDispatch } from 'react-redux';
 import InAppBrowser from 'react-native-inappbrowser-reborn';
@@ -43,6 +44,7 @@ const handleGithubLogin = () => {
 
 const Auth = () => {
   const dispatch = useDispatch();
+  const isIOS = Platform.OS === 'ios';
 
   const [mode, setMode] = useState<'login' | 'signup'>('login');
   const [name, setName] = useState('');
@@ -52,15 +54,20 @@ const Auth = () => {
   const [isOtpStep, setIsOtpStep] = useState(false);
   const [loading, setLoading] = useState(false);
   const [keyboardVisible, setKeyboardVisible] = useState(false);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const formScrollRef = useRef<ScrollView>(null);
 
   // ✅ Keyboard visibility listener
   useEffect(() => {
-    const showSub = Keyboard.addListener('keyboardDidShow', () =>
-      setKeyboardVisible(true),
-    );
-    const hideSub = Keyboard.addListener('keyboardDidHide', () =>
-      setKeyboardVisible(false),
-    );
+    const showSub = Keyboard.addListener('keyboardDidShow', event => {
+      setKeyboardVisible(true);
+      setKeyboardHeight(event.endCoordinates?.height ?? 0);
+    });
+    const hideSub = Keyboard.addListener('keyboardDidHide', () => {
+      setKeyboardVisible(false);
+      setKeyboardHeight(0);
+      formScrollRef.current?.scrollTo({ y: 0, animated: true });
+    });
 
     return () => {
       showSub.remove();
@@ -181,13 +188,27 @@ const Auth = () => {
     setOtp('');
   };
 
+  const scrollContentStyle = {
+    ...styles.formScrollContent,
+    ...(keyboardVisible ? styles.formScrollContentKeyboard : null),
+    paddingBottom: keyboardVisible ? keyboardHeight + 24 : 24,
+  };
+
   return (
     <KeyboardAvoidingView
       style={styles.root}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      behavior={isIOS ? 'padding' : undefined}
+      enabled={isIOS}
     >
-      <View style={styles.container}>
-        <View style={styles.formContainer}>
+      <View style={[styles.container, keyboardVisible && styles.containerKeyboardOpen]}>
+        <ScrollView
+          ref={formScrollRef}
+          contentContainerStyle={scrollContentStyle}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode={isIOS ? 'interactive' : 'on-drag'}
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.formContainer}>
           {/* Title */}
           <View style={styles.title}>
             <AppText style={styles.titleText}>
@@ -302,7 +323,8 @@ const Auth = () => {
                 : 'Already have an account? Login'}
             </AppText>
           </TouchableOpacity>
-        </View>
+          </View>
+        </ScrollView>
 
         {/* ✅ Bottom logo hidden when keyboard opens */}
         {!keyboardVisible && (
@@ -336,9 +358,19 @@ const styles = StyleSheet.create({
     paddingBottom: 50,
     backgroundColor: '#fff',
   },
-  formContainer: {
-    flex: 1,
+  containerKeyboardOpen: {
+    paddingBottom: 24,
+  },
+  formScrollContent: {
+    flexGrow: 1,
     justifyContent: 'center',
+  },
+  formScrollContentKeyboard: {
+    justifyContent: 'flex-start',
+    paddingTop: 24,
+  },
+  formContainer: {
+    width: '100%',
   },
   title: {
     alignItems: 'center',

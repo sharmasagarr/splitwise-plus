@@ -12,11 +12,6 @@ router.post(
   upload.single("file"),
   async (req: any, res: any) => {
     try {
-      console.log("📤 Profile picture upload started:", {
-        contentType: req.headers["content-type"],
-        hasFile: !!req.file,
-        hasAuth: !!req.headers.authorization,
-      });
 
       // Verify JWT
       const authHeader = req.headers.authorization;
@@ -30,7 +25,6 @@ router.post(
       try {
         const payload = jwt.verify(token, process.env.JWT_SECRET!) as any;
         userId = payload.userId;
-        console.log("✅ JWT verified for user:", userId);
       } catch {
         console.error("❌ JWT verification failed");
         return res.status(401).json({ error: "Invalid token" });
@@ -46,14 +40,6 @@ router.post(
         console.warn("❌ File is not an image:", req.file.mimetype);
         return res.status(400).json({ error: "Only image files are allowed" });
       }
-
-      console.log("📦 File received:", {
-        filename: req.file.originalname,
-        size: req.file.size,
-        mimetype: req.file.mimetype,
-      });
-
-      console.log("📤 Uploading to Cloudinary...");
 
       // Upload to Cloudinary via stream
       const result: any = await new Promise((resolve, reject) => {
@@ -79,15 +65,12 @@ router.post(
         stream.end(req.file.buffer);
       });
 
-      console.log("✅ Cloudinary upload successful:", result.secure_url);
-
       // Update user profile with new image URL
       const updatedUser = await prisma.user.update({
         where: { id: userId },
         data: { imageUrl: result.secure_url },
       });
 
-      console.log("✅ User profile picture updated");
       return res.json({ 
         imageUrl: result.secure_url,
         user: updatedUser 

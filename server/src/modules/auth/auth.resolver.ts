@@ -9,6 +9,10 @@ import {
   OTP_LIMITS,
   sendSignupOtpEmail,
 } from "./otp.service.js";
+import {
+  buildUsernameBaseFromName,
+  generateUniqueUsername,
+} from "../user/username.util.js";
 
 export const authResolvers = {
   Mutation: {
@@ -59,11 +63,17 @@ export const authResolvers = {
       }
 
       let user = existing;
+      const generatedUsername = await generateUniqueUsername(
+        prisma,
+        buildUsernameBaseFromName(trimmedName),
+        existing?.id,
+      );
 
       if (!user) {
         user = await prisma.user.create({
           data: {
             name: trimmedName,
+            username: generatedUsername,
             email: trimmedEmail,
             passwordHash: hash,
             emailVerified: false,
@@ -78,6 +88,7 @@ export const authResolvers = {
           where: { id: user.id },
           data: {
             name: trimmedName,
+            username: user.username ?? generatedUsername,
             passwordHash: hash,
             emailVerified: false,
             emailOtpHash: otpHash,

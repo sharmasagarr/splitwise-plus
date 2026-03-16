@@ -234,7 +234,7 @@ export default function App() {
             backgroundColor="#ffffff"
             barStyle="dark-content"
           />
-          <SafeAreaView style={styles.appSafeArea} edges={['top']}>
+          <SafeAreaView style={styles.appSafeArea} edges={['left', 'right', 'bottom']}>
             <Root />
           </SafeAreaView>
           <Toast config={toastConfig} />

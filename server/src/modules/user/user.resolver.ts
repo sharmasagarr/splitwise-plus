@@ -1,3 +1,9 @@
+import {
+  USERNAME_REGEX,
+  isValidUsername,
+  normalizeUsernameInput,
+} from "./username.util.js";
+
 export const userResolvers = {
   Query: {
     me: async (_: any, __: any, { prisma, user }: any) => {
@@ -8,7 +14,7 @@ export const userResolvers = {
   Mutation: {
     updateProfile: async (
       _: any,
-      { name, imageUrl, phone, upiId }: any,
+      { name, username, bio, imageUrl, phone, upiId }: any,
       { prisma, user }: any,
     ) => {
       if (!user) throw new Error("Unauthorized");
@@ -34,6 +40,42 @@ export const userResolvers = {
           );
         }
         dataToUpdate.name = trimmedName;
+      }
+
+      if (username !== undefined) {
+        const normalizedUsername = normalizeUsernameInput(username);
+
+        if (!isValidUsername(username)) {
+          throw new Error(
+            "Invalid username. Use 1-30 lowercase letters, numbers, periods, and underscores. Periods cannot be consecutive or at the end.",
+          );
+        }
+
+        const existing = await prisma.user.findFirst({
+          where: {
+            username: normalizedUsername,
+            id: { not: user.id },
+          },
+          select: { id: true },
+        });
+
+        if (existing) {
+          throw new Error("Username is already taken");
+        }
+
+        if (!USERNAME_REGEX.test(normalizedUsername)) {
+          throw new Error("Invalid username format");
+        }
+
+        dataToUpdate.username = normalizedUsername;
+      }
+
+      if (bio !== undefined) {
+        const trimmedBio = (bio || "").trim();
+        if (trimmedBio.length > 160) {
+          throw new Error("Bio cannot exceed 160 characters");
+        }
+        dataToUpdate.bio = trimmedBio.length > 0 ? trimmedBio : null;
       }
 
       if (imageUrl !== undefined) dataToUpdate.imageUrl = imageUrl;

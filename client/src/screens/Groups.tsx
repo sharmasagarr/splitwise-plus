@@ -80,52 +80,54 @@ const Groups = () => {
   const groups = data?.getGroups || [];
   const invites = invitesData?.getMyInvites || [];
 
-  const listHeader = (
-    <View>
-      {invites.length > 0 && (
-        <View style={styles.invitesSection}>
-          <AppText style={styles.invitesSectionTitle}>
-            Pending Invitations ({invites.length})
-          </AppText>
-          {invites.map((invite: any) => (
-            <View key={invite.id} style={styles.inviteCard}>
-              <View style={styles.inviteInfo}>
-                <AppText style={styles.inviteGroupName}>
-                  {invite.group?.name || 'Unknown Group'}
-                </AppText>
-                <AppText style={styles.inviteMembers}>
-                  {invite.group?.members?.length || 0} members
-                </AppText>
-              </View>
-              <View style={styles.inviteActions}>
-                <TouchableOpacity
-                  style={styles.acceptBtn}
-                  onPress={() => handleAcceptInvite(invite.id)}
-                >
-                  <AppText style={styles.acceptBtnText}>Accept</AppText>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.rejectBtn}
-                  onPress={() => handleRejectInvite(invite.id)}
-                >
-                  <AppText style={styles.rejectBtnText}>Reject</AppText>
-                </TouchableOpacity>
-              </View>
+  const listHeader =
+    invites.length > 0 ? (
+      <View style={styles.invitesSection}>
+        <AppText style={styles.invitesSectionTitle}>
+          Pending Invitations ({invites.length})
+        </AppText>
+        {invites.map((invite: any) => (
+          <View key={invite.id} style={styles.inviteCard}>
+            <View style={styles.inviteInfo}>
+              <AppText style={styles.inviteGroupName}>
+                {invite.group?.name || 'Unknown Group'}
+              </AppText>
+              <AppText style={styles.inviteMembers}>
+                {invite.group?.members?.length || 0} members
+              </AppText>
             </View>
-          ))}
-        </View>
-      )}
+            <View style={styles.inviteActions}>
+              <TouchableOpacity
+                style={styles.acceptBtn}
+                onPress={() => handleAcceptInvite(invite.id)}
+              >
+                <AppText style={styles.acceptBtnText}>Accept</AppText>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.rejectBtn}
+                onPress={() => handleRejectInvite(invite.id)}
+              >
+                <AppText style={styles.rejectBtnText}>Reject</AppText>
+              </TouchableOpacity>
+            </View>
+          </View>
+        ))}
+      </View>
+    ) : null;
 
-      {groups.length === 0 && (
-        <View style={styles.emptyContainer}>
-          <AppText style={styles.emptyText}>
-            You are not part of any groups yet.
-          </AppText>
-          <AppText style={styles.emptySubText}>
-            Create one to get started splitting expenses!
-          </AppText>
-        </View>
-      )}
+  const emptyState = (
+    <View style={styles.emptyContainer}>
+      <AppText style={styles.emptyText}>You are not part of any groups yet.</AppText>
+      <AppText style={styles.emptySubText}>
+        Create one to get started splitting expenses!
+      </AppText>
+      <TouchableOpacity
+        style={styles.emptyCtaButton}
+        onPress={() => navigation.navigate('CreateGroup')}
+        activeOpacity={0.85}
+      >
+        <AppText style={styles.emptyCtaText}>Create New Group</AppText>
+      </TouchableOpacity>
     </View>
   );
 
@@ -140,7 +142,11 @@ const Groups = () => {
           refetchInvites();
         }}
         ListHeaderComponent={listHeader}
-        contentContainerStyle={styles.listContainer}
+        ListEmptyComponent={emptyState}
+        contentContainerStyle={[
+          styles.listContainer,
+          groups.length === 0 && invites.length === 0 && styles.emptyListContainer,
+        ]}
         renderItem={({ item }) => (
           <TouchableOpacity
             style={styles.groupCard}
@@ -184,17 +190,34 @@ const styles = StyleSheet.create({
   },
   addButtonText: { color: '#fff', fontSize: 10 },
   emptyContainer: {
+    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 40,
+    paddingHorizontal: 20,
   },
   emptyText: {
     color: '#475569',
-    fontSize: 18,
+    fontSize: 16,
     marginBottom: 8,
+    textAlign: 'center',
   },
-  emptySubText: { color: '#94a3b8', fontSize: 14, textAlign: 'center' },
+  emptySubText: { color: '#94a3b8', fontSize: 10, textAlign: 'center' },
   listContainer: { padding: 16 },
+  emptyListContainer: {
+    flexGrow: 1,
+    justifyContent: 'center',
+  },
+  emptyCtaButton: {
+    marginTop: 18,
+    backgroundColor: '#667eea',
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    borderRadius: 10,
+  },
+  emptyCtaText: {
+    color: '#fff',
+    fontSize: 12,
+  },
   groupCard: {
     flexDirection: 'row',
     backgroundColor: '#fff',

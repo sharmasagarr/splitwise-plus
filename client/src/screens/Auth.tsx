@@ -11,6 +11,7 @@ import {
   Keyboard,
   ScrollView,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useDispatch } from 'react-redux';
 import InAppBrowser from 'react-native-inappbrowser-reborn';
 import { authService } from '../services/auth.service';
@@ -205,12 +206,13 @@ const Auth = () => {
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.root}
-      behavior={isIOS ? 'padding' : undefined}
-      enabled={isIOS}
-    >
-      <View style={[styles.container, keyboardVisible && styles.containerKeyboardOpen]}>
+    <SafeAreaView style={styles.root} edges={['top']}>
+      <KeyboardAvoidingView
+        style={styles.root}
+        behavior={isIOS ? 'padding' : undefined}
+        enabled={isIOS}
+      >
+        <View style={[styles.container, keyboardVisible && styles.containerKeyboardOpen]}>
         <ScrollView
           ref={formScrollRef}
           contentContainerStyle={scrollContentStyle}
@@ -352,8 +354,9 @@ const Auth = () => {
             />
           </View>
         )}
-      </View>
-    </KeyboardAvoidingView>
+        </View>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 };
 

@@ -4,6 +4,9 @@ import Message from './message.svg';
 import Profile from './profile.svg';
 import Groups from './group.svg';
 import Notification from './notification.svg';
+import DownArrow from './down-arrow.svg';
+import Pencil from './pencil.svg';
+import Bell from './bell.svg';
 
 export const Icons = {
   Home,
@@ -11,7 +14,10 @@ export const Icons = {
   Message,
   Profile,
   Groups,
-  Notification
+  Notification,
+  DownArrow,
+  Pencil,
+  Bell,
 };
 
 export type IconName = keyof typeof Icons;

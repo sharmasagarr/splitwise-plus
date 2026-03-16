@@ -325,7 +325,7 @@ const Home: React.FC = () => {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       <FlatList
         data={activities}
         keyExtractor={(item: any) => item.id}
@@ -392,12 +392,12 @@ const Home: React.FC = () => {
           </View>
         </KeyboardAvoidingView>
       </Modal>
-    </SafeAreaView>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f8fafc' },
+  container: { backgroundColor: '#f8fafc' },
   content: { paddingHorizontal: 15, paddingTop: 10 },
   sectionTitle: {
     fontSize: 13,

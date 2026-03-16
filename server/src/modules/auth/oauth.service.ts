@@ -1,4 +1,8 @@
 import { prisma } from "../../db/index.js";
+import {
+  buildUsernameBaseFromName,
+  generateUniqueUsername,
+} from "../user/username.util.js";
 
 /* ================= TYPES ================= */
 
@@ -43,11 +47,30 @@ export const findOrCreateOAuthUser = async ({
       })
     : null;
 
+  if (user && !user.username) {
+    const generatedUsername = await generateUniqueUsername(
+      prisma,
+      buildUsernameBaseFromName(user.name || name),
+      user.id,
+    );
+
+    user = await prisma.user.update({
+      where: { id: user.id },
+      data: { username: generatedUsername },
+    });
+  }
+
   // 3️⃣ Create user if not found
   if (!user) {
+    const generatedUsername = await generateUniqueUsername(
+      prisma,
+      buildUsernameBaseFromName(name),
+    );
+
     user = await prisma.user.create({
       data: {
         name,
+        username: generatedUsername,
         email,
         imageUrl,
         emailVerified: true, // OAuth emails are trusted

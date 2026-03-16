@@ -189,25 +189,28 @@ const styles = StyleSheet.create({
   name: {
     fontFamily: 'GoogleSans-Regular',
     fontSize: 18,
+    lineHeight: 24,
     color: '#1e293b',
   },
   email: {
     fontFamily: 'GoogleSans-Regular',
     fontSize: 10,
+    lineHeight: 14,
     color: '#64748b',
-    marginTop: -12,
+    marginTop: 2,
     fontWeight: '500',
   },
   divider: {
     height: 1,
     backgroundColor: '#f1f5f9',
+    marginTop: 8,
     marginBottom: 12,
   },
   statsContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: -10,
+    marginTop: 2,
   },
   statItem: {
     alignItems: 'center',
@@ -216,6 +219,7 @@ const styles = StyleSheet.create({
   statNumber: {
     fontFamily: 'GoogleSans-Regular',
     fontSize: 17,
+    lineHeight: 22,
     color: '#334155',
     marginBottom: 2,
   },
@@ -228,10 +232,11 @@ const styles = StyleSheet.create({
   statLabel: {
     fontFamily: 'GoogleSans-Regular',
     fontSize: 11,
+    lineHeight: 14,
     color: '#64748b',
     letterSpacing: 0.3,
     textTransform: 'uppercase',
-    marginTop: -10,
+    marginTop: 0,
   },
   statSeparator: {
     width: 1,

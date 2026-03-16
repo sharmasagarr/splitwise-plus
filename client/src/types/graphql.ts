@@ -294,12 +294,14 @@ export type Settlement = {
 
 export type User = {
   __typename?: 'User';
+  bio?: Maybe<Scalars['String']['output']>;
   createdAt: Scalars['String']['output'];
   email: Scalars['String']['output'];
   id: Scalars['ID']['output'];
   imageUrl?: Maybe<Scalars['String']['output']>;
   name: Scalars['String']['output'];
   phone?: Maybe<Scalars['String']['output']>;
+  username?: Maybe<Scalars['String']['output']>;
   upiId?: Maybe<Scalars['String']['output']>;
   updatedAt: Scalars['String']['output'];
 };
@@ -315,6 +317,8 @@ export type UserFragmentFragment = {
   __typename?: 'User';
   id: string;
   name: string;
+  username?: string | null;
+  bio?: string | null;
   email: string;
   phone?: string | null;
   imageUrl?: string | null;
@@ -571,6 +575,8 @@ export type MarkAllNotificationsReadMutation = {
 
 export type UpdateProfileMutationVariables = Exact<{
   name?: InputMaybe<Scalars['String']['input']>;
+  username?: InputMaybe<Scalars['String']['input']>;
+  bio?: InputMaybe<Scalars['String']['input']>;
   imageUrl?: InputMaybe<Scalars['String']['input']>;
   phone?: InputMaybe<Scalars['String']['input']>;
   upiId?: InputMaybe<Scalars['String']['input']>;
@@ -582,6 +588,8 @@ export type UpdateProfileMutation = {
     __typename?: 'User';
     id: string;
     name: string;
+    username?: string | null;
+    bio?: string | null;
     email: string;
     phone?: string | null;
     imageUrl?: string | null;

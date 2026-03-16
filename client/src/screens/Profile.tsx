@@ -26,6 +26,7 @@ import { API_URL } from '../apollo/client';
 import ReactNativeBlobUtil from 'react-native-blob-util';
 import { useImagePickerWithCrop } from '../components/ImagePickerModal';
 import type { User } from '../types/graphql';
+import Icon from '../components/Icon';
 
 const Profile: React.FC = () => {
   const { user } = useAppSelector(state => state.auth);
@@ -34,6 +35,8 @@ const Profile: React.FC = () => {
 
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState(user?.name || '');
+  const [editUsername, setEditUsername] = useState(user?.username || '');
+  const [editBio, setEditBio] = useState(user?.bio || '');
   const [editPhone, setEditPhone] = useState(user?.phone || '');
   const [editUpiId, setEditUpiId] = useState(user?.upiId || '');
   const [uploadingPicture, setUploadingPicture] = useState(false);
@@ -48,6 +51,9 @@ const Profile: React.FC = () => {
 
   const handleSaveProfile = async () => {
     const nameRegex = /^[a-zA-Z '-]{2,50}$/;
+    const username = editUsername.trim().toLowerCase();
+    const usernameRegex = /^(?!.*\.\.)(?!.*\.$)[a-z0-9](?:[a-z0-9._]{0,28}[a-z0-9])?$/;
+
     if (!nameRegex.test(editName.trim())) {
       Alert.alert(
         'Invalid Name',
@@ -56,10 +62,25 @@ const Profile: React.FC = () => {
       return;
     }
 
+    if (!usernameRegex.test(username)) {
+      Alert.alert(
+        'Invalid Username',
+        'Use 1-30 lowercase letters, numbers, periods, and underscores. Periods cannot be consecutive or at the end.',
+      );
+      return;
+    }
+
+    if (editBio.trim().length > 160) {
+      Alert.alert('Invalid Bio', 'Bio cannot exceed 160 characters.');
+      return;
+    }
+
     try {
       const { data } = await updateProfile({
         variables: {
           name: editName.trim(),
+          username,
+          bio: editBio.trim() || null,
           phone: editPhone.trim(),
           upiId: editUpiId.trim() || null,
         },
@@ -353,7 +374,7 @@ const Profile: React.FC = () => {
             {/* Pencil Icon Overlay - Only show in edit mode */}
             {isEditing && (
               <View style={styles.editIconOverlay}>
-                <AppText style={styles.editIcon}>✏️</AppText>
+                <Icon name="Pencil" width={16} height={16} color="#ffffff" />
               </View>
             )}
           </TouchableOpacity>
@@ -367,6 +388,21 @@ const Profile: React.FC = () => {
                   value={editName}
                   onChangeText={setEditName}
                   style={styles.input}
+                />
+                <AppTextInput
+                  placeholder="Username"
+                  value={editUsername}
+                  onChangeText={text => setEditUsername(text.toLowerCase())}
+                  style={styles.input}
+                  autoCapitalize="none"
+                />
+                <AppTextInput
+                  placeholder="Bio"
+                  value={editBio}
+                  onChangeText={setEditBio}
+                  style={[styles.input, styles.bioInput]}
+                  multiline
+                  maxLength={160}
                 />
                 <AppTextInput
                   placeholder="Phone"
@@ -395,6 +431,8 @@ const Profile: React.FC = () => {
                     onPress={() => {
                       setIsEditing(false);
                       setEditName(user?.name || '');
+                      setEditUsername(user?.username || '');
+                      setEditBio(user?.bio || '');
                       setEditPhone(user?.phone || '');
                       setEditUpiId(user?.upiId || '');
                     }}
@@ -406,10 +444,12 @@ const Profile: React.FC = () => {
             ) : (
               <>
                 <AppText style={styles.name}>{user.name}</AppText>
-                <AppText style={styles.title}>Splitwise+ User</AppText>
+                <AppText style={styles.title}>
+                  {user.username ? `@${user.username}` : 'Splitwise+ User'}
+                </AppText>
                 <AppText style={styles.bio}>
-                  Managing expenses smartly with friends and family. Making
-                  every split fair and transparent.
+                  {user.bio ||
+                    'Managing expenses smartly with friends and family. Making every split fair and transparent.'}
                 </AppText>
                 <TouchableOpacity
                   onPress={() => setIsEditing(true)}
@@ -447,6 +487,13 @@ const Profile: React.FC = () => {
                 <AppText style={styles.infoLabel}>📧 Email</AppText>
                 <AppText style={styles.infoValue}>{user.email}</AppText>
               </View>
+
+              {user.username && (
+                <View style={styles.infoItem}>
+                  <AppText style={styles.infoLabel}>👤 Username</AppText>
+                  <AppText style={styles.infoValue}>{`@${user.username}`}</AppText>
+                </View>
+              )}
 
               {user.phone && (
                 <View style={styles.infoItem}>
@@ -560,12 +607,12 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: '#667eea',
+    backgroundColor: '#ffffff',
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 3,
-    borderColor: '#ffffff',
-    shadowColor: '#667eea',
+    borderColor: '#d3d3d3',
+    shadowColor: '#ffffff',
     shadowOffset: {
       width: 0,
       height: 2,
@@ -573,9 +620,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 4,
     elevation: 6,
-  },
-  editIcon: {
-    fontSize: 20,
   },
   profileImage: {
     width: 120,
@@ -626,6 +670,10 @@ const styles = StyleSheet.create({
     padding: 12,
     marginBottom: 12,
     backgroundColor: '#f8fafc',
+  },
+  bioInput: {
+    minHeight: 90,
+    textAlignVertical: 'top',
   },
   editButton: {
     alignSelf: 'center',

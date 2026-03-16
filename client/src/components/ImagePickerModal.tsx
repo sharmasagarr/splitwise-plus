@@ -26,7 +26,6 @@ export const ImagePreviewModal: React.FC<ImagePreviewModalProps> = ({
   onConfirm,
   onCancel,
   loading = false,
-  aspectRatio = 1,
   cropShape = 'square',
 }) => {
   return (

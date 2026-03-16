@@ -18,7 +18,7 @@ import Home from '../screens/Home';
 import GroupsStack from './GroupsStack';
 import AddExpense from '../screens/AddExpense';
 import MessagesStack from './MessagesStack';
-import Profile from '../screens/Profile';
+import ProfileStack from './ProfileStack';
 import { lightTheme } from '../utility/themeColors';
 import { useAppSelector } from '../store/hooks';
 import Icon from '../components/Icon';
@@ -207,12 +207,7 @@ export default function BottomTabs() {
         tabBarIcon: MessagesTabIcon,
       },
       Profile: {
-        headerTitle: 'Profile',
-        headerTitleStyle: {
-          fontFamily: 'GoogleSans-Regular',
-          color: '#104d98',
-          fontSize: 16,
-        },
+        headerShown: false,
         tabBarIcon: ProfileTabIcon,
       },
     }),
@@ -281,7 +276,7 @@ export default function BottomTabs() {
       />
       <Tab.Screen
         name="Profile"
-        component={Profile}
+        component={ProfileStack}
         options={screenOptions.Profile as any}
       />
     </Tab.Navigator>

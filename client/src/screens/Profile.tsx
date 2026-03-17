@@ -448,7 +448,7 @@ const Profile: React.FC = () => {
 
         {/* Footer */}
         <View style={styles.footer}>
-          <AppText style={styles.footerText}>Splitwise+ v1.0.0</AppText>
+          <AppText style={styles.footerText}>SplitwisePlus v1.0.0</AppText>
           <AppText style={styles.footerSubtext}>
             © {new Date().getFullYear()} All rights reserved
           </AppText>

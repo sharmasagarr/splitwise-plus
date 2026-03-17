@@ -12,6 +12,7 @@ import { useGetGroups, useGetMyInvites, useRespondToInvite } from '../services';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigations/RootStack';
+import Icon from '../components/Icon';
 
 type NavProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -63,7 +64,8 @@ const Groups = () => {
           style={styles.addButton}
           onPress={() => navigation.navigate('CreateGroup')}
         >
-          <AppText style={styles.addButtonText}>+ New</AppText>
+          <Icon name="PlusSquare" width={16} height={16} color="#ffffff" />
+          <AppText style={styles.addButtonText}>New</AppText>
         </TouchableOpacity>
       ),
     });
@@ -126,6 +128,7 @@ const Groups = () => {
         onPress={() => navigation.navigate('CreateGroup')}
         activeOpacity={0.85}
       >
+        <Icon name="PlusSquare" width={16} height={16} color="#ffffff" />
         <AppText style={styles.emptyCtaText}>Create New Group</AppText>
       </TouchableOpacity>
     </View>
@@ -184,11 +187,14 @@ const styles = StyleSheet.create({
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   addButton: {
     backgroundColor: '#667eea',
-    paddingHorizontal: 14,
-    paddingVertical: 7,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
     borderRadius: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
-  addButtonText: { color: '#fff', fontSize: 10 },
+  addButtonText: { color: '#fff', fontSize: 13 },
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -213,6 +219,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     paddingVertical: 10,
     borderRadius: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   emptyCtaText: {
     color: '#fff',

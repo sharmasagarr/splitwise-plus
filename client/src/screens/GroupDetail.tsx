@@ -25,6 +25,7 @@ import {
 } from '../utils/upiHelper';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigations/RootStack';
+import Icon from '../components/Icon';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'GroupDetail'>;
 
@@ -224,7 +225,7 @@ const GroupDetail: React.FC<Props> = ({ route, navigation }) => {
             {item.user.name}
             {isMe ? ' (You)' : ''}
           </AppText>
-          <AppText style={styles.memberEmail}>{item.user.email}</AppText>
+          <AppText style={styles.memberUsername}>@{item.user.username}</AppText>
         </View>
         {!isMe && net !== 0 && (
           <View style={styles.balanceBadge}>
@@ -251,12 +252,13 @@ const GroupDetail: React.FC<Props> = ({ route, navigation }) => {
       <View style={styles.expenseInfo}>
         <AppText style={styles.expenseDesc}>{item.note || 'Expense'}</AppText>
         <AppText style={styles.expenseBy}>
-          by {item.createdBy?.name || 'Unknown'}
+          by {item.createdBy?.id === user?.id ? 'You' : item.createdBy?.name || 'Unknown'}
         </AppText>
       </View>
       <View style={styles.expenseRight}>
         <AppText style={styles.expenseAmount}>
-          ₹{parseFloat(item.totalAmount).toFixed(2)}
+          {item.currency === 'INR' ? '₹' : item.currency || '₹'}
+          {parseFloat(item.totalAmount).toFixed(2)}
         </AppText>
         <AppText style={styles.expenseChevron}>›</AppText>
       </View>
@@ -287,7 +289,8 @@ const GroupDetail: React.FC<Props> = ({ route, navigation }) => {
           style={styles.inviteBtn}
           onPress={() => setInviteModalVisible(true)}
         >
-          <AppText style={styles.inviteBtnText}>+ Invite</AppText>
+          <Icon name="PlusCircle" width={16} height={16} />
+          <AppText style={styles.inviteBtnText}>Invite</AppText>
         </TouchableOpacity>
       </View>
 
@@ -483,6 +486,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
   inviteBtnText: { color: '#fff', fontWeight: '700', fontSize: 13 },
   membersList: { marginHorizontal: 16 },
@@ -508,7 +514,7 @@ const styles = StyleSheet.create({
   memberAvatarText: { fontSize: 16, fontWeight: '700', color: '#667eea' },
   memberInfo: { flex: 1 },
   memberName: { fontSize: 15, fontWeight: '600', color: '#1e293b' },
-  memberEmail: { fontSize: 12, color: '#64748b', marginTop: 2 },
+  memberUsername: { fontSize: 12, color: '#64748b', marginTop: 2 },
   balanceBadge: {
     paddingHorizontal: 10,
     paddingVertical: 4,

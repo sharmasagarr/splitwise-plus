@@ -3,7 +3,7 @@ import { View, Image, StyleSheet } from 'react-native';
 import AppText from './AppText';
 import type { User } from '../types/graphql';
 
-interface ProfileCardProps extends Pick<User, 'name' | 'email' | 'imageUrl'> {
+interface ProfileCardProps extends Pick<User, 'name' | 'imageUrl' | 'username'> {
   groupsCount?: number;
   amountOwe?: string;
   amountOwed?: string;
@@ -21,7 +21,7 @@ const formatAmount = (str: string) => {
 
 const ProfileCard: React.FC<ProfileCardProps> = ({
   name,
-  email,
+  username,
   imageUrl,
   groupsCount = 0,
   amountOwe = '₹0',
@@ -84,8 +84,8 @@ const ProfileCard: React.FC<ProfileCardProps> = ({
           </AppText>
         </View>
 
-        <AppText style={styles.email} numberOfLines={1}>
-          {email}
+        <AppText style={styles.username} numberOfLines={1}>
+          @{username}
         </AppText>
 
         {/* Divider */}
@@ -192,11 +192,11 @@ const styles = StyleSheet.create({
     lineHeight: 24,
     color: '#1e293b',
   },
-  email: {
+  username: {
     fontFamily: 'GoogleSans-Regular',
     fontSize: 10,
     lineHeight: 14,
-    color: '#64748b',
+    color: '#0e4fb1',
     marginTop: 2,
     fontWeight: '500',
   },

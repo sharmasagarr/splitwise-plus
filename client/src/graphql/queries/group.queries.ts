@@ -37,7 +37,7 @@ export const GET_GROUP_DETAILS = gql`
         user {
           id
           name
-          email
+          username
           imageUrl
           upiId
         }

@@ -97,7 +97,7 @@ export const GET_EXPENSE_DETAIL = gql`
         user {
           id
           name
-          email
+          username
         }
       }
       attachments {
@@ -106,19 +106,6 @@ export const GET_EXPENSE_DETAIL = gql`
         filename
         contentType
         createdAt
-      }
-      group {
-        id
-        name
-        members {
-          id
-          userId
-          user {
-            id
-            name
-            email
-          }
-        }
       }
     }
   }

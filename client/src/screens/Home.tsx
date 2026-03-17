@@ -215,7 +215,7 @@ const Home: React.FC = () => {
     <View style={styles.content}>
       <ProfileCard
         name={user.name}
-        email={user.email}
+        username={user.username}
         imageUrl={user.imageUrl}
         groupsCount={groups.length}
         amountOwe={`₹${totalOwe.toFixed(0)}`}

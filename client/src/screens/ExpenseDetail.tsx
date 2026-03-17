@@ -249,7 +249,6 @@ const ExpenseDetail: React.FC<Props> = ({ route }) => {
     minute: '2-digit',
   });
 
-  const groupMembers = expense.group?.members || [];
   const attachments = expense.attachments || [];
 
   return (
@@ -268,16 +267,16 @@ const ExpenseDetail: React.FC<Props> = ({ route }) => {
         </View>
         <AppText style={styles.headerNote}>{expense.note || 'Expense'}</AppText>
         <AppText style={styles.headerAmount}>
-          ₹{parseFloat(expense.totalAmount).toFixed(2)}
+          {expense.currency === 'INR' ? '₹' : expense.currency || '₹'}
+          {parseFloat(expense.totalAmount).toFixed(2)}
         </AppText>
-        <AppText style={styles.headerCurrency}>{expense.currency}</AppText>
         <View style={styles.headerMeta}>
           <AppText style={styles.headerMetaText}>
             Paid by{' '}
             <AppText style={styles.headerMetaBold}>
               {expense.createdBy.id === user?.id
                 ? 'You'
-                : expense.createdBy.name}
+                : expense.createdBy.name.split(' ')[0]}
             </AppText>
           </AppText>
           <AppText style={styles.headerDot}>•</AppText>
@@ -292,28 +291,6 @@ const ExpenseDetail: React.FC<Props> = ({ route }) => {
         )}
       </View>
 
-      {/* Group Members */}
-      {groupMembers.length > 0 && (
-        <View style={styles.section}>
-          <AppText style={styles.sectionTitle}>
-            👥 Group Members ({groupMembers.length})
-          </AppText>
-          <View style={styles.membersRow}>
-            {groupMembers.map((m: any) => (
-              <View key={m.id} style={styles.memberChip}>
-                <View style={styles.memberChipAvatar}>
-                  <AppText style={styles.memberChipAvatarText}>
-                    {m.user.name.charAt(0).toUpperCase()}
-                  </AppText>
-                </View>
-                <AppText style={styles.memberChipName}>
-                  {m.user.id === user?.id ? 'You' : m.user.name}
-                </AppText>
-              </View>
-            ))}
-          </View>
-        </View>
-      )}
 
       {/* Split Breakdown */}
       <View style={styles.section}>
@@ -328,7 +305,15 @@ const ExpenseDetail: React.FC<Props> = ({ route }) => {
         const isSettled = share.status === 'settled';
 
         return (
-          <View key={share.id} style={styles.shareCard}>
+          <View
+            key={share.id}
+            style={[styles.shareCard, isSettled && styles.shareCardSettled]}
+          >
+            {isSettled && (
+              <View style={styles.tiltedPaidBadge}>
+                <AppText style={styles.tiltedPaidText}>PAID</AppText>
+              </View>
+            )}
             <View style={styles.shareAvatar}>
               <AppText style={styles.shareAvatarText}>
                 {share.user.name.charAt(0).toUpperCase()}
@@ -336,38 +321,22 @@ const ExpenseDetail: React.FC<Props> = ({ route }) => {
             </View>
             <View style={styles.shareInfo}>
               <AppText style={styles.shareName}>
-                {share.user.name}
-                {isMe ? ' (You)' : ''}
+                {isMe ? 'You' : share.user.name}
               </AppText>
-              <AppText style={styles.shareEmail}>{share.user.email}</AppText>
-              <View style={styles.shareAmounts}>
-                <AppText style={styles.shareAmountLabel}>
-                  Share:{' '}
-                  <AppText style={styles.shareAmountValue}>
-                    ₹{parseFloat(share.shareAmount).toFixed(2)}
-                  </AppText>
-                </AppText>
-                {isCreator && (
-                  <AppText style={styles.paidBadge}>
-                    💳 Paid ₹{parseFloat(expense.totalAmount).toFixed(2)}
-                  </AppText>
-                )}
-              </View>
+              <AppText style={styles.shareUsername}>@{share.user.username}</AppText>
             </View>
-            <View
-              style={[
-                styles.statusBadge,
-                isSettled ? styles.statusSettled : styles.statusOwed,
-              ]}
-            >
-              <AppText
-                style={[
-                  styles.statusText,
-                  isSettled ? styles.statusTextSettled : styles.statusTextOwed,
-                ]}
-              >
-                {isSettled ? '✅ Settled' : '🔴 Owes'}
+            <View>
+              <AppText style={styles.shareAmountLabel}>
+                Share:{' '}
+                <AppText style={styles.shareAmountValue}>
+                  {expense.currency === 'INR' ? '₹' : expense.currency || '₹'}{parseFloat(share.shareAmount).toFixed(2)}
+                </AppText>
               </AppText>
+              {isCreator && (
+                <AppText style={styles.paidBadge}>
+                  💳 Paid {expense.currency === 'INR' ? '₹' : expense.currency || '₹'}{parseFloat(expense.totalAmount).toFixed(2)}
+                </AppText>
+              )}
             </View>
           </View>
         );
@@ -541,6 +510,11 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     borderWidth: 1,
     borderColor: '#f1f5f9',
+    overflow: 'hidden',
+  },
+  shareCardSettled: {
+    borderColor: '#10b981',
+    borderWidth: 1.5,
   },
   shareAvatar: {
     width: 42,
@@ -554,7 +528,7 @@ const styles = StyleSheet.create({
   shareAvatarText: { fontSize: 17, fontWeight: '700', color: '#667eea' },
   shareInfo: { flex: 1 },
   shareName: { fontSize: 15, fontWeight: '600', color: '#1e293b' },
-  shareEmail: { fontSize: 11, color: '#94a3b8', marginTop: 1 },
+  shareUsername: { fontSize: 11, color: '#94a3b8', marginTop: 1 },
   shareAmounts: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -573,12 +547,23 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     overflow: 'hidden',
   },
-  statusBadge: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8 },
-  statusSettled: { backgroundColor: '#f0fdf4' },
-  statusOwed: { backgroundColor: '#fef2f2' },
-  statusText: { fontSize: 11, fontWeight: '700' },
-  statusTextSettled: { color: '#16a34a' },
-  statusTextOwed: { color: '#dc2626' },
+  tiltedPaidBadge: {
+    position: 'absolute',
+    top: 5,
+    right: -22,
+    backgroundColor: '#10b981',
+    paddingVertical: 2,
+    paddingHorizontal: 20,
+    transform: [{ rotate: '45deg' }],
+    zIndex: 10,
+  },
+  tiltedPaidText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: '800',
+    textAlign: 'center',
+    letterSpacing: 1,
+  },
 
   // Attachments
   attachmentsList: { paddingVertical: 8, gap: 12 },

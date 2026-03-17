@@ -7,6 +7,8 @@ import Notification from './notification.svg';
 import DownArrow from './down-arrow.svg';
 import Pencil from './pencil.svg';
 import Bell from './bell.svg';
+import PlusSquare from './plus-square.svg';
+import PlusCircle from './plus-circle.svg';
 
 export const Icons = {
   Home,
@@ -18,6 +20,8 @@ export const Icons = {
   DownArrow,
   Pencil,
   Bell,
+  PlusSquare,
+  PlusCircle,
 };
 
 export type IconName = keyof typeof Icons;

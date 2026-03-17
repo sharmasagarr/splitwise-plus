@@ -232,7 +232,7 @@ export default function BottomTabs() {
         style={bellStyles.container}
         hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
       >
-        <RNText style={bellStyles.bell}>🔔</RNText>
+        <Icon name="Notification" width={30} height={30} />
         {unreadCount > 0 && (
           <View style={bellStyles.badge}>
             <RNText style={bellStyles.badgeText}>

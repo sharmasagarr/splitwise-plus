@@ -13,8 +13,6 @@ import {
 import AppText from '../components/AppText';
 import { useGetExpenseDetail, uploadExpenseAttachment } from '../services';
 import { useAppSelector } from '../store/hooks';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import ReactNativeBlobUtil from 'react-native-blob-util';
 import { useImagePickerWithCrop } from '../components/ImagePickerModal';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigations/RootStack';

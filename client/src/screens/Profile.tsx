@@ -7,7 +7,6 @@ import {
   ScrollView,
   ActivityIndicator,
   Alert,
-  Platform,
 } from 'react-native';
 import AppText from '../components/AppText';
 import { useState, useCallback } from 'react';
@@ -20,10 +19,6 @@ import {
   uploadProfilePicture,
 } from '../services';
 import AppTextInput from '../components/AppTextInput';
-import { launchImageLibrary } from 'react-native-image-picker';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { API_URL } from '../apollo/client';
-import ReactNativeBlobUtil from 'react-native-blob-util';
 import { useImagePickerWithCrop } from '../components/ImagePickerModal';
 import type { User } from '../types/graphql';
 import Icon from '../components/Icon';
@@ -123,118 +118,11 @@ const Profile: React.FC = () => {
 
   const {
     handlePickImage: openProfileImagePicker,
-    previewVisible,
-    croppedImage,
-    handleConfirmImage,
-    handleClosePreview,
     ImagePreviewModal: ProfileImagePreviewModal,
   } = useImagePickerWithCrop({
     onImageSelected: handleUploadProfilePictureDirect,
     cropShape: 'circle',
   });
-
-  const handleUploadProfilePicture = useCallback(async () => {
-    try {
-      const result = await launchImageLibrary({
-        mediaType: 'photo',
-        quality: 0.8,
-        selectionLimit: 1,
-      });
-
-      if (result.didCancel || !result.assets || result.assets.length === 0) {
-        return;
-      }
-
-      const asset = result.assets[0];
-      if (!asset.uri) {
-        return;
-      }
-
-      setUploadingPicture(true);
-
-      const token = await AsyncStorage.getItem('token');
-      if (!token) {
-        Alert.alert('Error', 'You need to be logged in');
-        setUploadingPicture(false);
-        return;
-      }
-
-      // Validate file size (5MB limit)
-      if (asset.fileSize && asset.fileSize > 5 * 1024 * 1024) {
-        Alert.alert('Error', 'Image size must be less than 5MB');
-        setUploadingPicture(false);
-        return;
-      }
-
-      const fileUri = Platform.OS === 'android' 
-        ? asset.uri 
-        : asset.uri?.replace('file://', '');
-      
-      const fileName = asset.fileName || `profile_${Date.now()}.jpg`;
-      const fileType = asset.type || 'image/jpeg';
-
-      console.log('🚀 Starting profile picture upload:', {
-        fileName,
-        fileSize: asset.fileSize,
-        fileType,
-        apiUrl: `${API_URL}/api/upload/profile-picture`,
-      });
-
-      const uploadUrl = `${API_URL}/api/upload/profile-picture`;
-
-      const uploadResponse = await ReactNativeBlobUtil.fetch(
-        'POST',
-        uploadUrl,
-        {
-          'Authorization': `Bearer ${token}`,
-          'Accept': 'application/json',
-          'Content-Type': 'multipart/form-data',
-        },
-        [
-          {
-            name: 'file',
-            filename: fileName,
-            type: fileType,
-            data: ReactNativeBlobUtil.wrap(fileUri.replace('file://', '')),
-          },
-        ]
-      );
-
-      const statusCode = uploadResponse.info().status;
-      const rawText = await Promise.resolve(uploadResponse.text());
-      const responseText =
-        typeof rawText === 'string' ? rawText : JSON.stringify(rawText ?? '');
-
-      console.log('📡 Response received:', { status: statusCode });
-
-      let json: any;
-      try {
-        json = await Promise.resolve(uploadResponse.json());
-      } catch (parseError) {
-        console.error('❌ JSON parse error:', parseError);
-        throw new Error(`Invalid server response: ${responseText.substring(0, 100)}`);
-      }
-
-      if (statusCode < 200 || statusCode >= 300) {
-        console.error('❌ Upload failed:', json);
-        throw new Error(json.error || `Upload failed: HTTP ${statusCode}`);
-      }
-
-      console.log('✅ Upload successful:', json);
-      
-      // Update the user in Redux with new image URL
-      if (json.user) {
-        dispatch(setUser(json.user));
-      }
-      
-      Alert.alert('Success', 'Profile picture updated successfully!');
-    } catch (error: any) {
-      console.error('❌ Upload error:', error.message);
-      Alert.alert('Upload Error', error.message || 'Failed to upload profile picture');
-    } finally {
-      setUploadingPicture(false);
-    }
-  }, [dispatch]);
 
   const handleLogout = () => {
     Alert.alert('Logout', 'Are you sure you want to logout?', [
@@ -354,8 +242,13 @@ const Profile: React.FC = () => {
             style={styles.profileImageContainer}
             onPress={openProfileImagePicker}
             activeOpacity={0.7}
+            disabled={uploadingPicture}
           >
-            {user.imageUrl ? (
+            {uploadingPicture ? (
+              <View style={[styles.avatarContainer, styles.uploadingAvatar]}>
+                <ActivityIndicator size="large" color="#667eea" />
+              </View>
+            ) : user.imageUrl ? (
               <Image
                 source={{ uri: user.imageUrl }}
                 style={styles.profileImage}
@@ -372,9 +265,9 @@ const Profile: React.FC = () => {
               </View>
             )}
             {/* Pencil Icon Overlay - Only show in edit mode */}
-            {isEditing && (
+            {isEditing && !uploadingPicture && (
               <View style={styles.editIconOverlay}>
-                <Icon name="Pencil" width={16} height={16} color="#ffffff" />
+                <Icon name="Pencil" width={16} height={16} />
               </View>
             )}
           </TouchableOpacity>
@@ -632,6 +525,9 @@ const styles = StyleSheet.create({
     borderRadius: 60,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  uploadingAvatar: {
+    backgroundColor: '#e2e8f0',
   },
   avatarText: {
     fontSize: 32,

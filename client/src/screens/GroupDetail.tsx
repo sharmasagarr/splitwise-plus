@@ -490,7 +490,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 6,
   },
-  inviteBtnText: { color: '#fff', fontWeight: '700', fontSize: 13 },
+  inviteBtnText: { color: '#fff', fontSize: 13 },
   membersList: { marginHorizontal: 16 },
   memberItem: {
     flexDirection: 'row',

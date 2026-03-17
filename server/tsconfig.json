@@ -9,7 +9,7 @@
     "types": ["node"],
     "noEmit": false,
     "skipLibCheck": true,
-    "rootDirs": ["src", "generated"] 
+    "rootDirs": ["src", "generated", "prisma"]
   },
-  "include": ["src/**/*", "generated/**/*"]
+  "include": ["src/**/*", "generated/**/*", "prisma/**/*"]
 }

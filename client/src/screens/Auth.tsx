@@ -70,7 +70,7 @@ const Auth = () => {
     const showSub = Keyboard.addListener('keyboardDidShow', event => {
       setKeyboardVisible(true);
       setKeyboardHeight(event.endCoordinates?.height ?? 0);
-      if (isSignupPasswordStep || mode === 'login') {
+      if (isSignupPasswordStep || mode === 'login' || isOtpStep) {
         scrollFormToBottom(100);
       }
     });
@@ -84,7 +84,7 @@ const Auth = () => {
       showSub.remove();
       hideSub.remove();
     };
-  }, [isSignupPasswordStep, mode]);
+  }, [isSignupPasswordStep, mode, isOtpStep]);
 
   const handleSubmit = async () => {
     const trimmedName = name.trim();
@@ -226,8 +226,6 @@ const Auth = () => {
             <AppText style={styles.titleText}>
               {mode === 'login'
                 ? 'Welcome Back 👋'
-                : isOtpStep
-                ? 'Verify Email OTP ✉️'
                 : 'Create Account ✨'}
             </AppText>
           </View>
@@ -257,7 +255,11 @@ const Auth = () => {
             <AppText style={styles.oauthText}>Continue with GitHub</AppText>
           </TouchableOpacity>
 
-          <AppText style={styles.orText}>OR</AppText>
+          <View style={styles.orDividerRow}>
+            <View style={styles.orDividerLine} />
+            <AppText style={styles.orText}>{isOtpStep ? 'Verify OTP' : 'OR'}</AppText>
+            <View style={styles.orDividerLine} />
+          </View>
 
           {mode === 'signup' && !isOtpStep && (
             <AppTextInput
@@ -287,6 +289,7 @@ const Auth = () => {
                 placeholder="OTP"
                 value={otp}
                 onChangeText={setOtp}
+                onFocus={() => scrollFormToBottom(80)}
                 style={styles.input}
                 placeholderTextColor="#999"
                 keyboardType="number-pad"
@@ -424,7 +427,21 @@ const styles = StyleSheet.create({
   orText: {
     textAlign: 'center',
     color: '#999',
+    marginBottom: 0,
+    marginHorizontal: 12,
+    fontSize: 12,
+    lineHeight: 12,
+    textAlignVertical: 'center',
+  },
+  orDividerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
     marginBottom: 16,
+  },
+  orDividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: '#e5e7eb',
   },
   input: {
     borderWidth: 1,

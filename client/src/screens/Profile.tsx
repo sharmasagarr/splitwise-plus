@@ -194,10 +194,15 @@ const Profile: React.FC = () => {
       return 'Not available';
     }
 
-    return date.toLocaleDateString('en-US', {
-      month: 'long',
-      year: 'numeric',
-    });
+    const day = date.getDate();
+    const suffix = ['th', 'st', 'nd', 'rd'][
+      day % 10 > 3 ? 0 : (day % 100) - (day % 10) !== 10 ? day % 10 : 0
+    ];
+
+    const monthName = date.toLocaleDateString('en-US', { month: 'long' });
+    const year = date.getFullYear();
+
+    return `${day}${suffix} ${monthName}, ${year}`;
   };
 
   // Calculate member since date (if user has createdAt, otherwise use fallback)
@@ -276,39 +281,59 @@ const Profile: React.FC = () => {
           <View style={styles.content}>
             {isEditing ? (
               <View style={styles.editContainer}>
-                <AppTextInput
-                  placeholder="Name"
-                  value={editName}
-                  onChangeText={setEditName}
-                  style={styles.input}
-                />
-                <AppTextInput
-                  placeholder="Username"
-                  value={editUsername}
-                  onChangeText={text => setEditUsername(text.toLowerCase())}
-                  style={styles.input}
-                  autoCapitalize="none"
-                />
-                <AppTextInput
-                  placeholder="Bio"
-                  value={editBio}
-                  onChangeText={setEditBio}
-                  style={[styles.input, styles.bioInput]}
-                  multiline
-                  maxLength={160}
-                />
-                <AppTextInput
-                  placeholder="Phone"
-                  value={editPhone}
-                  onChangeText={setEditPhone}
-                  style={styles.input}
-                />
-                <AppTextInput
-                  placeholder="UPI ID (e.g. name@upi)"
-                  value={editUpiId}
-                  onChangeText={setEditUpiId}
-                  style={styles.input}
-                />
+                <View style={styles.inputWrapper}>
+                  <AppText style={styles.inputLabel}>Name</AppText>
+                  <AppTextInput
+                    placeholder="John Doe"
+                    value={editName}
+                    onChangeText={setEditName}
+                    style={styles.input}
+                  />
+                </View>
+
+                <View style={styles.inputWrapper}>
+                  <AppText style={styles.inputLabel}>@username</AppText>
+                  <AppTextInput
+                    placeholder="johndoe"
+                    value={editUsername}
+                    onChangeText={text => setEditUsername(text.toLowerCase())}
+                    style={styles.input}
+                    autoCapitalize="none"
+                  />
+                </View>
+
+                <View style={styles.inputWrapper}>
+                  <AppText style={styles.inputLabel}>Bio</AppText>
+                  <AppTextInput
+                    placeholder="A short bio"
+                    value={editBio}
+                    onChangeText={setEditBio}
+                    style={[styles.input, styles.bioInput]}
+                    multiline
+                    maxLength={160}
+                  />
+                </View>
+
+                <View style={styles.inputWrapper}>
+                  <AppText style={styles.inputLabel}>Phone</AppText>
+                  <AppTextInput
+                    placeholder="+1 234 567 8900"
+                    value={editPhone}
+                    onChangeText={setEditPhone}
+                    style={styles.input}
+                  />
+                </View>
+
+                <View style={styles.inputWrapper}>
+                  <AppText style={styles.inputLabel}>UPI ID</AppText>
+                  <AppTextInput
+                    placeholder="name@upi"
+                    value={editUpiId}
+                    onChangeText={setEditUpiId}
+                    style={styles.input}
+                  />
+                </View>
+
                 <View style={styles.actionButtons}>
                   <TouchableOpacity
                     style={styles.primaryButton}
@@ -363,49 +388,54 @@ const Profile: React.FC = () => {
                 <AppText style={[styles.statNumber, styles.oweAmount]}>
                   {`₹${totalOwe.toFixed(0)}`}
                 </AppText>
-                <AppText style={styles.statLabel}>You Owe</AppText>
+                <AppText style={styles.statLabel}>Owe</AppText>
               </View>
               <View style={styles.statDivider} />
               <View style={styles.statItem}>
                 <AppText style={[styles.statNumber, styles.owedAmount]}>
                   {`₹${totalOwed.toFixed(0)}`}
                 </AppText>
-                <AppText style={styles.statLabel}>Owed to You</AppText>
+                <AppText style={styles.statLabel}>Owed</AppText>
               </View>
             </View>
 
             {/* Info Section */}
             <View style={styles.infoSection}>
               <View style={styles.infoItem}>
-                <AppText style={styles.infoLabel}>📧 Email</AppText>
+                <View style={styles.infoLabel}>
+                  <Icon name="Email" width={12} height={12} style={styles.infoIcon} />
+                  <AppText style={styles.infoLabelText}>Email</AppText>
+                </View>
                 <AppText style={styles.infoValue}>{user.email}</AppText>
               </View>
 
-              {user.username && (
-                <View style={styles.infoItem}>
-                  <AppText style={styles.infoLabel}>👤 Username</AppText>
-                  <AppText style={styles.infoValue}>{`@${user.username}`}</AppText>
-                </View>
-              )}
-
               {user.phone && (
                 <View style={styles.infoItem}>
-                  <AppText style={styles.infoLabel}>📱 Phone</AppText>
+                  <View style={styles.infoLabel}>
+                  <Icon name="Phone" width={14} height={14} style={styles.infoIcon} />
+                  <AppText style={styles.infoLabelText}>Phone</AppText>
+                </View>
                   <AppText style={styles.infoValue}>{user.phone}</AppText>
                 </View>
               )}
 
-              <View style={styles.infoItem}>
-                <AppText style={styles.infoLabel}>📅 Member Since</AppText>
-                <AppText style={styles.infoValue}>{memberSince}</AppText>
-              </View>
-
               {user.upiId && (
                 <View style={styles.infoItem}>
-                  <AppText style={styles.infoLabel}>💳 UPI ID</AppText>
+                  <View style={styles.infoLabel}>
+                  <Icon name="Wallet" width={14} height={14} style={styles.infoIcon} />
+                  <AppText style={styles.infoLabelText}>UPI ID</AppText>
+                </View>
                   <AppText style={styles.infoValue}>{user.upiId}</AppText>
                 </View>
               )}
+
+                <View style={[styles.infoItem, styles.infoItemLast]}>
+                <View style={styles.infoLabel}>
+                  <Icon name="Calender" width={14} height={14} style={styles.infoIcon} />
+                  <AppText style={styles.infoLabelText}>Member Since</AppText>
+                </View>
+                <AppText style={styles.infoValue}>{memberSince}</AppText>
+              </View>
             </View>
             <TouchableOpacity
               onPress={handleLogout}
@@ -456,17 +486,6 @@ const styles = StyleSheet.create({
   },
   card: {
     backgroundColor: '#ffffff',
-    borderRadius: 20,
-    marginHorizontal: 16,
-    marginVertical: 16,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 10,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 20,
-    elevation: 8,
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: '#f1f5f9',
@@ -475,6 +494,7 @@ const styles = StyleSheet.create({
     height: 100,
     width: '100%',
     backgroundColor: '#667eea',
+    borderRadius: 10,
   },
   profileImageContainer: {
     alignSelf: 'center',
@@ -559,13 +579,29 @@ const styles = StyleSheet.create({
     width: '100%',
     marginBottom: 20,
   },
+  inputWrapper: {
+    marginBottom: 20,
+    position: 'relative',
+    marginTop: 8,
+  },
+  inputLabel: {
+    position: 'absolute',
+    top: -9,
+    left: 12,
+    zIndex: 1,
+    backgroundColor: '#ffffff',
+    paddingHorizontal: 4,
+    fontSize: 11,
+    color: '#475569',
+    letterSpacing: 0.5,
+  },
   input: {
     borderWidth: 1,
     borderColor: '#e2e8f0',
     borderRadius: 8,
-    padding: 12,
-    marginBottom: 12,
-    backgroundColor: '#f8fafc',
+    padding: 14,
+    backgroundColor: '#ffffff',
+    fontSize: 15,
   },
   bioInput: {
     minHeight: 90,
@@ -613,7 +649,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#e2e8f0',
   },
   statNumber: {
-    fontSize: 20,
+    fontSize: 16,
     fontWeight: '800',
     color: '#334155',
     marginBottom: 2,
@@ -625,20 +661,21 @@ const styles = StyleSheet.create({
     color: '#10b981',
   },
   statLabel: {
-    fontSize: 12,
+    fontSize: 10,
     color: '#64748b',
     fontWeight: '600',
     letterSpacing: 0.3,
     textTransform: 'uppercase',
+    textAlign: 'center',
   },
   actionButtons: {
     flexDirection: 'row',
-    marginBottom: 24,
+    marginBottom: 20,
   },
   primaryButton: {
     flex: 1,
     backgroundColor: '#667eea',
-    paddingVertical: 16,
+    paddingVertical: 10,
     borderRadius: 12,
     alignItems: 'center',
     marginRight: 8,
@@ -654,13 +691,12 @@ const styles = StyleSheet.create({
   primaryButtonText: {
     color: '#ffffff',
     fontSize: 16,
-    fontWeight: '700',
     letterSpacing: 0.5,
   },
   secondaryButton: {
     flex: 1,
     backgroundColor: '#ffffff',
-    paddingVertical: 16,
+    paddingVertical: 10,
     borderRadius: 12,
     borderWidth: 2,
     borderColor: '#667eea',
@@ -670,7 +706,6 @@ const styles = StyleSheet.create({
   secondaryButtonText: {
     color: '#667eea',
     fontSize: 16,
-    fontWeight: '700',
     letterSpacing: 0.5,
   },
   infoSection: {
@@ -681,24 +716,34 @@ const styles = StyleSheet.create({
     borderColor: '#f1f5f9',
   },
   infoItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: 'column',
+    alignItems: 'flex-start',
     paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#e2e8f0',
   },
+  infoItemLast:{
+    borderBottomWidth: 0
+  },
+  infoIcon: {
+    marginRight: 6,
+  },
   infoLabel: {
-    fontSize: 15,
-    color: '#475569',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+    marginBottom: 4,
+  },
+  infoLabelText: {
+    fontSize: 12,
+    color: '#64748b',
     fontWeight: '600',
   },
   infoValue: {
-    fontSize: 15,
+    fontSize: 12,
     color: '#1e293b',
-    fontWeight: '500',
-    flex: 1,
-    textAlign: 'right',
+    fontWeight: '600',
+    textAlign: 'left',
   },
   userId: {
     fontSize: 13,

@@ -9,6 +9,10 @@ import Pencil from './pencil.svg';
 import Bell from './bell.svg';
 import PlusSquare from './plus-square.svg';
 import PlusCircle from './plus-circle.svg';
+import Calender from './calendar.svg';
+import Email from './email.svg';
+import Phone from './phone.svg';
+import Wallet from './wallet.svg';
 
 export const Icons = {
   Home,
@@ -22,6 +26,10 @@ export const Icons = {
   Bell,
   PlusSquare,
   PlusCircle,
+  Calender,
+  Email,
+  Phone,
+  Wallet,
 };
 
 export type IconName = keyof typeof Icons;

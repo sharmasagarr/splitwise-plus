@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   Alert,
   FlatList,
+  Image,
   Modal,
   StyleSheet,
   TouchableOpacity,
@@ -12,6 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import AppText from '../components/AppText';
 import AppTextInput from '../components/AppTextInput';
+import Icon from '../components/Icon';
 import { useGetUserUnsettledShares, useSettleSpecificShares } from '../services';
 import { RootStackParamList } from '../navigations/RootStack';
 import {
@@ -31,6 +33,8 @@ type ShareItem = {
     createdBy?: {
       id?: string;
       name?: string;
+      username?: string;
+      imageUrl?: string | null;
       upiId?: string | null;
     };
     group?: { name?: string };
@@ -46,7 +50,9 @@ export default function SettleUserShares({ route, navigation }: Props) {
 
   const [selectedShareIds, setSelectedShareIds] = useState<string[]>([]);
   const [paymentMode, setPaymentMode] = useState('upi');
+  const [alreadyPaid, setAlreadyPaid] = useState(false);
   const [amount, setAmount] = useState('');
+  const [paymentModalVisible, setPaymentModalVisible] = useState(false);
   const [upiModalVisible, setUpiModalVisible] = useState(false);
   const [upiIdInput, setUpiIdInput] = useState('');
   const [pendingUpiSettlement, setPendingUpiSettlement] = useState<{
@@ -77,6 +83,11 @@ export default function SettleUserShares({ route, navigation }: Props) {
 
   const allSelected = shares.length > 0 && selectedShareIds.length === shares.length;
   const savedPayeeUpiId = (shares[0]?.expense?.createdBy?.upiId || '').trim();
+  const payeeName = shares[0]?.expense?.createdBy?.name || toUserName;
+  const payeeUsername = shares[0]?.expense?.createdBy?.username || '';
+  const payeeImageUrl = shares[0]?.expense?.createdBy?.imageUrl || '';
+  const payeeUpiId = (shares[0]?.expense?.createdBy?.upiId || '').trim();
+  const payeeInitial = (payeeName || '?').charAt(0).toUpperCase();
 
   const [settleSpecificShares, { loading: settling }] = useSettleSpecificShares({
     onCompleted: () => {
@@ -90,6 +101,9 @@ export default function SettleUserShares({ route, navigation }: Props) {
     setSelectedShareIds(nextIds);
     const nextTotal = nextIds.reduce((sum, id) => sum + (outstandingById[id] || 0), 0);
     setAmount(nextTotal > 0 ? String(Number(nextTotal.toFixed(2))) : '');
+    if (nextIds.length === 0) {
+      setPaymentModalVisible(false);
+    }
   };
 
   const toggleShare = (shareId: string) => {
@@ -110,10 +124,6 @@ export default function SettleUserShares({ route, navigation }: Props) {
 
   const runUpiSettlement = async () => {
     const upiId = upiIdInput.trim();
-    if (!upiId || !upiId.includes('@')) {
-      Alert.alert('Invalid UPI ID', 'Please enter a valid UPI ID (e.g. name@upi)');
-      return;
-    }
 
     if (!pendingUpiSettlement) {
       Alert.alert('Error', 'No pending settlement found');
@@ -163,6 +173,18 @@ export default function SettleUserShares({ route, navigation }: Props) {
     }
 
     const selectedMode = paymentMode.trim().toLowerCase();
+    setPaymentModalVisible(false);
+
+    if (selectedMode === 'upi' && alreadyPaid) {
+      settleSpecificShares({
+        variables: {
+          shareIds: [...selectedShareIds],
+          amount: numericAmount,
+          paymentMode: 'upi',
+        },
+      });
+      return;
+    }
 
     if (selectedMode === 'upi') {
       if (savedPayeeUpiId) {
@@ -217,9 +239,40 @@ export default function SettleUserShares({ route, navigation }: Props) {
     <SafeAreaView style={styles.container} edges={['bottom']}>
       <View style={styles.content}>
         <View style={styles.summaryCard}>
-          <AppText style={styles.summaryTitle}>Paying {toUserName}</AppText>
-          <AppText style={styles.summaryAmount}>Total owed: {toMoney(totalAmount)}</AppText>
-          <AppText style={styles.summarySub}>Selected: {toMoney(selectedOutstanding)}</AppText>
+          <View style={styles.summaryHeader}>
+            <AppText style={styles.summaryTitle}>Paying</AppText>
+            <View style={styles.summaryHeaderUpiRow}>
+              <Icon name="Wallet" width={13} height={13} color="#9f1239" />
+              <AppText style={styles.summaryHeaderUpiText}>
+                {payeeUpiId || 'UPI not added'}
+              </AppText>
+            </View>
+          </View>
+          <View style={styles.payeeRow}>
+            {payeeImageUrl ? (
+              <Image source={{ uri: payeeImageUrl }} style={styles.payeeAvatar} />
+            ) : (
+              <View style={styles.payeeAvatarFallback}>
+                <AppText style={styles.payeeAvatarFallbackText}>{payeeInitial}</AppText>
+              </View>
+            )}
+            <View style={styles.payeeTextWrap}>
+              <AppText style={styles.payeeName}>{payeeName}</AppText>
+              <AppText style={styles.payeeUsername}>@{payeeUsername || 'user'}</AppText>
+            </View>
+          </View>
+
+          <View style={styles.summaryStatsRow}>
+            <View style={styles.summaryStatBox}>
+              <AppText style={styles.summaryStatLabel}>Owed</AppText>
+              <AppText style={styles.summaryStatValue}>{toMoney(totalAmount)}</AppText>
+            </View>
+            <View style={styles.summaryStatDivider} />
+            <View style={styles.summaryStatBox}>
+              <AppText style={styles.summaryStatLabel}>Selected</AppText>
+              <AppText style={styles.summaryStatValue}>{toMoney(selectedOutstanding)}</AppText>
+            </View>
+          </View>
         </View>
 
         {loading ? (
@@ -235,7 +288,7 @@ export default function SettleUserShares({ route, navigation }: Props) {
             </TouchableOpacity>
           </View>
         ) : (
-          <>
+          <View style={styles.selectionArea}>
             <TouchableOpacity style={styles.selectAllBtn} onPress={toggleSelectAll}>
               <AppText style={styles.selectAllText}>
                 {allSelected ? 'Clear Selection' : 'Select All'}
@@ -246,6 +299,10 @@ export default function SettleUserShares({ route, navigation }: Props) {
               data={shares}
               keyExtractor={item => item.id}
               style={styles.shareList}
+              contentContainerStyle={[
+                styles.shareListContent,
+                { paddingBottom: selectedShareIds.length > 0 ? 84 : 12 },
+              ]}
               renderItem={({ item }) => {
                 const isSelected = selectedShareIds.includes(item.id);
                 const outstanding = outstandingById[item.id] || 0;
@@ -268,6 +325,37 @@ export default function SettleUserShares({ route, navigation }: Props) {
                 );
               }}
             />
+
+            {selectedShareIds.length > 0 ? (
+              <TouchableOpacity
+                style={[styles.proceedBtn, { bottom: 0 }]}
+                onPress={() => setPaymentModalVisible(true)}
+              >
+                <AppText style={styles.proceedBtnText}>Proceed</AppText>
+              </TouchableOpacity>
+            ) : null}
+          </View>
+        )}
+      </View>
+
+      <Modal
+        visible={paymentModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setPaymentModalVisible(false)}
+      >
+        <View style={styles.bottomSheetBackdrop}>
+          <TouchableOpacity
+            style={styles.bottomSheetOverlay}
+            activeOpacity={1}
+            onPress={() => setPaymentModalVisible(false)}
+          />
+          <View style={styles.bottomSheetCard}>
+            <View style={styles.bottomSheetHandle} />
+            <AppText style={styles.modalTitle}>Complete Settlement</AppText>
+            <AppText style={styles.modalSubtitle}>
+              Choose amount and payment mode.
+            </AppText>
 
             <AppText style={styles.label}>Amount to pay</AppText>
             <AppTextInput
@@ -296,18 +384,49 @@ export default function SettleUserShares({ route, navigation }: Props) {
               ))}
             </View>
 
+            <View style={styles.alreadyPaidRow}>
+              <TouchableOpacity
+                style={styles.alreadyPaidToggle}
+                onPress={() => setAlreadyPaid(prev => !prev)}
+              >
+                <View
+                  style={[
+                    styles.alreadyPaidCheckbox,
+                    alreadyPaid && styles.alreadyPaidCheckboxSelected,
+                  ]}
+                >
+                  {alreadyPaid ? (
+                    <AppText style={styles.alreadyPaidCheckboxTick}>✓</AppText>
+                  ) : null}
+                </View>
+                <AppText style={styles.alreadyPaidText}>Already paid</AppText>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.infoBtn}
+                onPress={() =>
+                  Alert.alert(
+                    'Already Paid',
+                    'Enable this if you have already paid outside the app. For UPI mode, settlement will be recorded directly without opening payment apps.',
+                  )
+                }
+              >
+                <AppText style={styles.infoBtnText}>i</AppText>
+              </TouchableOpacity>
+            </View>
+
             <TouchableOpacity
               style={[styles.settleBtn, settling && styles.settleBtnDisabled]}
               onPress={handleSettle}
               disabled={settling}
             >
               <AppText style={styles.settleBtnText}>
-                {settling ? 'Settling...' : 'Settle Selected Shares'}
+                {settling ? 'Settling...' : 'Settle Shares'}
               </AppText>
             </TouchableOpacity>
-          </>
-        )}
-      </View>
+          </View>
+        </View>
+      </Modal>
 
       <Modal
         visible={upiModalVisible}
@@ -319,7 +438,7 @@ export default function SettleUserShares({ route, navigation }: Props) {
           <View style={styles.modalCard}>
             <AppText style={styles.modalTitle}>Enter Payee UPI ID</AppText>
             <AppText style={styles.modalSubtitle}>
-              Enter the receiver UPI ID to continue with payment.
+              Enter the receiver UPI ID to continue.
             </AppText>
             <AppTextInput
               style={styles.modalInput}
@@ -352,7 +471,7 @@ export default function SettleUserShares({ route, navigation }: Props) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f8fafc' },
-  content: { flex: 1, padding: 20 },
+  content: { flex: 1, paddingHorizontal: 20, paddingTop: 20, paddingBottom: 0 },
   summaryCard: {
     backgroundColor: '#fef2f2',
     borderWidth: 1,
@@ -361,9 +480,87 @@ const styles = StyleSheet.create({
     padding: 16,
     marginBottom: 16,
   },
-  summaryTitle: { fontSize: 16, color: '#b91c1c', fontWeight: '700' },
-  summaryAmount: { fontSize: 14, color: '#dc2626', marginTop: 4 },
-  summarySub: { fontSize: 13, color: '#7f1d1d', marginTop: 2 },
+  summaryHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  summaryTitle: { fontSize: 12, color: '#b91c1c' },
+  summaryHeaderUpiRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    maxWidth: '70%',
+  },
+  summaryHeaderUpiText: {
+    fontSize: 11,
+    color: '#9f1239',
+  },
+  payeeRow: {
+    marginTop: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  payeeAvatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#fee2e2',
+  },
+  payeeAvatarFallback: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#fecaca',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  payeeAvatarFallbackText: {
+    color: '#991b1b',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  payeeTextWrap: {
+    marginLeft: 10,
+    flex: 1,
+  },
+  payeeName: {
+    fontSize: 16,
+    color: '#7f1d1d',
+  },
+  payeeUsername: {
+    fontSize: 12,
+    color: '#9f1239',
+    marginTop: 2,
+  },
+  summaryStatsRow: {
+    marginTop: 10,
+    flexDirection: 'row',
+    alignItems: 'stretch',
+    backgroundColor: 'transparent',
+  },
+  summaryStatBox: {
+    flex: 1,
+    paddingVertical: 6,
+    paddingHorizontal: 8,
+    borderWidth: 1,
+    borderColor: '#fecaca',
+    borderRadius: 8,
+    backgroundColor: '#fff',
+  },
+  summaryStatLabel: {
+    fontSize: 11,
+    color: '#64748b',
+  },
+  summaryStatValue: {
+    fontSize: 13,
+    color: '#b91c1c',
+    fontWeight: '700',
+    marginTop: 1,
+  },
+  summaryStatDivider: {
+    width: 8,
+  },
   loaderContainer: { alignItems: 'center', marginTop: 40 },
   loaderText: { marginTop: 8, color: '#64748b' },
   emptyState: { alignItems: 'center', marginTop: 40 },
@@ -379,13 +576,22 @@ const styles = StyleSheet.create({
   selectAllBtn: {
     alignSelf: 'flex-start',
     backgroundColor: '#eef2ff',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
     borderRadius: 10,
     marginBottom: 10,
   },
-  selectAllText: { color: '#4f46e5', fontWeight: '600' },
-  shareList: { maxHeight: 300 },
+  selectAllText: { color: '#4f46e5', fontSize: 12 },
+  selectionArea: {
+    flex: 1,
+    position: 'relative',
+  },
+  shareList: {
+    flex: 1,
+  },
+  shareListContent: {
+    paddingBottom: 12,
+  },
   shareRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -420,6 +626,19 @@ const styles = StyleSheet.create({
   shareTitle: { color: '#0f172a', fontSize: 14, fontWeight: '600' },
   shareMeta: { color: '#64748b', fontSize: 12, marginTop: 2 },
   shareAmount: { color: '#dc2626', fontWeight: '700' },
+  proceedBtn: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    backgroundColor: '#4f46e5',
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  proceedBtnText: {
+    color: '#fff',
+    fontSize: 14,
+  },
   label: {
     marginTop: 14,
     marginBottom: 8,
@@ -453,6 +672,56 @@ const styles = StyleSheet.create({
   },
   modeBtnText: { color: '#475569', fontWeight: '600' },
   modeBtnTextSelected: { color: '#fff' },
+  alreadyPaidRow: {
+    marginTop: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  alreadyPaidToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  alreadyPaidCheckbox: {
+    width: 20,
+    height: 20,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#94a3b8',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#fff',
+    marginRight: 8,
+  },
+  alreadyPaidCheckboxSelected: {
+    backgroundColor: '#4f46e5',
+    borderColor: '#4f46e5',
+  },
+  alreadyPaidCheckboxTick: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 12,
+  },
+  alreadyPaidText: {
+    color: '#334155',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  infoBtn: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: '#e2e8f0',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
+  },
+  infoBtnText: {
+    color: '#475569',
+    fontWeight: '700',
+    fontSize: 12,
+  },
   settleBtn: {
     marginTop: 20,
     backgroundColor: '#4f46e5',
@@ -461,7 +730,34 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   settleBtnDisabled: { opacity: 0.7 },
-  settleBtnText: { color: '#fff', fontSize: 15, fontWeight: '700' },
+  settleBtnText: { color: '#fff', fontSize: 14},
+  bottomSheetBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.35)',
+    justifyContent: 'flex-end',
+  },
+  bottomSheetOverlay: {
+    flex: 1,
+  },
+  bottomSheetCard: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    paddingBottom: 18,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    maxHeight: '72%',
+  },
+  bottomSheetHandle: {
+    alignSelf: 'center',
+    width: 44,
+    height: 5,
+    borderRadius: 4,
+    backgroundColor: '#cbd5e1',
+    marginBottom: 10,
+  },
   modalBackdrop: {
     flex: 1,
     backgroundColor: 'rgba(15, 23, 42, 0.45)',
@@ -475,14 +771,12 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     color: '#0f172a',
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '700',
   },
   modalSubtitle: {
     color: '#475569',
-    fontSize: 13,
-    marginTop: 6,
-    marginBottom: 10,
+    fontSize: 12,
   },
   modalInput: {
     borderWidth: 1,

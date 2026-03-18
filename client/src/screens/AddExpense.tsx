@@ -14,20 +14,24 @@ import {
   Keyboard,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import AppText from '../components/AppText';
 import AppTextInput from '../components/AppTextInput';
 import {
   useGetGroups,
   useGetMyBalances,
   useCreateExpense,
-  useSettleExpense,
   uploadExpenseAttachment,
 } from '../services';
 import { useAppSelector } from '../store/hooks';
 import { useImagePickerWithCrop } from '../components/ImagePickerModal';
 import Icon from '../components/Icon';
+import { RootStackParamList } from '../navigations/RootStack';
 
 const AddExpense = () => {
+  const navigation =
+    useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { user } = useAppSelector(state => state.auth);
   const [activeTab, setActiveTab] = useState<'expense' | 'settle'>('expense');
 
@@ -137,47 +141,10 @@ const AddExpense = () => {
   const {
     data: balancesData,
     loading: loadingBalances,
-    refetch: refetchBalances,
   } = useGetMyBalances();
-
-  const [settleExpense, { loading: settling }] = useSettleExpense({
-    onCompleted: () => {
-      Alert.alert('Success', 'Settlement recorded!');
-      setSettleAmount('');
-      setSelectedSettleUserId('');
-      setSelectedPaymentMode('upi');
-      refetchBalances();
-    },
-    onError: (err: any) => {
-      Alert.alert('Error', err.message);
-    },
-  });
-
-  const [selectedSettleUserId, setSelectedSettleUserId] = useState('');
-  const [settleAmount, setSettleAmount] = useState('');
-  const [selectedPaymentMode, setSelectedPaymentMode] = useState('upi');
 
   const oweList = balancesData?.getMyBalances?.oweList || [];
   const totalOwe = balancesData?.getMyBalances?.totalOwe || 0;
-
-  const handleSettle = () => {
-    const numericAmount = parseFloat(settleAmount);
-    if (!selectedSettleUserId) {
-      Alert.alert('Error', 'Please select who you are paying');
-      return;
-    }
-    if (isNaN(numericAmount) || numericAmount <= 0) {
-      Alert.alert('Error', 'Amount must be greater than zero');
-      return;
-    }
-    settleExpense({
-      variables: {
-        toUserId: selectedSettleUserId,
-        amount: numericAmount,
-        paymentMode: selectedPaymentMode,
-      },
-    });
-  };
 
   // ============ RENDER ============
   return (
@@ -429,13 +396,14 @@ const AddExpense = () => {
                     <TouchableOpacity
                       style={[
                         styles.userCard,
-                        selectedSettleUserId === item.userId &&
-                          styles.userCardSelected,
                       ]}
-                      onPress={() => {
-                        setSelectedSettleUserId(item.userId);
-                        setSettleAmount(String(item.amount));
-                      }}
+                      onPress={() =>
+                        navigation.navigate('SettleUserShares', {
+                          toUserId: item.userId,
+                          toUserName: item.userName,
+                          totalAmount: item.amount,
+                        })
+                      }
                     >
                       <View style={styles.userAvatar}>
                         <AppText style={styles.userAvatarText}>
@@ -448,64 +416,10 @@ const AddExpense = () => {
                           ₹{item.amount.toFixed(2)}
                         </AppText>
                       </View>
-                      {selectedSettleUserId === item.userId && (
-                        <AppText style={styles.checkMark}>✓</AppText>
-                      )}
+                      <AppText style={styles.shareDetailsCta}>View</AppText>
                     </TouchableOpacity>
                   )}
                 />
-
-                {selectedSettleUserId ? (
-                  <>
-                    <AppText style={styles.label}>Amount to Settle</AppText>
-                    <AppTextInput
-                      style={styles.input}
-                      placeholder="0.00"
-                      value={settleAmount}
-                      onChangeText={setSettleAmount}
-                      keyboardType="numeric"
-                      placeholderTextColor="#999"
-                    />
-
-                    <AppText style={styles.label}>Payment Mode</AppText>
-                    <View style={styles.paymentModes}>
-                      {['upi', 'cash', 'bank', 'card'].map(mode => (
-                        <TouchableOpacity
-                          key={mode}
-                          style={[
-                            styles.modeBtn,
-                            selectedPaymentMode === mode &&
-                              styles.modeBtnSelected,
-                          ]}
-                          onPress={() => setSelectedPaymentMode(mode)}
-                        >
-                          <AppText
-                            style={[
-                              styles.modeBtnText,
-                              selectedPaymentMode === mode &&
-                                styles.modeBtnTextSelected,
-                            ]}
-                          >
-                            {mode.toUpperCase()}
-                          </AppText>
-                        </TouchableOpacity>
-                      ))}
-                    </View>
-
-                    <TouchableOpacity
-                      style={[
-                        styles.settleBtn,
-                        settling && styles.submitBtnDisabled,
-                      ]}
-                      onPress={handleSettle}
-                      disabled={settling}
-                    >
-                      <AppText style={styles.settleBtnText}>
-                        {settling ? 'Settling...' : '✓ Settle Up'}
-                      </AppText>
-                    </TouchableOpacity>
-                  </>
-                ) : null}
               </>
             )}
           </ScrollView>
@@ -756,10 +670,6 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: '#e2e8f0',
   },
-  userCardSelected: {
-    borderColor: '#667eea',
-    backgroundColor: '#eef2ff',
-  },
   userAvatar: {
     width: 44,
     height: 44,
@@ -778,34 +688,5 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginTop: 2,
   },
-  checkMark: { fontSize: 20, color: '#667eea', fontWeight: '700' },
-  paymentModes: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-    marginBottom: 10,
-  },
-  modeBtn: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 20,
-    backgroundColor: '#e2e8f0',
-    borderWidth: 1,
-    borderColor: '#cbd5e1',
-  },
-  modeBtnSelected: { backgroundColor: '#667eea', borderColor: '#4f46e5' },
-  modeBtnText: { color: '#475569', fontWeight: '600' },
-  modeBtnTextSelected: { color: '#fff' },
-  settleBtn: {
-    backgroundColor: '#667eea',
-    padding: 18,
-    borderRadius: 12,
-    alignItems: 'center',
-    marginTop: 24,
-    shadowColor: '#667eea',
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  settleBtnText: { color: '#fff', fontSize: 18, fontWeight: '700' },
+  shareDetailsCta: { color: '#4f46e5', fontWeight: '700', fontSize: 13 },
 });

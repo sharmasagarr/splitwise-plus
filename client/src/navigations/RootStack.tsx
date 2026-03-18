@@ -6,6 +6,7 @@ import GroupDetail from '../screens/GroupDetail';
 import ChatScreen from '../screens/ChatScreen';
 import Notifications from '../screens/Notifications';
 import ExpenseDetail from '../screens/ExpenseDetail';
+import SettleUserShares from '../screens/SettleUserSharesScreen';
 
 export type RootStackParamList = {
   MainTabs: undefined;
@@ -18,6 +19,11 @@ export type RootStackParamList = {
   };
   Notifications: undefined;
   ExpenseDetail: { expenseId: string };
+  SettleUserShares: {
+    toUserId: string;
+    toUserName: string;
+    totalAmount: number;
+  };
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -71,6 +77,15 @@ export default function RootStack() {
         options={{
           headerTitle: 'Expense Details',
           headerBackTitle: 'Back',
+          headerShadowVisible: false,
+        }}
+      />
+      <Stack.Screen
+        name="SettleUserShares"
+        component={SettleUserShares}
+        options={{
+          headerTitle: 'Settle Shares',
+          headerBackTitle: 'Settle Up',
           headerShadowVisible: false,
         }}
       />

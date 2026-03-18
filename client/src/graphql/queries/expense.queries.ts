@@ -110,3 +110,26 @@ export const GET_EXPENSE_DETAIL = gql`
     }
   }
 `;
+
+export const GET_USER_UNSETTLED_SHARES = gql`
+  query GetUserUnsettledShares($toUserId: String!, $groupId: String) {
+    getUserUnsettledShares(toUserId: $toUserId, groupId: $groupId) {
+      id
+      expenseId
+      userId
+      shareAmount
+      paidAmount
+      status
+      expense {
+        id
+        note
+        createdAt
+        groupId
+        group {
+          id
+          name
+        }
+      }
+    }
+  }
+`;

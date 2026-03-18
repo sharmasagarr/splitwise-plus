@@ -38,3 +38,23 @@ export const SETTLE_EXPENSE = gql`
     }
   }
 `;
+
+export const SETTLE_SPECIFIC_SHARES = gql`
+  mutation SettleSpecificShares(
+    $shareIds: [String!]!
+    $amount: Float!
+    $paymentMode: String!
+    $groupId: String
+  ) {
+    settleSpecificShares(
+      shareIds: $shareIds
+      amount: $amount
+      paymentMode: $paymentMode
+      groupId: $groupId
+    ) {
+      id
+      status
+      groupId
+    }
+  }
+`;

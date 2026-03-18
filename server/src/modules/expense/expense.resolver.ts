@@ -74,7 +74,10 @@ export const expenseResolvers = {
       > = {};
 
       for (const share of sharesIOwe) {
-        const amt = Number(share.shareAmount) || 0;
+        const shareAmt = Number(share.shareAmount) || 0;
+        const paidAmt = Number(share.paidAmount) || 0;
+        const amt = Math.max(shareAmt - paidAmt, 0);
+        if (amt <= 0) continue;
         totalOwe += amt;
         const creatorId = share.expense.createdById;
         const creatorName = share.expense.createdBy?.name || "Unknown";
@@ -95,7 +98,10 @@ export const expenseResolvers = {
       > = {};
 
       for (const share of sharesOwedToMe) {
-        const amt = Number(share.shareAmount) || 0;
+        const shareAmt = Number(share.shareAmount) || 0;
+        const paidAmt = Number(share.paidAmount) || 0;
+        const amt = Math.max(shareAmt - paidAmt, 0);
+        if (amt <= 0) continue;
         totalOwed += amt;
         const debtor = share.user;
         if (!owedMap[debtor.id]) {
@@ -143,6 +149,36 @@ export const expenseResolvers = {
         throw new Error("Not authorized to view this expense");
 
       return expense;
+    },
+    getUserUnsettledShares: async (
+      _: any,
+      { toUserId, groupId }: any,
+      { prisma, user }: any,
+    ) => {
+      if (!user) throw new Error("Unauthorized");
+
+      return prisma.expenseShare.findMany({
+        where: {
+          userId: user.id,
+          status: "owed",
+          expense: {
+            createdById: toUserId,
+            ...(groupId ? { groupId } : {}),
+          },
+        },
+        include: {
+          user: true,
+          expense: {
+            include: {
+              createdBy: true,
+              group: true,
+            },
+          },
+        },
+        orderBy: {
+          createdAt: "asc",
+        },
+      });
     },
   },
   Mutation: {
@@ -275,6 +311,122 @@ export const expenseResolvers = {
       sendNotification({
         prisma,
         recipientId: toUserId,
+        type: "settlement_received",
+        title: "Payment Received",
+        body: `${payer?.name || "Someone"} paid you ₹${formattedAmount}`,
+        data: { settlementId: settlement.id },
+      }).catch((err: any) => console.error("Notification error:", err));
+
+      return settlement;
+    },
+    settleSpecificShares: async (
+      _: any,
+      { shareIds, amount, paymentMode, groupId }: any,
+      { prisma, user }: any,
+    ) => {
+      if (!user) throw new Error("Unauthorized");
+      if (!Array.isArray(shareIds) || shareIds.length === 0) {
+        throw new Error("Please select at least one share");
+      }
+      if (!amount || amount <= 0) {
+        throw new Error("Amount must be greater than zero");
+      }
+
+      const validModes = ["cash", "upi", "bank", "card"];
+      if (!validModes.includes((paymentMode || "").toLowerCase())) {
+        throw new Error("Invalid payment mode");
+      }
+
+      const shares = await prisma.expenseShare.findMany({
+        where: {
+          id: { in: shareIds },
+          userId: user.id,
+          status: "owed",
+        },
+        include: {
+          expense: true,
+        },
+        orderBy: {
+          createdAt: "asc",
+        },
+      });
+
+      if (shares.length !== shareIds.length) {
+        throw new Error("Some selected shares are invalid or already settled");
+      }
+
+      const payeeId = shares[0]?.expense?.createdById;
+      if (!payeeId) {
+        throw new Error("Could not identify payee for selected shares");
+      }
+
+      const mixedPayees = shares.some(s => s.expense.createdById !== payeeId);
+      if (mixedPayees) {
+        throw new Error("Please select shares for only one payee at a time");
+      }
+
+      const filteredByGroup = groupId
+        ? shares.filter(s => s.expense.groupId === groupId)
+        : shares;
+
+      if (filteredByGroup.length === 0) {
+        throw new Error("No selected shares matched the provided group");
+      }
+
+      const totalOutstanding = filteredByGroup.reduce((sum, share) => {
+        const shareAmt = Number(share.shareAmount) || 0;
+        const paidAmt = Number(share.paidAmount) || 0;
+        return sum + Math.max(shareAmt - paidAmt, 0);
+      }, 0);
+
+      if (amount > totalOutstanding) {
+        throw new Error("Amount exceeds outstanding selected shares");
+      }
+
+      let remaining = amount;
+      for (const share of filteredByGroup) {
+        if (remaining <= 0) break;
+        const shareAmt = Number(share.shareAmount) || 0;
+        const paidAlready = Number(share.paidAmount) || 0;
+        const due = Math.max(shareAmt - paidAlready, 0);
+        if (due <= 0) continue;
+
+        if (remaining >= due) {
+          await prisma.expenseShare.update({
+            where: { id: share.id },
+            data: { paidAmount: shareAmt, status: "settled" },
+          });
+          remaining -= due;
+        } else {
+          await prisma.expenseShare.update({
+            where: { id: share.id },
+            data: { paidAmount: paidAlready + remaining },
+          });
+          remaining = 0;
+        }
+      }
+
+      const settlement = await prisma.settlement.create({
+        data: {
+          fromUserId: user.id,
+          toUserId: payeeId,
+          amount,
+          currency: "INR",
+          status: "completed",
+          paymentMethodId: paymentMode,
+          ...(groupId ? { groupId } : {}),
+        },
+      });
+
+      const payer = await prisma.user.findUnique({
+        where: { id: user.id },
+        select: { name: true },
+      });
+      const formattedAmount = (Math.round(amount * 100) / 100).toFixed(2);
+
+      sendNotification({
+        prisma,
+        recipientId: payeeId,
         type: "settlement_received",
         title: "Payment Received",
         body: `${payer?.name || "Someone"} paid you ₹${formattedAmount}`,

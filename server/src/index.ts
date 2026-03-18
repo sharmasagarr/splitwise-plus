@@ -1,11 +1,11 @@
 import { startServer } from "./server.js";
 
-const PORT = process.env.PORT || 3500;
+const PORT = Number(process.env.PORT ?? 3500);
 
 try {
   const { httpServer } = await startServer();
 
-  httpServer.listen(PORT, () => {
+  httpServer.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 GraphQL ready at http://localhost:${PORT}/graphql`);
   });
 } catch (err) {

@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   Alert,
   FlatList,
+  Modal,
   StyleSheet,
   TouchableOpacity,
   View,
@@ -13,6 +14,10 @@ import AppText from '../components/AppText';
 import AppTextInput from '../components/AppTextInput';
 import { useGetUserUnsettledShares, useSettleSpecificShares } from '../services';
 import { RootStackParamList } from '../navigations/RootStack';
+import {
+  openUpiPayment,
+  confirmUpiPayment,
+} from '../utils/upiHelper';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'SettleUserShares'>;
 
@@ -23,6 +28,11 @@ type ShareItem = {
   expense?: {
     note?: string;
     createdAt?: string;
+    createdBy?: {
+      id?: string;
+      name?: string;
+      upiId?: string | null;
+    };
     group?: { name?: string };
   };
 };
@@ -37,6 +47,12 @@ export default function SettleUserShares({ route, navigation }: Props) {
   const [selectedShareIds, setSelectedShareIds] = useState<string[]>([]);
   const [paymentMode, setPaymentMode] = useState('upi');
   const [amount, setAmount] = useState('');
+  const [upiModalVisible, setUpiModalVisible] = useState(false);
+  const [upiIdInput, setUpiIdInput] = useState('');
+  const [pendingUpiSettlement, setPendingUpiSettlement] = useState<{
+    shareIds: string[];
+    amount: number;
+  } | null>(null);
 
   const { data, loading, refetch } = useGetUserUnsettledShares(toUserId);
 
@@ -60,6 +76,7 @@ export default function SettleUserShares({ route, navigation }: Props) {
   }, [selectedShareIds, outstandingById]);
 
   const allSelected = shares.length > 0 && selectedShareIds.length === shares.length;
+  const savedPayeeUpiId = (shares[0]?.expense?.createdBy?.upiId || '').trim();
 
   const [settleSpecificShares, { loading: settling }] = useSettleSpecificShares({
     onCompleted: () => {
@@ -91,7 +108,44 @@ export default function SettleUserShares({ route, navigation }: Props) {
     applySelection(shares.map(s => s.id));
   };
 
-  const handleSettle = () => {
+  const runUpiSettlement = async () => {
+    const upiId = upiIdInput.trim();
+    if (!upiId || !upiId.includes('@')) {
+      Alert.alert('Invalid UPI ID', 'Please enter a valid UPI ID (e.g. name@upi)');
+      return;
+    }
+
+    if (!pendingUpiSettlement) {
+      Alert.alert('Error', 'No pending settlement found');
+      return;
+    }
+
+    const opened = await openUpiPayment(
+      upiId,
+      toUserName,
+      pendingUpiSettlement.amount,
+      `Splitwise+ settlement to ${toUserName}`,
+    );
+    if (!opened) return;
+
+    setUpiModalVisible(false);
+
+    setTimeout(async () => {
+      const confirmed = await confirmUpiPayment();
+      if (!confirmed) return;
+
+      settleSpecificShares({
+        variables: {
+          shareIds: pendingUpiSettlement.shareIds,
+          amount: pendingUpiSettlement.amount,
+          paymentMode: 'upi',
+        },
+      });
+      setPendingUpiSettlement(null);
+    }, 1000);
+  };
+
+  const handleSettle = async () => {
     if (selectedShareIds.length === 0) {
       Alert.alert('Error', 'Please select at least one expense share');
       return;
@@ -108,11 +162,53 @@ export default function SettleUserShares({ route, navigation }: Props) {
       return;
     }
 
+    const selectedMode = paymentMode.trim().toLowerCase();
+
+    if (selectedMode === 'upi') {
+      if (savedPayeeUpiId) {
+        setPendingUpiSettlement({
+          shareIds: [...selectedShareIds],
+          amount: numericAmount,
+        });
+
+        const opened = await openUpiPayment(
+          savedPayeeUpiId,
+          toUserName,
+          numericAmount,
+          `Splitwise+ settlement to ${toUserName}`,
+        );
+        if (!opened) return;
+
+        setTimeout(async () => {
+          const confirmed = await confirmUpiPayment();
+          if (!confirmed) return;
+
+          settleSpecificShares({
+            variables: {
+              shareIds: [...selectedShareIds],
+              amount: numericAmount,
+              paymentMode: 'upi',
+            },
+          });
+          setPendingUpiSettlement(null);
+        }, 1000);
+        return;
+      }
+
+      setPendingUpiSettlement({
+        shareIds: [...selectedShareIds],
+        amount: numericAmount,
+      });
+      setUpiIdInput('');
+      setUpiModalVisible(true);
+      return;
+    }
+
     settleSpecificShares({
       variables: {
         shareIds: selectedShareIds,
         amount: numericAmount,
-        paymentMode,
+        paymentMode: selectedMode,
       },
     });
   };
@@ -212,6 +308,44 @@ export default function SettleUserShares({ route, navigation }: Props) {
           </>
         )}
       </View>
+
+      <Modal
+        visible={upiModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setUpiModalVisible(false)}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            <AppText style={styles.modalTitle}>Enter Payee UPI ID</AppText>
+            <AppText style={styles.modalSubtitle}>
+              Enter the receiver UPI ID to continue with payment.
+            </AppText>
+            <AppTextInput
+              style={styles.modalInput}
+              value={upiIdInput}
+              onChangeText={setUpiIdInput}
+              placeholder="name@upi"
+              placeholderTextColor="#94a3b8"
+              autoCapitalize="none"
+            />
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={[styles.modalBtn, styles.modalBtnSecondary]}
+                onPress={() => setUpiModalVisible(false)}
+              >
+                <AppText style={styles.modalBtnSecondaryText}>Cancel</AppText>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalBtn, styles.modalBtnPrimary]}
+                onPress={runUpiSettlement}
+              >
+                <AppText style={styles.modalBtnPrimaryText}>Continue</AppText>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -328,4 +462,59 @@ const styles = StyleSheet.create({
   },
   settleBtnDisabled: { opacity: 0.7 },
   settleBtnText: { color: '#fff', fontSize: 15, fontWeight: '700' },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.45)',
+    justifyContent: 'center',
+    paddingHorizontal: 20,
+  },
+  modalCard: {
+    backgroundColor: '#fff',
+    borderRadius: 14,
+    padding: 16,
+  },
+  modalTitle: {
+    color: '#0f172a',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  modalSubtitle: {
+    color: '#475569',
+    fontSize: 13,
+    marginTop: 6,
+    marginBottom: 10,
+  },
+  modalInput: {
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
+    borderRadius: 10,
+    padding: 12,
+    color: '#0f172a',
+    backgroundColor: '#fff',
+  },
+  modalActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 10,
+    marginTop: 14,
+  },
+  modalBtn: {
+    borderRadius: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+  },
+  modalBtnSecondary: {
+    backgroundColor: '#e2e8f0',
+  },
+  modalBtnSecondaryText: {
+    color: '#334155',
+    fontWeight: '600',
+  },
+  modalBtnPrimary: {
+    backgroundColor: '#4f46e5',
+  },
+  modalBtnPrimaryText: {
+    color: '#fff',
+    fontWeight: '700',
+  },
 });

@@ -125,6 +125,13 @@ export const GET_USER_UNSETTLED_SHARES = gql`
         note
         createdAt
         groupId
+        createdBy {
+          id
+          name
+          imageUrl
+          username
+          upiId
+        }
         group {
           id
           name

@@ -15,19 +15,13 @@ export const openUpiPayment = async (
   const upiUrl = `upi://pay?pa=${upiId}&pn=${encodedName}&am=${amount}&cu=INR&tn=${encodedNote}`;
 
   try {
-    const canOpen = await Linking.canOpenURL(upiUrl);
-    if (!canOpen) {
-      Alert.alert(
-        'No UPI App Found',
-        'Please install a UPI-supported app like Google Pay, PhonePe, or Paytm.',
-      );
-      return false;
-    }
-
     await Linking.openURL(upiUrl);
     return true;
   } catch {
-    Alert.alert('Error', 'Failed to open UPI app.');
+    Alert.alert(
+      'No UPI App Found',
+      'Could not launch a UPI app. Make sure Google Pay, PhonePe, or Paytm is installed and enabled.',
+    );
     return false;
   }
 };

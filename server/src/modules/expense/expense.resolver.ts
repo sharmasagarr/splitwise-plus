@@ -1,4 +1,5 @@
 import { sendNotification } from "../notification/notification.service.js";
+import { splitAmount } from "../../utils/index.js";
 
 export const expenseResolvers = {
   Query: {
@@ -193,7 +194,30 @@ export const expenseResolvers = {
       if (!participants || participants.length === 0)
         throw new Error("Participants required");
 
-      const perPerson = amount / participants.length;
+      const uniqueParticipants: string[] = Array.from(
+        new Set((participants as string[]).filter(Boolean)),
+      );
+      if (!uniqueParticipants.includes(user.id)) {
+        uniqueParticipants.push(user.id);
+      }
+
+      const splits = splitAmount(amount, uniqueParticipants.length);
+      const settlerId = user.id;
+      const settlerShare = splits[0];
+      const otherShares = splits.slice(1);
+      let otherIndex = 0;
+
+      const shareInputs = uniqueParticipants.map((userId: string) => {
+        const shareAmount =
+          userId === settlerId ? settlerShare : (otherShares[otherIndex++] ?? settlerShare);
+
+        return {
+          userId,
+          shareAmount,
+          paidAmount: userId === settlerId ? shareAmount : 0,
+          status: userId === settlerId ? "settled" : "owed",
+        };
+      });
 
       const expense = await prisma.expense.create({
         data: {
@@ -203,12 +227,7 @@ export const expenseResolvers = {
           currency: "INR",
           note: description,
           shares: {
-            create: participants.map((userId: string) => ({
-              userId,
-              shareAmount: perPerson,
-              paidAmount: userId === user.id ? amount : 0,
-              status: userId === user.id ? "settled" : "owed",
-            })),
+            create: shareInputs,
           },
         },
         include: {
@@ -221,15 +240,22 @@ export const expenseResolvers = {
 
       // Send notifications to all participants except the creator
       const creator = expense.createdBy;
-      const perPersonAmount = (Math.round(perPerson * 100) / 100).toFixed(2);
-      for (const participantId of participants) {
+      const shareByUserId: Record<string, number> = {};
+      for (const share of expense.shares) {
+        shareByUserId[share.userId] = Number(share.shareAmount) || 0;
+      }
+
+      for (const participantId of uniqueParticipants) {
         if (participantId === user.id) continue;
+        const participantShare = shareByUserId[participantId] || 0;
+        const formattedShare = (Math.round(participantShare * 100) / 100).toFixed(2);
+
         sendNotification({
           prisma,
           recipientId: participantId,
           type: "expense_added",
           title: "New Expense",
-          body: `${creator.name} added '${description}' — you owe ₹${perPersonAmount}`,
+          body: `${creator.name} added '${description}' — you owe ₹${formattedShare}`,
           data: { groupId, expenseId: expense.id },
         }).catch((err: any) => console.error("Notification error:", err));
       }

@@ -300,8 +300,9 @@ export default function SettleUserShares({ route, navigation }: Props) {
               keyExtractor={item => item.id}
               style={styles.shareList}
               contentContainerStyle={[
-                styles.shareListContent,
-                { paddingBottom: selectedShareIds.length > 0 ? 84 : 12 },
+                selectedShareIds.length > 0
+                  ? styles.shareListContentWithProceed
+                  : styles.shareListContent,
               ]}
               renderItem={({ item }) => {
                 const isSelected = selectedShareIds.includes(item.id);
@@ -328,7 +329,7 @@ export default function SettleUserShares({ route, navigation }: Props) {
 
             {selectedShareIds.length > 0 ? (
               <TouchableOpacity
-                style={[styles.proceedBtn, { bottom: 0 }]}
+                style={styles.proceedBtn}
                 onPress={() => setPaymentModalVisible(true)}
               >
                 <AppText style={styles.proceedBtnText}>Proceed</AppText>
@@ -592,6 +593,9 @@ const styles = StyleSheet.create({
   shareListContent: {
     paddingBottom: 12,
   },
+  shareListContentWithProceed: {
+    paddingBottom: 84,
+  },
   shareRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -630,6 +634,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 0,
     right: 0,
+    bottom: 0,
     backgroundColor: '#4f46e5',
     borderRadius: 12,
     paddingVertical: 14,

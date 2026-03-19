@@ -81,6 +81,7 @@ export const authResolvers = {
             emailOtpExpiresAt: otpExpiry,
             emailOtpAttempts: 0,
             emailOtpLastSentAt: new Date(),
+            locale: "en-IN",
           },
         });
       } else {
@@ -95,6 +96,7 @@ export const authResolvers = {
             emailOtpExpiresAt: otpExpiry,
             emailOtpAttempts: 0,
             emailOtpLastSentAt: new Date(),
+            locale: "en-IN",
           },
         });
       }

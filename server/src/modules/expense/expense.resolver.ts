@@ -181,6 +181,44 @@ export const expenseResolvers = {
         },
       });
     },
+    getMyTransactions: async (
+      _: any,
+      { relatedUserId, type, limit, offset }: any,
+      { prisma, user }: any,
+    ) => {
+      if (!user) throw new Error("Unauthorized");
+
+      const whereClause: any = {
+        userId: user.id,
+        ...(relatedUserId ? { counterpartyUserId: relatedUserId } : {}),
+        ...(type ? { type } : {}),
+      };
+
+      const clampLimit = (value: any) => {
+        const n = Number(value);
+        if (!Number.isFinite(n) || n <= 0) return 50;
+        return Math.min(Math.floor(n), 200);
+      };
+
+      const toPositiveOffset = (value: any) => {
+        const n = Number(value);
+        if (!Number.isFinite(n) || n < 0) return 0;
+        return Math.floor(n);
+      };
+
+      const rows = await prisma.transaction.findMany({
+        where: whereClause,
+        orderBy: { createdAt: "desc" },
+        take: clampLimit(limit),
+        skip: toPositiveOffset(offset),
+      });
+
+      return rows.map((row: any) => ({
+        ...row,
+        amount: Number(row.amount) || 0,
+        createdAt: row.createdAt?.toISOString?.() || row.createdAt,
+      }));
+    },
   },
   Mutation: {
     createExpense: async (
@@ -240,6 +278,58 @@ export const expenseResolvers = {
           group: { include: { members: { include: { user: true } } } },
         },
       });
+
+      const transactionRows: any[] = [
+        {
+          userId: user.id,
+          expenseId: expense.id,
+          groupId: groupId || null,
+          type: "expense_created",
+          direction: "debit",
+          amount,
+          currency: actorCurrency,
+          note: description,
+          metadata: {
+            participantCount: uniqueParticipants.length,
+          },
+        },
+      ];
+
+      for (const share of expense.shares) {
+        const shareAmount = Number(share.shareAmount) || 0;
+        if (share.userId === user.id || shareAmount <= 0) continue;
+
+        transactionRows.push(
+          {
+            userId: share.userId,
+            counterpartyUserId: user.id,
+            expenseId: expense.id,
+            groupId: groupId || null,
+            type: "expense_share_owed",
+            direction: "debit",
+            amount: shareAmount,
+            currency: actorCurrency,
+            note: description,
+          },
+          {
+            userId: user.id,
+            counterpartyUserId: share.userId,
+            expenseId: expense.id,
+            groupId: groupId || null,
+            type: "expense_share_receivable",
+            direction: "credit",
+            amount: shareAmount,
+            currency: actorCurrency,
+            note: description,
+          },
+        );
+      }
+
+      if (transactionRows.length > 0) {
+        await prisma.transaction.createMany({
+          data: transactionRows,
+        });
+      }
 
       // Send notifications to all participants except the creator
       const creator = expense.createdBy;
@@ -331,6 +421,35 @@ export const expenseResolvers = {
           paymentMethodId: paymentMode,
           ...(groupId ? { groupId } : {}),
         },
+      });
+
+      await prisma.transaction.createMany({
+        data: [
+          {
+            userId: user.id,
+            counterpartyUserId: toUserId,
+            settlementId: settlement.id,
+            groupId: groupId || null,
+            type: "settlement_paid",
+            direction: "debit",
+            amount,
+            currency: actorCurrency,
+            paymentMethodId: paymentMode,
+            note: "Settlement payment",
+          },
+          {
+            userId: toUserId,
+            counterpartyUserId: user.id,
+            settlementId: settlement.id,
+            groupId: groupId || null,
+            type: "settlement_received",
+            direction: "credit",
+            amount,
+            currency: actorCurrency,
+            paymentMethodId: paymentMode,
+            note: "Settlement received",
+          },
+        ],
       });
 
       // Notify the payee
@@ -449,6 +568,47 @@ export const expenseResolvers = {
           paymentMethodId: paymentMode,
           ...(groupId ? { groupId } : {}),
         },
+      });
+
+      const relatedExpenseIds = Array.from(
+        new Set(filteredByGroup.map(s => s.expenseId).filter(Boolean)),
+      );
+
+      await prisma.transaction.createMany({
+        data: [
+          {
+            userId: user.id,
+            counterpartyUserId: payeeId,
+            settlementId: settlement.id,
+            groupId: groupId || null,
+            type: "settlement_paid",
+            direction: "debit",
+            amount,
+            currency: actorCurrency,
+            paymentMethodId: paymentMode,
+            note: "Settlement payment",
+            metadata: {
+              shareIds,
+              relatedExpenseIds,
+            },
+          },
+          {
+            userId: payeeId,
+            counterpartyUserId: user.id,
+            settlementId: settlement.id,
+            groupId: groupId || null,
+            type: "settlement_received",
+            direction: "credit",
+            amount,
+            currency: actorCurrency,
+            paymentMethodId: paymentMode,
+            note: "Settlement received",
+            metadata: {
+              shareIds,
+              relatedExpenseIds,
+            },
+          },
+        ],
       });
 
       const payer = await prisma.user.findUnique({

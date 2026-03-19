@@ -102,6 +102,7 @@ model Group {
   name        String?
   description String?
   ownerId     String
+  imageUrl    String?
   isPublic    Boolean   @default(false)
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
@@ -248,19 +249,30 @@ model ExpenseTag {
 // ===================================================================
 
 model Transaction {
-  id        String   @id @default(uuid())
-  userId    String
-  expenseId String?
-  type      String
-  amount    Decimal  @db.Decimal(30, 8)
-  currency  String
-  metadata  Json?
-  createdAt DateTime @default(now())
+  id                 String   @id @default(uuid())
+  userId             String
+  counterpartyUserId String?
+  expenseId          String?
+  settlementId       String?
+  groupId            String?
+  type               String
+  direction          String
+  amount             Decimal  @db.Decimal(30, 8)
+  currency           String
+  note               String?
+  paymentMethodId    String?
+  metadata           Json?
+  createdAt          DateTime @default(now())
 
   user    User     @relation(fields: [userId], references: [id])
   expense Expense? @relation(fields: [expenseId], references: [id])
 
   @@index([userId])
+  @@index([counterpartyUserId])
+  @@index([expenseId])
+  @@index([settlementId])
+  @@index([groupId])
+  @@index([userId, counterpartyUserId])
   @@index([createdAt])
 }
 

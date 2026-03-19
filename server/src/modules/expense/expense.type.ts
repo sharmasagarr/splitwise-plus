@@ -46,6 +46,22 @@ export const expenseTypeDefs = `#graphql
     createdAt: String!
   }
 
+  type LedgerTransaction {
+    id: ID!
+    userId: String!
+    counterpartyUserId: String
+    expenseId: String
+    settlementId: String
+    groupId: String
+    type: String!
+    direction: String!
+    amount: Float!
+    currency: String!
+    note: String
+    paymentMethodId: String
+    createdAt: String!
+  }
+
   type UserBalance {
     userId: String!
     userName: String!
@@ -65,6 +81,7 @@ export const expenseTypeDefs = `#graphql
     getMyBalances: BalanceSummary!
     getExpenseDetail(expenseId: String!): Expense!
     getUserUnsettledShares(toUserId: String!, groupId: String): [ExpenseShare!]!
+    getMyTransactions(relatedUserId: String, type: String, limit: Int, offset: Int): [LedgerTransaction!]!
   }
 
   extend type Mutation {

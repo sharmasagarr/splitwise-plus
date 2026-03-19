@@ -1,5 +1,5 @@
 import { sendNotification } from "../notification/notification.service.js";
-import { splitAmount } from "../../utils/index.js";
+import { splitAmount, getUserCurrency } from "../../utils/index.js";
 
 export const expenseResolvers = {
   Query: {
@@ -194,6 +194,8 @@ export const expenseResolvers = {
       if (!participants || participants.length === 0)
         throw new Error("Participants required");
 
+      const actorCurrency = await getUserCurrency(prisma, user.id);
+
       const uniqueParticipants: string[] = Array.from(
         new Set((participants as string[]).filter(Boolean)),
       );
@@ -223,8 +225,9 @@ export const expenseResolvers = {
         data: {
           groupId,
           createdById: user.id,
+          paidById: user.id,
           totalAmount: amount,
-          currency: "INR",
+          currency: actorCurrency,
           note: description,
           shares: {
             create: shareInputs,
@@ -271,6 +274,8 @@ export const expenseResolvers = {
       if (!user) throw new Error("Unauthorized");
       if (!amount || amount <= 0)
         throw new Error("Amount must be greater than zero");
+
+      const actorCurrency = await getUserCurrency(prisma, user.id);
 
       const validModes = ["cash", "upi", "bank", "card"];
       if (!validModes.includes(paymentMode.toLowerCase())) {
@@ -321,7 +326,7 @@ export const expenseResolvers = {
           fromUserId: user.id,
           toUserId: toUserId,
           amount,
-          currency: "INR",
+          currency: actorCurrency,
           status: "completed",
           paymentMethodId: paymentMode,
           ...(groupId ? { groupId } : {}),
@@ -357,6 +362,8 @@ export const expenseResolvers = {
       if (!amount || amount <= 0) {
         throw new Error("Amount must be greater than zero");
       }
+
+      const actorCurrency = await getUserCurrency(prisma, user.id);
 
       const validModes = ["cash", "upi", "bank", "card"];
       if (!validModes.includes((paymentMode || "").toLowerCase())) {
@@ -437,7 +444,7 @@ export const expenseResolvers = {
           fromUserId: user.id,
           toUserId: payeeId,
           amount,
-          currency: "INR",
+          currency: actorCurrency,
           status: "completed",
           paymentMethodId: paymentMode,
           ...(groupId ? { groupId } : {}),

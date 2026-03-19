@@ -140,3 +140,33 @@ export const GET_USER_UNSETTLED_SHARES = gql`
     }
   }
 `;
+
+export const GET_MY_TRANSACTIONS = gql`
+  query GetMyTransactions(
+    $relatedUserId: String
+    $type: String
+    $limit: Int
+    $offset: Int
+  ) {
+    getMyTransactions(
+      relatedUserId: $relatedUserId
+      type: $type
+      limit: $limit
+      offset: $offset
+    ) {
+      id
+      userId
+      counterpartyUserId
+      expenseId
+      settlementId
+      groupId
+      type
+      direction
+      amount
+      currency
+      note
+      paymentMethodId
+      createdAt
+    }
+  }
+`;

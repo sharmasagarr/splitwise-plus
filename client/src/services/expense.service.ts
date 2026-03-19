@@ -4,6 +4,7 @@ import {
   CREATE_EXPENSE,
   GET_EXPENSE_DETAIL,
   GET_MY_BALANCES,
+  GET_MY_TRANSACTIONS,
   GET_RECENT_ACTIVITIES,
   GET_USER_UNSETTLED_SHARES,
   SETTLE_EXPENSE,
@@ -39,6 +40,24 @@ export const useGetUserUnsettledShares = (
   return useQuery<any>(GET_USER_UNSETTLED_SHARES, {
     variables: { toUserId, groupId },
     skip: options?.skip,
+    fetchPolicy: options?.fetchPolicy ?? 'cache-and-network',
+  });
+};
+
+export const useGetMyTransactions = (options?: {
+  relatedUserId?: string;
+  type?: string;
+  limit?: number;
+  offset?: number;
+  fetchPolicy?: any;
+}) => {
+  return useQuery<any>(GET_MY_TRANSACTIONS, {
+    variables: {
+      relatedUserId: options?.relatedUserId,
+      type: options?.type,
+      limit: options?.limit ?? 100,
+      offset: options?.offset ?? 0,
+    },
     fetchPolicy: options?.fetchPolicy ?? 'cache-and-network',
   });
 };

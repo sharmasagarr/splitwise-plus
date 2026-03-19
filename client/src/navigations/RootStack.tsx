@@ -7,6 +7,7 @@ import ChatScreen from '../screens/ChatScreen';
 import Notifications from '../screens/Notifications';
 import ExpenseDetail from '../screens/ExpenseDetail';
 import SettleUserShares from '../screens/SettleUserSharesScreen';
+import Transactions from '../screens/Transactions';
 
 export type RootStackParamList = {
   MainTabs: undefined;
@@ -19,6 +20,7 @@ export type RootStackParamList = {
   };
   Notifications: undefined;
   ExpenseDetail: { expenseId: string };
+  Transactions: undefined;
   SettleUserShares: {
     toUserId: string;
     toUserName: string;
@@ -77,6 +79,15 @@ export default function RootStack() {
         options={{
           headerTitle: 'Expense Details',
           headerBackTitle: 'Back',
+          headerShadowVisible: false,
+        }}
+      />
+      <Stack.Screen
+        name="Transactions"
+        component={Transactions}
+        options={{
+          headerTitle: 'Transactions',
+          headerBackTitle: 'Home',
           headerShadowVisible: false,
         }}
       />

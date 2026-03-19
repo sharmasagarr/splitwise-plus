@@ -313,7 +313,17 @@ const Home: React.FC = () => {
         </View>
       )}
 
-      <AppText style={styles.sectionTitle}>Recent Activity</AppText>
+      <View style={styles.sectionHeaderRow}>
+        <AppText style={styles.sectionTitle}>Recent Activity</AppText>
+        <TouchableOpacity
+          style={styles.viewAllTxBtn}
+          onPress={() => navigation.navigate('Transactions')}
+          activeOpacity={0.85}
+        >
+          <AppText style={styles.viewAllTxText}>All Transactions</AppText>
+          <AppText style={styles.viewAllTxArrow}>›</AppText>
+        </TouchableOpacity>
+      </View>
       {activities.length === 0 && !loading && (
         <View style={styles.placeholderSection}>
           <AppText style={styles.placeholderText}>
@@ -399,11 +409,36 @@ const Home: React.FC = () => {
 const styles = StyleSheet.create({
   container: { backgroundColor: '#f8fafc' },
   content: { paddingHorizontal: 15, paddingTop: 10 },
-  sectionTitle: {
-    fontSize: 13,
-    color: '#1e293b',
-    marginVertical: 16,
+  sectionHeaderRow: {
+    marginTop: 16,
+    marginBottom: 10,
     paddingHorizontal: 15,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  sectionTitle: {
+    fontSize: 15,
+    color: '#1e293b',
+  },
+  viewAllTxBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#e0f2fe',
+    borderWidth: 1,
+    borderColor: '#bae6fd',
+    borderRadius: 999,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    gap: 6,
+  },
+  viewAllTxText: {
+    color: '#0369a1',
+    fontSize: 10,
+  },
+  viewAllTxArrow: {
+    color: '#0369a1',
+    fontSize: 10,
   },
   activityCard: {
     flexDirection: 'row',

@@ -97,6 +97,7 @@ export type ExpenseAttachment = {
 
 export type ExpenseShare = {
   __typename?: 'ExpenseShare';
+  expense: Expense;
   expenseId: Scalars['String']['output'];
   id: Scalars['ID']['output'];
   paidAmount: Scalars['Float']['output'];
@@ -137,6 +138,23 @@ export type GroupMember = {
   userId: Scalars['String']['output'];
 };
 
+export type LedgerTransaction = {
+  __typename?: 'LedgerTransaction';
+  amount: Scalars['Float']['output'];
+  counterpartyUserId?: Maybe<Scalars['String']['output']>;
+  createdAt: Scalars['String']['output'];
+  currency: Scalars['String']['output'];
+  direction: Scalars['String']['output'];
+  expenseId?: Maybe<Scalars['String']['output']>;
+  groupId?: Maybe<Scalars['String']['output']>;
+  id: Scalars['ID']['output'];
+  note?: Maybe<Scalars['String']['output']>;
+  paymentMethodId?: Maybe<Scalars['String']['output']>;
+  settlementId?: Maybe<Scalars['String']['output']>;
+  type: Scalars['String']['output'];
+  userId: Scalars['String']['output'];
+};
+
 export type Mutation = {
   __typename?: 'Mutation';
   _empty?: Maybe<Scalars['String']['output']>;
@@ -155,6 +173,7 @@ export type Mutation = {
   respondToInvite: Scalars['Boolean']['output'];
   sendMessage: ChatMessage;
   settleExpense: Settlement;
+  settleSpecificShares: Settlement;
   signup: OtpResponse;
   startDirectConversation: ChatConversation;
   updateProfile: User;
@@ -242,6 +261,14 @@ export type MutationSettleExpenseArgs = {
 };
 
 
+export type MutationSettleSpecificSharesArgs = {
+  amount: Scalars['Float']['input'];
+  groupId?: InputMaybe<Scalars['String']['input']>;
+  paymentMode: Scalars['String']['input'];
+  shareIds: Array<Scalars['String']['input']>;
+};
+
+
 export type MutationSignupArgs = {
   email: Scalars['String']['input'];
   name: Scalars['String']['input'];
@@ -297,7 +324,9 @@ export type Query = {
   getMyBalances: BalanceSummary;
   getMyInvites: Array<GroupInvite>;
   getMyNotifications: Array<Notification>;
+  getMyTransactions: Array<LedgerTransaction>;
   getRecentActivities: Array<Expense>;
+  getUserUnsettledShares: Array<ExpenseShare>;
   me?: Maybe<User>;
   searchUsers: Array<User>;
 };
@@ -322,6 +351,20 @@ export type QueryGetMessagesArgs = {
   before?: InputMaybe<Scalars['Int']['input']>;
   conversationId: Scalars['String']['input'];
   limit?: InputMaybe<Scalars['Int']['input']>;
+};
+
+
+export type QueryGetMyTransactionsArgs = {
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  relatedUserId?: InputMaybe<Scalars['String']['input']>;
+  type?: InputMaybe<Scalars['String']['input']>;
+};
+
+
+export type QueryGetUserUnsettledSharesArgs = {
+  groupId?: InputMaybe<Scalars['String']['input']>;
+  toUserId: Scalars['String']['input'];
 };
 
 
@@ -416,6 +459,16 @@ export type SettleExpenseMutationVariables = Exact<{
 
 
 export type SettleExpenseMutation = { __typename?: 'Mutation', settleExpense: { __typename?: 'Settlement', id: string, status: string, groupId?: string | null } };
+
+export type SettleSpecificSharesMutationVariables = Exact<{
+  shareIds: Array<Scalars['String']['input']> | Scalars['String']['input'];
+  amount: Scalars['Float']['input'];
+  paymentMode: Scalars['String']['input'];
+  groupId?: InputMaybe<Scalars['String']['input']>;
+}>;
+
+
+export type SettleSpecificSharesMutation = { __typename?: 'Mutation', settleSpecificShares: { __typename?: 'Settlement', id: string, status: string, groupId?: string | null } };
 
 export type CreateGroupMutationVariables = Exact<{
   name: Scalars['String']['input'];
@@ -534,7 +587,25 @@ export type GetExpenseDetailQueryVariables = Exact<{
 }>;
 
 
-export type GetExpenseDetailQuery = { __typename?: 'Query', getExpenseDetail: { __typename?: 'Expense', id: string, groupId?: string | null, totalAmount: number, currency: string, note?: string | null, createdAt: string, createdBy: { __typename?: 'User', id: string, name: string, email: string }, shares: Array<{ __typename?: 'ExpenseShare', id: string, userId: string, shareAmount: number, paidAmount: number, status: string, user: { __typename?: 'User', id: string, name: string, email: string } }>, attachments: Array<{ __typename?: 'ExpenseAttachment', id: string, url: string, filename?: string | null, contentType?: string | null, createdAt: string }>, group?: { __typename?: 'Group', id: string, name?: string | null, members: Array<{ __typename?: 'GroupMember', id: string, userId: string, user: { __typename?: 'User', id: string, name: string, email: string } }> } | null } };
+export type GetExpenseDetailQuery = { __typename?: 'Query', getExpenseDetail: { __typename?: 'Expense', id: string, groupId?: string | null, totalAmount: number, currency: string, note?: string | null, createdAt: string, createdBy: { __typename?: 'User', id: string, name: string, email: string }, shares: Array<{ __typename?: 'ExpenseShare', id: string, userId: string, shareAmount: number, paidAmount: number, status: string, user: { __typename?: 'User', id: string, name: string, username: string } }>, attachments: Array<{ __typename?: 'ExpenseAttachment', id: string, url: string, filename?: string | null, contentType?: string | null, createdAt: string }> } };
+
+export type GetUserUnsettledSharesQueryVariables = Exact<{
+  toUserId: Scalars['String']['input'];
+  groupId?: InputMaybe<Scalars['String']['input']>;
+}>;
+
+
+export type GetUserUnsettledSharesQuery = { __typename?: 'Query', getUserUnsettledShares: Array<{ __typename?: 'ExpenseShare', id: string, expenseId: string, userId: string, shareAmount: number, paidAmount: number, status: string, expense: { __typename?: 'Expense', id: string, note?: string | null, createdAt: string, groupId?: string | null, createdBy: { __typename?: 'User', id: string, name: string, imageUrl?: string | null, username: string, upiId?: string | null }, group?: { __typename?: 'Group', id: string, name?: string | null } | null } }> };
+
+export type GetMyTransactionsQueryVariables = Exact<{
+  relatedUserId?: InputMaybe<Scalars['String']['input']>;
+  type?: InputMaybe<Scalars['String']['input']>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+}>;
+
+
+export type GetMyTransactionsQuery = { __typename?: 'Query', getMyTransactions: Array<{ __typename?: 'LedgerTransaction', id: string, userId: string, counterpartyUserId?: string | null, expenseId?: string | null, settlementId?: string | null, groupId?: string | null, type: string, direction: string, amount: number, currency: string, note?: string | null, paymentMethodId?: string | null, createdAt: string }> };
 
 export type GetGroupsQueryVariables = Exact<{ [key: string]: never; }>;
 
@@ -546,7 +617,7 @@ export type GetGroupDetailsQueryVariables = Exact<{
 }>;
 
 
-export type GetGroupDetailsQuery = { __typename?: 'Query', getGroupDetails?: { __typename?: 'Group', id: string, name?: string | null, description?: string | null, ownerId: string, createdAt: string, members: Array<{ __typename?: 'GroupMember', id: string, role: string, joinedAt: string, user: { __typename?: 'User', id: string, name: string, email: string, imageUrl?: string | null, upiId?: string | null } }> } | null };
+export type GetGroupDetailsQuery = { __typename?: 'Query', getGroupDetails?: { __typename?: 'Group', id: string, name?: string | null, description?: string | null, ownerId: string, createdAt: string, members: Array<{ __typename?: 'GroupMember', id: string, role: string, joinedAt: string, user: { __typename?: 'User', id: string, name: string, username: string, imageUrl?: string | null, upiId?: string | null } }> } | null };
 
 export type SearchUsersQueryVariables = Exact<{
   query: Scalars['String']['input'];

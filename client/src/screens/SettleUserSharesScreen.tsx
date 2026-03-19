@@ -244,7 +244,7 @@ export default function SettleUserShares({ route, navigation }: Props) {
             <View style={styles.summaryHeaderUpiRow}>
               <Icon name="Wallet" width={13} height={13} color="#9f1239" />
               <AppText style={styles.summaryHeaderUpiText}>
-                {payeeUpiId || 'UPI not added'}
+                {payeeUpiId || 'UPI ID not added'}
               </AppText>
             </View>
           </View>

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback, useLayoutEffect } from 'react';
 import {
   View,
   FlatList,
@@ -6,6 +6,7 @@ import {
   StyleSheet,
   ActivityIndicator,
 } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import AppText from '../components/AppText';
 import { useGetMyNotifications, useMarkNotificationRead, useMarkAllNotificationsRead } from '../services';
 import { lightTheme } from '../utility/themeColors';
@@ -29,20 +30,49 @@ function getNotificationIcon(type: string) {
   }
 }
 
+function parseTimestamp(value: string) {
+  const raw = String(value ?? '').trim();
+  if (!raw) return NaN;
+
+  // Handle unix timestamps that may come as strings.
+  if (/^\d+$/.test(raw)) {
+    const numeric = Number(raw);
+    if (!Number.isNaN(numeric)) {
+      // 10 digits usually means seconds; 13 means milliseconds.
+      return raw.length <= 10 ? numeric * 1000 : numeric;
+    }
+  }
+
+  const parsed = Date.parse(raw);
+  if (!Number.isNaN(parsed)) return parsed;
+
+  // Some backends send 'YYYY-MM-DD HH:mm:ss' without timezone.
+  const normalized = Date.parse(raw.replace(' ', 'T'));
+  return normalized;
+}
+
 function timeAgo(dateStr: string) {
+  const timestamp = parseTimestamp(dateStr);
+  if (Number.isNaN(timestamp)) return 'Recently';
+
   const now = Date.now();
-  const diff = now - new Date(dateStr).getTime();
-  const mins = Math.floor(diff / 60000);
-  if (mins < 1) return 'Just now';
-  if (mins < 60) return `${mins}m ago`;
+  const diff = Math.max(0, now - timestamp);
+  const seconds = Math.floor(diff / 1000);
+  if (seconds < 60) return `${seconds}s ago`;
+
+  const mins = Math.floor(seconds / 60);
+  if (mins < 60) return mins === 1 ? '1 min ago' : `${mins} mins ago`;
+
   const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours}h ago`;
+  if (hours < 24) return hours === 1 ? '1 hour ago' : `${hours} hours ago`;
+
   const days = Math.floor(hours / 24);
-  return `${days}d ago`;
+  return days === 1 ? '1 day ago' : `${days} days ago`;
 }
 
 export default function Notifications() {
   const theme = lightTheme;
+  const navigation = useNavigation<any>();
 
   const { data, loading, refetch } = useGetMyNotifications();
 
@@ -69,10 +99,29 @@ export default function Notifications() {
     }
   };
 
-  const handleMarkAllRead = async () => {
+  const handleMarkAllRead = useCallback(async () => {
     await markAllRead();
     refetch();
-  };
+  }, [markAllRead, refetch]);
+
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      headerRight:
+        unreadCount > 0
+          ? () => (
+              <TouchableOpacity
+                style={[styles.headerMarkAllBtn, { borderColor: theme.primary + '33' }]}
+                onPress={handleMarkAllRead}
+                activeOpacity={0.8}
+              >
+                <AppText style={[styles.headerMarkAllText, { color: theme.primary }]}> 
+                  Mark all read ({unreadCount})
+                </AppText>
+              </TouchableOpacity>
+            )
+          : undefined,
+    });
+  }, [navigation, unreadCount, handleMarkAllRead, theme.primary]);
 
   const renderItem = ({ item }: { item: NotificationItem }) => {
     let parsed: { title?: string; body?: string } = {};
@@ -139,24 +188,18 @@ export default function Notifications() {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
-      {unreadCount > 0 && (
-        <TouchableOpacity
-          style={[styles.markAllBtn, { borderBottomColor: theme.border }]}
-          onPress={handleMarkAllRead}
-        >
-          <AppText style={[styles.markAllText, { color: theme.primary }]}>
-            Mark all as read ({unreadCount})
-          </AppText>
-        </TouchableOpacity>
-      )}
       <FlatList
         data={notifications}
         keyExtractor={item => item.id}
         renderItem={renderItem}
         onRefresh={refetch}
         refreshing={loading}
+        showsVerticalScrollIndicator={false}
+        contentInsetAdjustmentBehavior="automatic"
         contentContainerStyle={
-          notifications.length === 0 ? styles.emptyContainer : undefined
+          notifications.length === 0
+            ? styles.emptyContainer
+            : styles.listContent
         }
         ListEmptyComponent={
           <View style={styles.center}>
@@ -180,28 +223,38 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  markAllBtn: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    alignItems: 'flex-end',
+  headerMarkAllBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+    borderWidth: 1,
+    backgroundColor: '#ffffff',
   },
-  markAllText: {
-    fontSize: 14,
+  headerMarkAllText: {
+    fontSize: 10,
     fontFamily: 'GoogleSans-Medium',
+  },
+  listContent: {
+    paddingHorizontal: 12,
+    paddingTop: 8,
+    paddingBottom: 14,
   },
   notificationItem: {
     flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    borderLeftWidth: 3,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#e0e0e0',
+    alignItems: 'flex-start',
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    marginHorizontal: 4,
+    marginVertical: 6,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#e8e8e8',
+    backgroundColor: '#ffffff',
   },
   icon: {
-    fontSize: 24,
-    marginRight: 12,
+    fontSize: 22,
+    marginRight: 10,
+    marginTop: 2,
   },
   content: {
     flex: 1,
@@ -219,14 +272,15 @@ const styles = StyleSheet.create({
   time: {
     fontSize: 11,
     fontFamily: 'GoogleSans-Regular',
-    opacity: 0.5,
-    marginTop: 4,
+    opacity: 0.55,
+    marginTop: 6,
   },
   unreadDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    width: 9,
+    height: 9,
+    borderRadius: 4.5,
     marginLeft: 8,
+    marginTop: 8,
   },
   emptyContainer: {
     flex: 1,
@@ -244,7 +298,6 @@ const styles = StyleSheet.create({
   },
   itemReadBg: {
     backgroundColor: 'transparent',
-    borderLeftColor: 'transparent',
   },
   titleRead: {
     fontWeight: '400',
@@ -261,6 +314,6 @@ const styles = StyleSheet.create({
 });
 
 const getUnreadBg = (theme: any) => ({
-  backgroundColor: theme.primary + '08',
-  borderLeftColor: theme.primary,
+  backgroundColor: theme.primary + '10',
+  borderColor: theme.primary + '35',
 });

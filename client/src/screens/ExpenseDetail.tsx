@@ -16,6 +16,7 @@ import { useAppSelector } from '../store/hooks';
 import { useImagePickerWithCrop } from '../components/ImagePickerModal';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigations/RootStack';
+import Icon from '../components/Icon';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ExpenseDetail'>;
 
@@ -226,7 +227,7 @@ const ExpenseDetail: React.FC<Props> = ({ route }) => {
           </ScrollView>
         ) : (
           <View style={styles.emptyAttachments}>
-            <AppText style={styles.emptyAttachmentsIcon}>📷</AppText>
+            <Icon name="Photo" width={40} height={40} color="#94a3b8" style={styles.emptyAttachmentsIcon} />
             <AppText style={styles.emptyAttachmentsText}>
               No bills uploaded yet
             </AppText>
@@ -243,7 +244,7 @@ const ExpenseDetail: React.FC<Props> = ({ route }) => {
             <ActivityIndicator size="small" color="#fff" />
           ) : (
             <>
-              <AppText style={styles.uploadBtnIcon}>📷</AppText>
+              <Icon name="Photo" width={25} height={25} color="#fff" />
               <AppText style={styles.uploadBtnText}>Add Bill / Receipt</AppText>
             </>
           )}
@@ -282,7 +283,7 @@ const styles = StyleSheet.create({
   },
   headerAmount: {
     fontSize: 36,
-    fontWeight: '800',
+    fontWeight: '700',
     color: '#10b981',
     marginTop: 8,
   },
@@ -457,7 +458,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#667eea',
-    padding: 16,
+    padding: 10,
     borderRadius: 12,
     marginTop: 16,
     gap: 8,
@@ -467,6 +468,5 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   uploadBtnDisabled: { backgroundColor: '#94a3b8', shadowOpacity: 0 },
-  uploadBtnIcon: { fontSize: 18 },
-  uploadBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  uploadBtnText: { color: '#fff', fontSize: 14, fontWeight: '600' },
 });

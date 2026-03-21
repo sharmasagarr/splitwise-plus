@@ -10,6 +10,7 @@ import { useNavigation } from '@react-navigation/native';
 import AppText from '../components/AppText';
 import { useGetMyNotifications, useMarkNotificationRead, useMarkAllNotificationsRead } from '../services';
 import { lightTheme } from '../utility/themeColors';
+import Icon from '../components/Icon';
 
 interface NotificationItem {
   id: string;
@@ -22,11 +23,13 @@ interface NotificationItem {
 function getNotificationIcon(type: string) {
   switch (type) {
     case 'expense_added':
-      return '💸';
+      return 'Rupee';
     case 'settlement_received':
-      return '✅';
+      return 'CheckBadge';
+    case 'user_joined_group':
+      return 'UserCheck';
     default:
-      return '🔔';
+      return 'Bell';
   }
 }
 
@@ -140,7 +143,8 @@ export default function Notifications() {
         onPress={() => handlePress(item)}
         activeOpacity={0.7}
       >
-        <AppText style={styles.icon}>{getNotificationIcon(item.type)}</AppText>
+
+        <Icon name={getNotificationIcon(item.type)} width={22} height={22} style={styles.icon} />
         <View style={styles.content}>
           {parsed.title ? (
             <AppText
@@ -252,7 +256,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
   },
   icon: {
-    fontSize: 22,
     marginRight: 10,
     marginTop: 2,
   },

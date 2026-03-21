@@ -13,6 +13,9 @@ import Calender from './calendar.svg';
 import Email from './email.svg';
 import Phone from './phone.svg';
 import Wallet from './wallet.svg';
+import Rupee from './rupee.svg';
+import UserCheck from './user-check.svg';
+import CheckBadge from './check-badge.svg';
 
 export const Icons = {
   Home,
@@ -30,6 +33,9 @@ export const Icons = {
   Email,
   Phone,
   Wallet,
+  Rupee,
+  UserCheck,
+  CheckBadge,
 };
 
 export type IconName = keyof typeof Icons;

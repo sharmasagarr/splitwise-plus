@@ -32,6 +32,7 @@ import {
   useSettleExpense,
   useRespondToInvite,
 } from '../services';
+import LineChartComponent from '../components/LineChart';
 
 const Home: React.FC = () => {
   const { user } = useAppSelector(state => state.auth);
@@ -244,39 +245,23 @@ const Home: React.FC = () => {
             });
             days.push({ label: dayLabel, amount: dayTotal });
           }
-          const maxAmount = Math.max(...days.map(d => d.amount), 1);
+          const rawMax = Math.max(...days.map(d => d.amount), 1);
+
+          // Round to a clean number (like 100, 200, 500)
+          const step = Math.ceil(rawMax / 4 / 50) * 50; 
+          const maxAmount = step * 4;
 
           return (
-            <View style={styles.chartContainer}>
-              <AppText style={styles.chartTitle}>📊 Spending (Last 7 Days)</AppText>
-              <View style={styles.chartBars}>
-                {days.map((day, idx) => (
-                  <View key={idx} style={styles.chartBarCol}>
-                    <View style={styles.chartBarTrack}>
-                      <View
-                        style={[
-                          styles.chartBar,
-                          {
-                            height: `${Math.max(
-                              (day.amount / maxAmount) * 100,
-                              4,
-                            )}%`,
-                          },
-                        ]}
-                      />
-                    </View>
-                    {day.amount > 0 && (
-                      <AppText style={styles.chartBarAmount}>
-                        ₹{day.amount.toFixed(0)}
-                      </AppText>
-                    )}
-                    <AppText style={styles.chartBarLabel}>{day.label}</AppText>
-                  </View>
-                ))}
-              </View>
-            </View>
+            <LineChartComponent
+              data={days.map(d => ({
+                value: d.amount,
+                label: d.label,
+              }))}
+              maxValue={maxAmount}
+            />
           );
-        })()}
+        })()
+      }
 
       {/* Pending Invitations */}
       {invites.length > 0 && (

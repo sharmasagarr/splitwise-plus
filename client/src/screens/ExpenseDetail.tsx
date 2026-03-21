@@ -54,166 +54,11 @@ const ExpenseDetail: React.FC<Props> = ({ route }) => {
 
   const {
     handlePickImage: openExpenseImagePicker,
-    // previewVisible: expensePreviewVisible,
-    // croppedImage: expenseCroppedImage,
-    // handleConfirmImage: handleConfirmExpenseImage,
-    // handleClosePreview: handleCloseExpensePreview,
     ImagePreviewModal: ExpenseImagePreviewModal,
   } = useImagePickerWithCrop({
     onImageSelected: handleUploadExpenseAttachmentDirect,
     cropShape: 'square',
   });
-
-  // const handleUpload = useCallback(async () => {
-  //   try {
-  //     const result = await launchImageLibrary({
-  //       mediaType: 'mixed',
-  //       quality: 0.8,
-  //       selectionLimit: 1,
-  //     });
-
-  //     if (result.didCancel || !result.assets || result.assets.length === 0) {
-  //       return;
-  //     }
-
-  //     const asset = result.assets[0];
-  //     if (!asset.uri) {
-  //       return;
-  //     }
-
-  //     setUploading(true);
-
-  //     const token = await AsyncStorage.getItem('token');
-  //     if (!token) {
-  //       Alert.alert('Error', 'You need to be logged in');
-  //       setUploading(false);
-  //       return;
-  //     }
-
-  //     // Validate file size before upload (5MB limit)
-  //     if (asset.fileSize && asset.fileSize > 5 * 1024 * 1024) {
-  //       Alert.alert('Error', 'File size must be less than 5MB');
-  //       setUploading(false);
-  //       return;
-  //     }
-
-  //     // Prepare file object for FormData
-  //     // React Native requires specific format for file uploads
-  //     const fileUri = Platform.OS === 'android' 
-  //       ? asset.uri 
-  //       : asset.uri?.replace('file://', '');
-      
-  //     const fileName = asset.fileName || `bill_${Date.now()}.jpg`;
-  //     const fileType = asset.type || 'image/jpeg';
-
-  //     console.log('🚀 Starting upload:', {
-  //       fileName,
-  //       fileSize: asset.fileSize,
-  //       fileType,
-  //       fileUri,
-  //       expenseId,
-  //       apiUrl: `${API_URL}/api/upload/expense-attachment`,
-  //       platform: Platform.OS,
-  //     });
-
-  //     const uploadUrl = `${API_URL}/api/upload/expense-attachment`;
-      
-  //     console.log('📤 Sending request to:', uploadUrl);
-  //     console.log('📦 Preparing multipart upload with ReactNativeBlobUtil');
-  //     console.log('🔑 Token present:', !!token);
-      
-  //     // Use ReactNativeBlobUtil for reliable file uploads
-  //     try {
-  //       const response = await ReactNativeBlobUtil.fetch(
-  //         'POST',
-  //         uploadUrl,
-  //         {
-  //           'Authorization': `Bearer ${token}`,
-  //           'Accept': 'application/json',
-  //           'Content-Type': 'multipart/form-data',
-  //         },
-  //         [
-  //           {
-  //             name: 'file',
-  //             filename: fileName,
-  //             type: fileType,
-  //             data: ReactNativeBlobUtil.wrap(fileUri.replace('file://', '')),
-  //           },
-  //           {
-  //             name: 'expenseId',
-  //             data: expenseId,
-  //           },
-  //         ]
-  //       );
-
-  //       console.log('📡 Response received:', {
-  //         status: response.info().status,
-  //         headers: response.info().headers,
-  //       });
-
-  //       const statusCode = response.info().status;
-  //       const rawText = await Promise.resolve(response.text());
-  //       const responseText =
-  //         typeof rawText === 'string' ? rawText : JSON.stringify(rawText ?? '');
-        
-  //       console.log('📄 Raw response:', responseText.substring(0, 300));
-
-  //       let json: any;
-  //       try {
-  //         json = await Promise.resolve(response.json());
-  //       } catch (parseError) {
-  //         console.error('❌ JSON parse error:', parseError);
-  //         throw new Error(`Invalid server response: ${responseText.substring(0, 100)}`);
-  //       }
-
-  //       if (statusCode < 200 || statusCode >= 300) {
-  //         console.error('❌ Upload failed:', json);
-  //         throw new Error(json.error || `Upload failed: HTTP ${statusCode}`);
-  //       }
-
-  //       console.log('✅ Upload successful:', json);
-  //       Alert.alert('Success', 'Bill uploaded successfully!');
-  //       refetch();
-  //     } catch (fetchError: any) {
-  //       console.error('❌ Upload error:', {
-  //         message: fetchError.message,
-  //         name: fetchError.name,
-  //       });
-  //       throw fetchError;
-  //     }
-  //   } catch (error: any) {
-  //     console.error('❌ Upload error details:', {
-  //       message: error.message,
-  //       name: error.name,
-  //       code: error.code,
-  //       stack: error.stack?.substring(0, 200),
-  //     });
-
-  //     let userMessage = 'Something went wrong';
-      
-  //     if (error.message.includes('timeout')) {
-  //       userMessage = 'Upload took too long. Please check your connection.';
-  //     } else if (error.message.toLowerCase().includes('network request failed')) {
-  //       userMessage = `Network request failed. Please check:\n1. Server is running\n2. Dev tunnel is active\n3. Internet connection is stable\n\nAPI: ${API_URL}`;
-  //     } else if (error.message.includes('Network')) {
-  //       userMessage = `Network error: ${error.message}\n\nAPI: ${API_URL}`;
-  //     } else if (error.message.includes('invalid response')) {
-  //       userMessage = error.message;
-  //     } else if (error.message.includes('Unauthorized') || error.message.includes('401')) {
-  //       userMessage = 'Session expired. Please log out and log in again.';
-  //     } else if (error.message.includes('403')) {
-  //       userMessage = 'You are not authorized to upload to this expense.';
-  //     } else if (error.message.includes('404')) {
-  //       userMessage = 'Expense not found or upload endpoint unavailable.';
-  //     } else {
-  //       userMessage = error.message || 'Unknown error occurred';
-  //     }
-
-  //     Alert.alert('Upload Error', userMessage);
-  //   } finally {
-  //     setUploading(false);
-  //   }
-  // }, [expenseId, refetch]);
 
   const openAttachment = useCallback((url: string) => {
     Linking.openURL(url).catch(() =>
@@ -431,7 +276,7 @@ const styles = StyleSheet.create({
   headerIconText: { fontSize: 40 },
   headerNote: {
     fontSize: 22,
-    fontWeight: '800',
+    fontWeight: '700',
     color: '#1e293b',
     textAlign: 'center',
   },
@@ -470,7 +315,7 @@ const styles = StyleSheet.create({
   section: { paddingHorizontal: 16, paddingTop: 20 },
   sectionTitle: {
     fontSize: 16,
-    fontWeight: '700',
+    fontWeight: '500',
     color: '#1e293b',
     marginBottom: 12,
   },

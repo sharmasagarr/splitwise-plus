@@ -147,7 +147,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 13,
     color: "#020202",
-    fontWeight: "600",
+    fontWeight: "500",
   },
   activityMetaRow: {
     flexDirection: "row",
@@ -170,7 +170,7 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   activityOwedGreen: {
-    color: "#4ADE80",
+    color: "#0aac45",
   },
   activityOwedRed: {
     color: "#F97373",

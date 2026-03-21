@@ -392,8 +392,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   sectionTitle: {
-    fontSize: 15,
+    fontSize: 16,
     color: '#1e293b',
+    fontWeight: '700',
   },
   viewAllTxBtn: {
     flexDirection: 'row',
@@ -408,7 +409,8 @@ const styles = StyleSheet.create({
   },
   viewAllTxText: {
     color: '#0369a1',
-    fontSize: 10,
+    fontSize: 11,
+    fontWeight: '600',
   },
   viewAllTxArrow: {
     color: '#0369a1',

@@ -561,7 +561,7 @@ const styles = StyleSheet.create({
   },
   name: {
     fontSize: 28,
-    fontWeight: '800',
+    fontWeight: '700',
     color: '#1e293b',
     textAlign: 'center',
     marginBottom: 4,
@@ -570,7 +570,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 16,
     color: '#667eea',
-    fontWeight: '700',
+    fontWeight: '500',
     textAlign: 'center',
     marginBottom: 12,
     letterSpacing: 0.5,

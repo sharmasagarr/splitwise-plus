@@ -516,15 +516,14 @@ const styles = StyleSheet.create({
   memberName: { fontSize: 15, fontWeight: '600', color: '#1e293b' },
   memberUsername: { fontSize: 12, color: '#64748b', marginTop: 2 },
   balanceBadge: {
-    paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 6,
   },
   balanceOwes: {
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: '500',
     color: '#16a34a',
-    backgroundColor: '#f0fdf4',
+    backgroundColor: '#dcffe7',
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 6,

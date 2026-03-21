@@ -6,7 +6,7 @@ const formatRupee = (value: number) => {
 if (value >= 10000000) return `₹${(value / 10000000).toFixed(1)}Cr`;
 if (value >= 100000) return `₹${(value / 100000).toFixed(1)}L`;
 if (value >= 1000) return `₹${(value / 1000).toFixed(value % 1000 === 0 ? 0 : 1)}k`;
-return `₹${value}`;
+return `₹${value.toFixed(2)}`;
 };
 
 const PointerLabel = ({ items }: { items: any[] }) => {
@@ -41,7 +41,8 @@ const LineChartComponent = ({ data, maxValue }: { data: any[]; maxValue: number 
       noOfSections={noOfSections}
       isAnimated
       animationDuration={1500}
-
+      
+      curved
       thickness={1.5}
       color="#2ED9FF"
 

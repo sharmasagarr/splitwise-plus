@@ -76,7 +76,7 @@ const ActivityItem: React.FC<ActivityItemProps> = ({
   const owedAmount = myShare?.shareAmount || 0;
   const owedText = isPayer
     ? `You are owed ₹${formatAmountTwoDecimals(item.totalAmount - owedAmount)}`
-    : `You share ₹${formatAmountTwoDecimals(owedAmount)}`;
+    : `Your share ₹${formatAmountTwoDecimals(owedAmount)}`;
 
   const dateText = formatActivityDate(item.createdAt);
 

@@ -58,7 +58,7 @@ const TabIcon = ({
         : styles.iconTransparent,
     ]}
   >
-    <Icon name={name} width={22} height={22} fill={color} />
+    <Icon name={name} width={22} height={22} color={color} />
   </View>
 );
 

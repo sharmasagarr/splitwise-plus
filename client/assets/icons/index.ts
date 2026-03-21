@@ -16,6 +16,7 @@ import Wallet from './wallet.svg';
 import Rupee from './rupee.svg';
 import UserCheck from './user-check.svg';
 import CheckBadge from './check-badge.svg';
+import Graph from './graph.svg';
 
 export const Icons = {
   Home,
@@ -36,6 +37,7 @@ export const Icons = {
   Rupee,
   UserCheck,
   CheckBadge,
+  Graph,
 };
 
 export type IconName = keyof typeof Icons;

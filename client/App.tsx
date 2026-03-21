@@ -18,7 +18,6 @@ import {
   onTokenRefresh,
   onNotificationOpenedApp,
   getInitialNotification,
-  requestPermission,
 } from '@react-native-firebase/messaging';
 import { getApp } from '@react-native-firebase/app';
 import Toast, { BaseToast, ToastConfig } from 'react-native-toast-message';
@@ -61,8 +60,6 @@ const Root = () => {
         }
       }
 
-      const authStatus = await requestPermission(messagingInstance);
-      console.log('FCM Auth Status:', authStatus);
     } catch (error) {
       console.error('Error requesting FCM permission:', error);
     }
@@ -72,11 +69,10 @@ const Root = () => {
   const getFCMToken = async () => {
     try {
       const fcmToken = await getToken(messagingInstance);
-      console.log('FCM TOKEN:', fcmToken);
 
       await registerFcmToken({ variables: { token: fcmToken } });
     } catch (error) {
-      console.log('FCM TOKEN ERROR:', error);
+      console.error('FCM TOKEN ERROR:', error);
     }
   };
 

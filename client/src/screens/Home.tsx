@@ -33,6 +33,8 @@ import {
   useRespondToInvite,
 } from '../services';
 import LineChartComponent from '../components/LineChart';
+import Icon from '../components/Icon';
+import ActivityItem from '../components/ActivityItem';
 
 const Home: React.FC = () => {
   const { user } = useAppSelector(state => state.auth);
@@ -166,51 +168,13 @@ const Home: React.FC = () => {
     ]);
   };
 
-  const renderActivity = ({ item }: { item: any }) => {
-    const myShare = item.shares?.find((s: any) => s.user?.id === user.id);
-    const payer = item.createdBy;
-    const isPayer = payer.id === user.id;
-
-    const description = isPayer
-      ? `You paid ₹${item.totalAmount} for ${item.note}`
-      : `${payer.name} paid ₹${item.totalAmount} for ${item.note}`;
-
-    const owedText = isPayer
-      ? `You are owed ₹${item.totalAmount - (myShare?.shareAmount || 0)}`
-      : `You owe ₹${myShare?.shareAmount || 0}`;
-
-    return (
-      <TouchableOpacity
-        style={styles.activityCard}
-        onPress={() =>
-          navigation.navigate('ExpenseDetail', { expenseId: item.id })
-        }
-      >
-        <View style={styles.activityContent}>
-          <AppText style={styles.activityDesc}>{description}</AppText>
-          <AppText
-            style={[
-              styles.activityOwed,
-              isPayer ? styles.activityOwedGreen : styles.activityOwedRed,
-            ]}
-          >
-            {owedText}
-          </AppText>
-          <AppText style={styles.activityDate}>
-            {new Date(Number(item.createdAt)).toLocaleDateString()}
-          </AppText>
-        </View>
-        {!isPayer && myShare?.status === 'owed' && (
-          <TouchableOpacity
-            style={styles.settleBtn}
-            onPress={() => openSettleModal(payer.id, myShare.shareAmount)}
-          >
-            <AppText style={styles.settleText}>Settle</AppText>
-          </TouchableOpacity>
-        )}
-      </TouchableOpacity>
-    );
-  };
+  const renderActivity = ({ item }: { item: any }) => (
+    <ActivityItem
+      item={item}
+      currentUser={user}
+      onSettle={openSettleModal}
+    />
+  );
 
   const listHeader = (
     <View style={styles.content}>
@@ -248,17 +212,25 @@ const Home: React.FC = () => {
           const rawMax = Math.max(...days.map(d => d.amount), 1);
 
           // Round to a clean number (like 100, 200, 500)
-          const step = Math.ceil(rawMax / 4 / 50) * 50; 
+          const step = Math.ceil(rawMax / 4 / 50) * 50;
           const maxAmount = step * 4;
 
           return (
-            <LineChartComponent
-              data={days.map(d => ({
-                value: d.amount,
-                label: d.label,
-              }))}
-              maxValue={maxAmount}
-            />
+            <View style={styles.cardChart}>
+              <View style={styles.chartTitle}>
+                <Icon name="Graph" width={20} height={20} />
+                <AppText style={styles.chartTitleText}>Spending (Last 7 days)</AppText>
+              </View>
+              <View style={styles.chartResponsiveWrapper}>
+                <LineChartComponent
+                  data={days.map(d => ({
+                    value: d.amount,
+                    label: d.label,
+                  }))}
+                  maxValue={maxAmount}
+                />
+              </View>
+            </View>
           );
         })()
       }
@@ -392,10 +364,27 @@ const Home: React.FC = () => {
 };
 
 const styles = StyleSheet.create({
+  chartResponsiveWrapper: {
+    width: '100%',
+    alignItems: 'center',
+    overflow: 'hidden',
+  },
+  cardChart: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 10,
+    marginVertical: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 3,
+    alignItems: 'center',
+  },
   container: { backgroundColor: '#f8fafc' },
   content: { paddingHorizontal: 15, paddingTop: 10 },
   sectionHeaderRow: {
-    marginTop: 16,
+    marginTop: 10,
     marginBottom: 10,
     paddingHorizontal: 15,
     flexDirection: 'row',
@@ -572,9 +561,16 @@ const styles = StyleSheet.create({
     borderColor: '#e2e8f0',
   },
   chartTitle: {
-    fontSize: 10,
-    color: '#1e293b',
-    marginBottom: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+    alignSelf: 'flex-start',
+    gap: 6,
+  },
+  chartTitleText: {
+    fontSize: 11,
+    color: '#333',
+    
   },
   chartBars: {
     flexDirection: 'row',

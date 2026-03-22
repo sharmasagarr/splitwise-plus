@@ -9,6 +9,7 @@ import {
   Keyboard,
   StyleSheet,
   Alert,
+  Modal,
 } from 'react-native';
 import AppText from './AppText';
 import AppTextInput from './AppTextInput';
@@ -33,20 +34,30 @@ const ExpenseTab = () => {
   const [billUri, setBillUri] = useState<string | null>(null);
   const [uploadingBill, setUploadingBill] = useState(false);
 
+  // Participant selection
+  const [customParticipants, setCustomParticipants] = useState(false);
+  const [selectedParticipantIds, setSelectedParticipantIds] = useState<string[]>([]);
+  const [showInfoModal, setShowInfoModal] = useState(false);
+
   const groups = groupsData?.getGroups || [];
 
   const filteredGroups = groups.filter((g: any) =>
     g.name.toLowerCase().includes(groupQuery.trim().toLowerCase()),
   );
 
+  const selectedGroup = groups.find((g: any) => g.id === selectedGroupId);
+  const groupMembers: any[] = selectedGroup?.members?.map((m: any) => m.user) || [];
+
   // ============ HANDLERS ============
   const handleGroupQueryChange = (text: string) => {
     setGroupQuery(text);
     setShowGroupDropdown(true);
 
-    const selectedGroup = groups.find((g: any) => g.id === selectedGroupId);
-    if (selectedGroup && selectedGroup.name !== text) {
+    const currentGroup = groups.find((g: any) => g.id === selectedGroupId);
+    if (currentGroup && currentGroup.name !== text) {
       setSelectedGroupId('');
+      setCustomParticipants(false);
+      setSelectedParticipantIds([]);
     }
   };
 
@@ -54,6 +65,27 @@ const ExpenseTab = () => {
     setSelectedGroupId(group.id);
     setGroupQuery(group.name);
     setShowGroupDropdown(false);
+    setCustomParticipants(false);
+    setSelectedParticipantIds([]);
+  };
+
+  const toggleCustomParticipants = () => {
+    const next = !customParticipants;
+    setCustomParticipants(next);
+    if (!next) {
+      setSelectedParticipantIds([]);
+    } else {
+      // Pre-select current user
+      if (user?.id) setSelectedParticipantIds([user.id]);
+    }
+  };
+
+  const toggleParticipant = (memberId: string) => {
+    // Current user is always included — prevent deselection
+    if (memberId === user?.id) return;
+    setSelectedParticipantIds(prev =>
+      prev.includes(memberId) ? prev.filter(id => id !== memberId) : [...prev, memberId],
+    );
   };
 
   const handleBillSelected = useCallback((uri: string) => {
@@ -82,12 +114,25 @@ const ExpenseTab = () => {
       Alert.alert('Validation Error', 'Please select a group');
       return;
     }
+    if (customParticipants && selectedParticipantIds.length === 0) {
+      Alert.alert('Validation Error', 'Please select at least one participant');
+      return;
+    }
+
     const group = groups.find((g: any) => g.id === selectedGroupId);
     if (!group) return;
 
-    const participants = group.members.map((m: any) => m.user.id);
-    if (!participants.includes(user?.id)) {
-      participants.push(user?.id);
+    let participants: string[];
+    if (customParticipants) {
+      participants = [...selectedParticipantIds];
+      if (user?.id && !participants.includes(user.id)) {
+        participants.push(user.id);
+      }
+    } else {
+      participants = group.members.map((m: any) => m.user.id);
+      if (user?.id && !participants.includes(user.id)) {
+        participants.push(user.id);
+      }
     }
 
     try {
@@ -112,6 +157,8 @@ const ExpenseTab = () => {
       setSelectedGroupId('');
       setGroupQuery('');
       setBillUri(null);
+      setCustomParticipants(false);
+      setSelectedParticipantIds([]);
 
       Alert.alert(
         'Success',
@@ -145,7 +192,6 @@ const ExpenseTab = () => {
 
             <AppText style={styles.label}>Select Group</AppText>
 
-            {/* Invisible backdrop to catch clicks outside the dropdown */}
             {showGroupDropdown && (
               <TouchableWithoutFeedback onPress={() => setShowGroupDropdown(false)}>
                 <View style={styles.dropdownBackdrop} />
@@ -227,6 +273,76 @@ const ExpenseTab = () => {
               </AppText>
             )}
 
+            {/* ── Custom Participants Toggle ── */}
+            {selectedGroupId ? (
+              <View style={styles.participantToggleRow}>
+                <TouchableOpacity
+                  style={styles.checkRow}
+                  onPress={toggleCustomParticipants}
+                  activeOpacity={0.7}
+                >
+                  <View style={[styles.checkbox, customParticipants && styles.checkboxChecked]}>
+                    {customParticipants && <AppText style={styles.checkboxTick}>✓</AppText>}
+                  </View>
+                  <AppText style={styles.checkLabel}>
+                    Not everyone is included in this expense
+                  </AppText>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.infoBtn}
+                  onPress={() => setShowInfoModal(true)}
+                  activeOpacity={0.7}
+                >
+                  <AppText style={styles.infoBtnText}>i</AppText>
+                </TouchableOpacity>
+              </View>
+            ) : null}
+
+            {/* ── Member Chips ── */}
+            {customParticipants && groupMembers.length > 0 && (
+              <View style={styles.participantsContainer}>
+                <AppText style={styles.participantsHint}>
+                  Tap to select participants (you're always included)
+                </AppText>
+                <View style={styles.chipsWrap}>
+                  {groupMembers.map((member: any) => {
+                    const isCurrentUser = member.id === user?.id;
+                    const isSelected = selectedParticipantIds.includes(member.id);
+                    return (
+                      <TouchableOpacity
+                        key={member.id}
+                        style={[
+                          styles.chip,
+                          isSelected && styles.chipSelected,
+                          isCurrentUser && styles.chipYou,
+                        ]}
+                        onPress={() => toggleParticipant(member.id)}
+                        activeOpacity={isCurrentUser ? 1 : 0.7}
+                      >
+                        <View style={styles.chipAvatarWrap}>
+                          <View style={[styles.chipAvatar, isSelected && styles.chipAvatarSelected]}>
+                            {!isSelected && (
+                              <AppText style={[styles.chipAvatarText, isSelected && styles.chipAvatarTextSelected]}>
+                                {(member.name || member.username)?.charAt(0).toUpperCase() || '?'}
+                              </AppText>
+                            )}
+                          </View>
+                          {isSelected && (
+                            <View style={styles.chipAvatarCheck}>
+                              <AppText style={styles.chipAvatarCheckText}>✓</AppText>
+                            </View>
+                          )}
+                        </View>
+                        <AppText style={[styles.chipName, isSelected && styles.chipNameSelected]}>
+                          {isCurrentUser ? 'You' : (member.name || member.username)}
+                        </AppText>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
+            )}
+
             <AppText style={styles.label}>Description</AppText>
             <AppTextInput
               style={styles.input}
@@ -238,28 +354,29 @@ const ExpenseTab = () => {
             />
 
             <AppText style={styles.label}>Amount</AppText>
-            <AppTextInput
-              style={styles.input}
-              placeholder="0.00"
-              value={amount}
-              onChangeText={setAmount}
-              onFocus={() => setShowGroupDropdown(false)}
-              keyboardType="numeric"
-              placeholderTextColor="#999"
-            />
+            <View style={styles.amountInputWrap}>
+              <AppText style={styles.amountPrefix}>₹</AppText>
+              <AppTextInput
+                style={styles.amountInput}
+                placeholder="0"
+                value={amount}
+                onChangeText={(text) => setAmount(text.replace(/[^0-9]/g, ''))}
+                onFocus={() => setShowGroupDropdown(false)}
+                keyboardType="number-pad"
+                placeholderTextColor="#999"
+              />
+            </View>
 
             <AppText style={styles.label}>Bill Attachment (Optional)</AppText>
             {billUri ? (
-              <View style={styles.billPreviewContainer}>
-                <Image source={{ uri: billUri }} style={styles.billPreviewImage} />
+              <View style={styles.attachmentCard}>
+                <TouchableOpacity onPress={() => openBillPicker()}>
+                  <Image source={{ uri: billUri }} style={styles.attachmentImage} />
+                </TouchableOpacity>
+                <AppText style={styles.attachmentFilename} numberOfLines={1}>
+                  Bill
+                </AppText>
                 <View style={styles.billPreviewActions}>
-                  <TouchableOpacity
-                    style={styles.billActionBtn}
-                    onPress={openBillPicker}
-                    disabled={creating || uploadingBill}
-                  >
-                    <AppText style={styles.billActionText}>Change</AppText>
-                  </TouchableOpacity>
                   <TouchableOpacity
                     style={[styles.billActionBtn, styles.billRemoveBtn]}
                     onPress={() => setBillUri(null)}
@@ -271,11 +388,16 @@ const ExpenseTab = () => {
               </View>
             ) : (
               <TouchableOpacity
-                style={styles.billUploadBtn}
+                style={[styles.attachmentCard, styles.attachmentPlaceholder]}
                 onPress={openBillPicker}
                 disabled={creating || uploadingBill}
               >
-                <AppText style={styles.billUploadBtnText}>Upload Bill</AppText>
+                <View style={styles.attachmentPlaceholderIcon}>
+                  <Icon name="Bill" width={32} height={32} color="#94a3b8" />
+                </View>
+                <AppText style={styles.attachmentFilename} numberOfLines={1}>
+                  Upload Bill
+                </AppText>
               </TouchableOpacity>
             )}
 
@@ -302,16 +424,49 @@ const ExpenseTab = () => {
           </View>
         </TouchableWithoutFeedback>
       </ScrollView>
+
       {BillImagePreviewModal}
+
+      {/* ── Info Modal ── */}
+      <Modal
+        visible={showInfoModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowInfoModal(false)}
+      >
+        <TouchableWithoutFeedback onPress={() => setShowInfoModal(false)}>
+          <View style={styles.modalOverlay}>
+            <TouchableWithoutFeedback>
+              <View style={styles.modalCard}>
+                <View style={styles.modalIconWrap}>
+                  <AppText style={styles.modalIcon}>💡</AppText>
+                </View>
+                <AppText style={styles.modalTitle}>Custom Participants</AppText>
+                <AppText style={styles.modalBody}>
+                  By default, all group members share this expense equally. Enable this option when only some members were part of the expense — for example, a meal where not everyone attended.
+                  {'\n\n'}
+                  You will always be included as a participant.
+                </AppText>
+                <TouchableOpacity
+                  style={styles.modalCloseBtn}
+                  onPress={() => setShowInfoModal(false)}
+                >
+                  <AppText style={styles.modalCloseBtnText}>Got it</AppText>
+                </TouchableOpacity>
+              </View>
+            </TouchableWithoutFeedback>
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
     </>
   );
 };
 
 const styles = StyleSheet.create({
-  scroll: { padding: 24, paddingBottom: 60 },
+  scroll: { paddingHorizontal: 24, paddingBottom: 60 },
   tabContentWrapper: { flex: 1 },
   label: {
-    fontSize: 16,
+    fontSize: 13,
     color: '#475569',
     marginBottom: 8,
     marginTop: 16,
@@ -396,40 +551,207 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 12,
   },
+
+  // ── Participant toggle ──
+  participantToggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 12,
+    gap: 8,
+  },
+  checkRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    gap: 10,
+  },
+  checkbox: {
+    width: 18,
+    height: 18,
+    borderRadius: 6,
+    borderWidth: 1.5,
+    borderColor: '#cbd5e1',
+    backgroundColor: '#fff',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  checkboxChecked: {
+    backgroundColor: '#4f46e5',
+    borderColor: '#4f46e5',
+  },
+  checkboxTick: {
+    color: '#fff',
+    fontSize: 11,
+  },
+  checkLabel: {
+    fontSize: 11,
+    color: '#475569',
+    flex: 1,
+    flexWrap: 'wrap',
+  },
+  infoBtn: {
+    width: 20,
+    height: 20,
+    borderRadius: 11,
+    borderWidth: 1.5,
+    borderColor: '#94a3b8',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+  },
+  infoBtnText: {
+    fontSize: 12,
+    color: '#64748b',
+    fontStyle: 'italic',
+    fontWeight: '700',
+    lineHeight: 14,
+  },
+
+  // ── Member chips ──
+  participantsContainer: {
+    marginTop: 12,
+    backgroundColor: '#f8fafc',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    padding: 14,
+  },
+  participantsHint: {
+    fontSize: 12,
+    color: '#94a3b8',
+    marginBottom: 12,
+  },
+  chipsWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  chip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    borderRadius: 24,
+    borderWidth: 1.5,
+    borderColor: '#e2e8f0',
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    gap: 6,
+  },
+  chipSelected: {
+    borderColor: '#4f46e5',
+    backgroundColor: '#eef2ff',
+  },
+  chipYou: {
+    borderColor: '#4f46e5',
+    backgroundColor: '#eef2ff',
+    opacity: 0.8,
+  },
+  chipAvatar: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: '#e2e8f0',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  chipAvatarSelected: {
+    backgroundColor: '#c7d2fe',
+  },
+  chipAvatarText: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#64748b',
+  },
+  chipAvatarTextSelected: {
+    color: '#4f46e5',
+  },
+  chipName: {
+    fontSize: 12,
+    color: '#475569',
+    fontWeight: '400',
+  },
+  chipNameSelected: {
+    color: '#4f46e5',
+    fontWeight: '500',
+  },
+  chipAvatarWrap: {
+    position: 'relative',
+  },
+  chipAvatarCheck: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: 13,
+    backgroundColor: 'rgba(79, 70, 229, 0.85)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  chipAvatarCheckText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+
+  // ── Form ──
   input: {
     borderWidth: 1,
     borderColor: '#cbd5e1',
     borderRadius: 12,
-    padding: 16,
-    fontSize: 16,
+    padding: 12,
+    fontSize: 13,
     backgroundColor: '#fff',
     color: '#1e293b',
   },
-  billUploadBtn: {
-    borderWidth: 1,
-    borderStyle: 'dashed',
-    borderColor: '#94a3b8',
-    borderRadius: 12,
-    paddingVertical: 14,
+  amountInputWrap: {
+    flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
-  },
-  billUploadBtnText: {
-    color: '#475569',
-    fontSize: 14,
-  },
-  billPreviewContainer: {
     borderWidth: 1,
     borderColor: '#cbd5e1',
     borderRadius: 12,
     backgroundColor: '#fff',
-    padding: 10,
+    paddingHorizontal: 12,
   },
-  billPreviewImage: {
+  amountPrefix: {
+    fontSize: 14,
+    color: '#475569',
+    fontWeight: '600',
+    marginRight: 4,
+  },
+  amountInput: {
+    flex: 1,
+    paddingVertical: 12,
+    fontSize: 13,
+    color: '#1e293b',
+  },
+  attachmentCard: {
     width: '100%',
-    height: 170,
-    borderRadius: 10,
-    backgroundColor: '#f1f5f9',
+    marginBottom: 12,
+  },
+  attachmentPlaceholder: {
+    height: 120,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: '#94a3b8',
+    borderRadius: 12,
+    backgroundColor: '#f8fafc',
+  },
+  attachmentPlaceholderIcon: {
+    marginBottom: 6,
+  },
+  attachmentImage: {
+    width: '100%',
+    height: 180,
+    borderRadius: 12,
+    backgroundColor: '#e2e8f0',
+  },
+  attachmentFilename: {
+    fontSize: 13,
+    color: '#94a3b8',
+    fontStyle: 'italic',
   },
   billPreviewActions: {
     flexDirection: 'row',
@@ -456,10 +778,10 @@ const styles = StyleSheet.create({
   },
   submitBtn: {
     backgroundColor: '#10b981',
-    padding: 18,
+    padding: 12,
     borderRadius: 12,
     alignItems: 'center',
-    marginTop: 32,
+    marginTop: 15,
     shadowColor: '#10b981',
     shadowOpacity: 0.3,
     shadowRadius: 8,
@@ -471,6 +793,56 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+  },
+
+  // ── Info Modal ──
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 32,
+  },
+  modalCard: {
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    padding: 24,
+    width: '100%',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOpacity: 0.15,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  modalIconWrap: {
+    marginBottom: 12,
+  },
+  modalIcon: {
+    fontSize: 36,
+  },
+  modalTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#1e293b',
+    marginBottom: 10,
+  },
+  modalBody: {
+    fontSize: 14,
+    color: '#475569',
+    lineHeight: 22,
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  modalCloseBtn: {
+    backgroundColor: '#4f46e5',
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 32,
+  },
+  modalCloseBtnText: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 15,
   },
 });
 

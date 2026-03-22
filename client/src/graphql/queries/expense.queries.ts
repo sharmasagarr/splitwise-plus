@@ -36,6 +36,11 @@ export const GET_RECENT_ACTIVITIES = gql`
       currency
       note
       createdAt
+      paidBy{
+        id
+        name
+        upiId
+      }
       createdBy {
         id
         name

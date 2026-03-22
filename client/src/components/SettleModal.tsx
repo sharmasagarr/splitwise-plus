@@ -210,8 +210,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   alreadyPaidCheckbox: {
-    width: 20,
-    height: 20,
+    width: 18,
+    height: 18,
     borderRadius: 6,
     borderWidth: 1,
     borderColor: '#94a3b8',
@@ -227,12 +227,12 @@ const styles = StyleSheet.create({
   alreadyPaidCheckboxTick: {
     color: '#fff',
     fontWeight: '700',
-    fontSize: 12,
+    fontSize: 13,
   },
   alreadyPaidText: {
     color: '#334155',
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: 13,
+    fontWeight: '500',
   },
   infoBtn: {
     width: 22,

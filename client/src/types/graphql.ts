@@ -80,6 +80,8 @@ export type Expense = {
   groupId?: Maybe<Scalars['String']['output']>;
   id: Scalars['ID']['output'];
   note?: Maybe<Scalars['String']['output']>;
+  paidBy?: Maybe<User>;
+  paidById?: Maybe<Scalars['String']['output']>;
   shares: Array<ExpenseShare>;
   totalAmount: Scalars['Float']['output'];
 };
@@ -573,12 +575,12 @@ export type GetGroupExpensesQueryVariables = Exact<{
 }>;
 
 
-export type GetGroupExpensesQuery = { __typename?: 'Query', getGroupExpenses: Array<{ __typename?: 'Expense', id: string, totalAmount: number, currency: string, note?: string | null, createdAt: string, createdBy: { __typename?: 'User', id: string, name: string }, shares: Array<{ __typename?: 'ExpenseShare', id: string, userId: string, shareAmount: number, paidAmount: number, status: string, user: { __typename?: 'User', id: string, name: string } }> }> };
+export type GetGroupExpensesQuery = { __typename?: 'Query', getGroupExpenses: Array<{ __typename?: 'Expense', id: string, totalAmount: number, currency: string, note?: string | null, createdAt: string, createdBy: { __typename?: 'User', id: string, name: string, upiId?: string | null }, shares: Array<{ __typename?: 'ExpenseShare', id: string, userId: string, shareAmount: number, paidAmount: number, status: string, user: { __typename?: 'User', id: string, name: string } }> }> };
 
 export type GetRecentActivitiesQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type GetRecentActivitiesQuery = { __typename?: 'Query', getRecentActivities: Array<{ __typename?: 'Expense', id: string, totalAmount: number, currency: string, note?: string | null, createdAt: string, groupId?: string | null, createdBy: { __typename?: 'User', id: string, name: string }, shares: Array<{ __typename?: 'ExpenseShare', id: string, userId: string, shareAmount: number, paidAmount: number, status: string, user: { __typename?: 'User', id: string, name: string } }> }> };
+export type GetRecentActivitiesQuery = { __typename?: 'Query', getRecentActivities: Array<{ __typename?: 'Expense', id: string, totalAmount: number, currency: string, note?: string | null, createdAt: string, groupId?: string | null, paidBy?: { __typename?: 'User', id: string, name: string, upiId?: string | null } | null, createdBy: { __typename?: 'User', id: string, name: string, upiId?: string | null }, shares: Array<{ __typename?: 'ExpenseShare', id: string, userId: string, shareAmount: number, paidAmount: number, status: string, user: { __typename?: 'User', id: string, name: string } }> }> };
 
 export type GetMyBalancesQueryVariables = Exact<{ [key: string]: never; }>;
 

@@ -20,6 +20,7 @@ export const expenseResolvers = {
         include: {
           shares: { include: { user: true } },
           createdBy: true,
+          paidBy: true,
           attachments: true,
           group: { include: { members: { include: { user: true } } } },
         },
@@ -38,6 +39,7 @@ export const expenseResolvers = {
         include: {
           shares: { include: { user: true } },
           createdBy: true,
+          paidBy: true,
           attachments: true,
           group: { include: { members: { include: { user: true } } } },
         },
@@ -148,6 +150,7 @@ export const expenseResolvers = {
         include: {
           shares: { include: { user: true } },
           createdBy: true,
+          paidBy: true,
           attachments: true,
           group: { include: { members: { include: { user: true } } } },
         },

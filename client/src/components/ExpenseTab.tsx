@@ -10,6 +10,7 @@ import {
   StyleSheet,
   Alert,
   Modal,
+  RefreshControl,
 } from 'react-native';
 import AppText from './AppText';
 import AppTextInput from './AppTextInput';
@@ -22,8 +23,16 @@ const ExpenseTab = () => {
   const { user } = useAppSelector(state => state.auth);
 
   // ============ HOOKS ============
-  const { data: groupsData, loading: loadingGroups } = useGetGroups();
+  const { data: groupsData, loading: loadingGroups, refetch: refetchGroups } = useGetGroups();
   const [createExpense, { loading: creating }] = useCreateExpense();
+
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await refetchGroups().catch(() => {});
+    setRefreshing(false);
+  }, [refetchGroups]);
 
   // ============ STATE ============
   const [selectedGroupId, setSelectedGroupId] = useState('');
@@ -186,6 +195,9 @@ const ExpenseTab = () => {
         style={styles.flex1}
         contentContainerStyle={styles.scroll}
         keyboardShouldPersistTaps="handled"
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
         onScrollBeginDrag={() => {
           setShowGroupDropdown(false);
           Keyboard.dismiss();

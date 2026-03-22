@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   Image,
+  RefreshControl,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import AppText from './AppText';
@@ -19,7 +20,16 @@ const SettleTab = () => {
   const {
     data: balancesData,
     loading: loadingBalances,
+    refetch,
   } = useGetMyBalances();
+
+  const [refreshing, setRefreshing] = React.useState(false);
+
+  const onRefresh = React.useCallback(async () => {
+    setRefreshing(true);
+    await refetch().catch(() => {});
+    setRefreshing(false);
+  }, [refetch]);
 
   const oweList = balancesData?.getMyBalances?.oweList || [];
   const totalOwe = balancesData?.getMyBalances?.totalOwe || 0;
@@ -29,6 +39,9 @@ const SettleTab = () => {
     <ScrollView
       style={styles.container}
       contentContainerStyle={styles.scroll}
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+      }
     >
       {/* Summary card */}
       <View style={styles.settleCard}>

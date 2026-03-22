@@ -3,12 +3,14 @@ export const expenseTypeDefs = `#graphql
     id: ID!
     groupId: String
     createdById: String!
+    paidById: String
     totalAmount: Float!
     currency: String!
     note: String
     createdAt: String!
     shares: [ExpenseShare!]!
     createdBy: User!
+    paidBy: User
     attachments: [ExpenseAttachment!]!
     group: Group
   }

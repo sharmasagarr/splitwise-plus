@@ -68,6 +68,7 @@ const Home: React.FC = () => {
   const [selectedUserId, setSelectedUserId] = useState<string>('');
   const [amount, setAmount] = useState('');
   const [paymentMode, setPaymentMode] = useState('upi');
+  const [groupId, setGroupId] = useState<string>('');
   const [alreadyPaid, setAlreadyPaid] = useState(false);
 
   const activities = data?.getRecentActivities || [];
@@ -96,7 +97,7 @@ const Home: React.FC = () => {
       Alert.alert('Validation Error', 'Amount must be greater than zero');
       return;
     }
-    const validModes = ['cash', 'upi', 'bank', 'card'];
+    const validModes = ['cash', 'upi'];
     if (!validModes.includes(paymentMode.toLowerCase())) {
       Alert.alert(
         'Validation Error',
@@ -114,6 +115,7 @@ const Home: React.FC = () => {
             toUserId: selectedUserId,
             amount: numAmount,
             paymentMode: mode,
+            groupId: groupId,
           },
         });
         return;
@@ -126,7 +128,7 @@ const Home: React.FC = () => {
       if (!payeeUpiId) {
         Alert.alert(
           'Missing UPI ID',
-          `${payeeName} has not added a UPI ID to their profile. You cannot use the automatic UPI flow here. Check "Already paid" if you paid them manually.`,
+          `${payeeName} has not added a UPI ID to their profile. You cannot use the automatic UPI flow here. Check "Already paid" or use "Cash Mode" if you paid them manually.`,
         );
         return;
       }
@@ -147,6 +149,7 @@ const Home: React.FC = () => {
               toUserId: selectedUserId,
               amount: numAmount,
               paymentMode: mode,
+              groupId: groupId,
             },
           });
         }
@@ -157,14 +160,16 @@ const Home: React.FC = () => {
           toUserId: selectedUserId,
           amount: numAmount,
           paymentMode: mode,
+          groupId: groupId,
         },
       });
     }
   };
 
-  const openSettleModal = (toUserId: string, defaultAmount: number) => {
+  const openSettleModal = (toUserId: string, defaultAmount: number, currentGroupId: string) => {
     setSelectedUserId(toUserId);
     setAmount(defaultAmount.toString());
+    setGroupId(currentGroupId);
     setModalVisible(true);
   };
 

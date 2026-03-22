@@ -47,6 +47,7 @@ model User {
   sessions                 Session[]
   groupMembers             GroupMember[]
   expenses                 Expense[]                 @relation("expenseCreator")
+  expensesPayer            Expense[]                 @relation("expense_payer")
   messagesSent             Message[]                 @relation("messages_sent")
   transactions             Transaction[]
   settlementsFrom          Settlement[]              @relation("settlements_from")
@@ -167,6 +168,7 @@ model Expense {
   updatedAt    DateTime @updatedAt
 
   createdBy    User                @relation("expenseCreator", fields: [createdById], references: [id])
+  paidBy       User?               @relation("expense_payer", fields: [paidById], references: [id])
   group        Group?              @relation(fields: [groupId], references: [id])
   shares       ExpenseShare[]
   attachments  ExpenseAttachment[]

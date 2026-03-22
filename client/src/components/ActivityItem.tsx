@@ -21,10 +21,11 @@ type ActivityItemProps = {
     totalAmount: number;
     createdAt: string | number;
     createdBy: User;
+    groupId: string;
     shares: Share[];
   };
   currentUser: User;
-  onSettle: (payerId: string, amount: number) => void;
+  onSettle: (payerId: string, amount: number, currentGroupId: string) => void;
 };
 
 const getDayWithSuffix = (day: number) => {
@@ -66,8 +67,9 @@ const ActivityItem: React.FC<ActivityItemProps> = ({
   const navigation = useNavigation<any>();
 
   const myShare = item.shares?.find((s) => s.user?.id === currentUser.id);
-  const payer = item.createdBy;
+  const payer = item.paidBy;
   const isPayer = payer.id === currentUser.id;
+  const groupId = item.groupId;
 
   const description = isPayer
     ? `You paid ₹${formatAmountTwoDecimals(item.totalAmount)} for ${item.note}`
@@ -85,7 +87,7 @@ const ActivityItem: React.FC<ActivityItemProps> = ({
   };
 
   const handleSettle = () => {
-    onSettle(payer.id, owedAmount);
+    onSettle(payer.id, owedAmount, groupId);
   };
 
   return (

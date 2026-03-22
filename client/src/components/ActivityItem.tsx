@@ -145,7 +145,7 @@ const styles = StyleSheet.create({
   },
   activityDesc: {
     flex: 1,
-    fontSize: 13,
+    fontSize: 12,
     color: "#020202",
     fontWeight: "400",
   },

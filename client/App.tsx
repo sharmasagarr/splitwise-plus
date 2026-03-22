@@ -87,7 +87,7 @@ const Root = () => {
         text1: title,
         text2: body,
         position: 'top',
-        topOffset: 15,
+        topOffset: 50,
       });
     });
 
@@ -100,7 +100,7 @@ const Root = () => {
       try {
         await registerFcmToken({ variables: { token: newToken } });
       } catch (error) {
-        console.log('FCM TOKEN REFRESH ERROR:', error);
+        console.error('FCM TOKEN REFRESH ERROR:', error);
       }
     });
 
@@ -205,6 +205,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#06213bff',
   },
+  toastSafeArea: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+  },
 });
 
 const toastConfig: ToastConfig = {
@@ -233,7 +239,10 @@ export default function App() {
           <SafeAreaView style={styles.appSafeArea} edges={['left', 'right', 'bottom']}>
             <Root />
           </SafeAreaView>
-          <Toast config={toastConfig} />
+          {/* Toast wrapped in SafeAreaView for top safe area */}
+          <SafeAreaView edges={["top"]} style={styles.toastSafeArea}>
+            <Toast config={toastConfig} />
+          </SafeAreaView>
         </Provider>
       </ApolloProvider>
     </SafeAreaProvider>

@@ -42,9 +42,9 @@ export const expenseResolvers = {
 
     getMyBalances: async (_: any, __: any, { prisma, user }: any) => {
       if (!user) throw new Error("Unauthorized");
-
+      
       // 1. Find all expenses where I have an unsettled share (I owe someone)
-      const sharesIOwe = await prisma.expenseShare.findMany({
+        const sharesIOwe = await prisma.expenseShare.findMany({
         where: {
           userId: user.id,
           status: "owed",
@@ -71,7 +71,7 @@ export const expenseResolvers = {
       let totalOwe = 0;
       const oweMap: Record<
         string,
-        { userId: string; userName: string; amount: number }
+        { userId: string; name: string; username: string; imageUrl?: string; upiId?: string; amount: number }
       > = {};
 
       for (const share of sharesIOwe) {
@@ -80,22 +80,25 @@ export const expenseResolvers = {
         const amt = Math.max(shareAmt - paidAmt, 0);
         if (amt <= 0) continue;
         totalOwe += amt;
-        const creatorId = share.expense.createdById;
-        const creatorName = share.expense.createdBy?.name || "Unknown";
-        if (!oweMap[creatorId]) {
-          oweMap[creatorId] = {
-            userId: creatorId,
-            userName: creatorName,
+        const creator = share.expense.createdBy;
+        if (!creator) continue;
+        if (!oweMap[creator.id]) {
+          oweMap[creator.id] = {
+            userId: creator.id,
+            name: creator.name || '',
+            username: creator.username || '',
+            imageUrl: creator.imageUrl || '',
+            upiId: creator.upiId || '',
             amount: 0,
           };
         }
-        oweMap[creatorId].amount += amt;
+        oweMap[creator.id].amount += amt;
       }
 
       let totalOwed = 0;
       const owedMap: Record<
         string,
-        { userId: string; userName: string; amount: number }
+        { userId: string; name: string; username: string; imageUrl?: string; upiId?: string; amount: number }
       > = {};
 
       for (const share of sharesOwedToMe) {
@@ -105,10 +108,14 @@ export const expenseResolvers = {
         if (amt <= 0) continue;
         totalOwed += amt;
         const debtor = share.user;
+        if (!debtor) continue;
         if (!owedMap[debtor.id]) {
           owedMap[debtor.id] = {
             userId: debtor.id,
-            userName: debtor.name,
+            name: debtor.name || '',
+            username: debtor.username || '',
+            imageUrl: debtor.imageUrl || '',
+            upiId: debtor.upiId || '',
             amount: 0,
           };
         }

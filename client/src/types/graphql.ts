@@ -402,8 +402,11 @@ export type User = {
 export type UserBalance = {
   __typename?: 'UserBalance';
   amount: Scalars['Float']['output'];
+  imageUrl?: Maybe<Scalars['String']['output']>;
+  name: Scalars['String']['output'];
+  upiId?: Maybe<Scalars['String']['output']>;
   userId: Scalars['String']['output'];
-  userName: Scalars['String']['output'];
+  username: Scalars['String']['output'];
 };
 
 export type UserFragmentFragment = { __typename?: 'User', id: string, name: string, username: string, bio?: string | null, email: string, phone?: string | null, imageUrl?: string | null, upiId?: string | null, createdAt: string, updatedAt: string };
@@ -580,14 +583,14 @@ export type GetRecentActivitiesQuery = { __typename?: 'Query', getRecentActiviti
 export type GetMyBalancesQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type GetMyBalancesQuery = { __typename?: 'Query', getMyBalances: { __typename?: 'BalanceSummary', totalOwe: number, totalOwed: number, oweList: Array<{ __typename?: 'UserBalance', userId: string, userName: string, amount: number }>, owedList: Array<{ __typename?: 'UserBalance', userId: string, userName: string, amount: number }> } };
+export type GetMyBalancesQuery = { __typename?: 'Query', getMyBalances: { __typename?: 'BalanceSummary', totalOwe: number, totalOwed: number, oweList: Array<{ __typename?: 'UserBalance', userId: string, username: string, name: string, imageUrl?: string | null, upiId?: string | null, amount: number }>, owedList: Array<{ __typename?: 'UserBalance', userId: string, username: string, name: string, imageUrl?: string | null, upiId?: string | null, amount: number }> } };
 
 export type GetExpenseDetailQueryVariables = Exact<{
   expenseId: Scalars['String']['input'];
 }>;
 
 
-export type GetExpenseDetailQuery = { __typename?: 'Query', getExpenseDetail: { __typename?: 'Expense', id: string, groupId?: string | null, totalAmount: number, currency: string, note?: string | null, createdAt: string, createdBy: { __typename?: 'User', id: string, name: string, email: string }, shares: Array<{ __typename?: 'ExpenseShare', id: string, userId: string, shareAmount: number, paidAmount: number, status: string, user: { __typename?: 'User', id: string, name: string, username: string } }>, attachments: Array<{ __typename?: 'ExpenseAttachment', id: string, url: string, filename?: string | null, contentType?: string | null, createdAt: string }> } };
+export type GetExpenseDetailQuery = { __typename?: 'Query', getExpenseDetail: { __typename?: 'Expense', id: string, groupId?: string | null, totalAmount: number, currency: string, note?: string | null, createdAt: string, createdBy: { __typename?: 'User', id: string, name: string, email: string }, shares: Array<{ __typename?: 'ExpenseShare', id: string, userId: string, shareAmount: number, paidAmount: number, status: string, user: { __typename?: 'User', id: string, name: string, username: string, imageUrl?: string | null } }>, attachments: Array<{ __typename?: 'ExpenseAttachment', id: string, url: string, filename?: string | null, contentType?: string | null, createdAt: string }> } };
 
 export type GetUserUnsettledSharesQueryVariables = Exact<{
   toUserId: Scalars['String']['input'];

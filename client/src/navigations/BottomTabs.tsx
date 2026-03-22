@@ -16,7 +16,7 @@ import {
 } from '@react-navigation/bottom-tabs';
 import Home from '../screens/Home';
 import GroupsStack from './GroupsStack';
-import AddExpense from '../screens/Add';
+import Add from '../screens/Add';
 import MessagesStack from './MessagesStack';
 import ProfileStack from './ProfileStack';
 import { lightTheme } from '../utility/themeColors';
@@ -68,7 +68,7 @@ const HomeTabIcon = ({ color, focused }: any) => (
 const GroupsTabIcon = ({ color, focused }: any) => (
   <TabIcon name="Groups" color={color} focused={focused} theme={lightTheme} />
 );
-const AddExpenseTabIcon = ({ color, focused }: any) => (
+const AddTabIcon = ({ color, focused }: any) => (
   <TabIcon name="Add" color={color} focused={focused} theme={lightTheme} />
 );
 const MessagesTabIcon = ({ color, focused }: any) => (
@@ -198,9 +198,9 @@ export default function BottomTabs() {
         headerShown: false,
         tabBarIcon: GroupsTabIcon,
       },
-      AddExpense: {
+      Add: {
         headerShown: false,
-        tabBarIcon: AddExpenseTabIcon,
+        tabBarIcon: AddTabIcon,
       },
       Messages: {
         headerShown: false,
@@ -266,8 +266,8 @@ export default function BottomTabs() {
       />
       <Tab.Screen
         name="Add"
-        component={AddExpense}
-        options={screenOptions.AddExpense as any}
+        component={Add}
+        options={screenOptions.Add as any}
       />
       <Tab.Screen
         name="Messages"

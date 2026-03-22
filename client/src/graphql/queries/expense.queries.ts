@@ -62,12 +62,18 @@ export const GET_MY_BALANCES = gql`
       totalOwed
       oweList {
         userId
-        userName
+        username
+        name
+        imageUrl
+        upiId
         amount
       }
       owedList {
         userId
-        userName
+        username
+        name
+        imageUrl
+        upiId
         amount
       }
     }

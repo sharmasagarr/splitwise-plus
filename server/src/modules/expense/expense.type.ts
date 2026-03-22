@@ -64,8 +64,11 @@ export const expenseTypeDefs = `#graphql
 
   type UserBalance {
     userId: String!
-    userName: String!
+    name: String!
+    username: String!
     amount: Float!
+    imageUrl: String
+    upiId: String
   }
 
   type BalanceSummary {

@@ -16,7 +16,7 @@ import {
 } from '@react-navigation/bottom-tabs';
 import Home from '../screens/Home';
 import GroupsStack from './GroupsStack';
-import AddExpense from '../screens/AddExpense';
+import AddExpense from '../screens/Add';
 import MessagesStack from './MessagesStack';
 import ProfileStack from './ProfileStack';
 import { lightTheme } from '../utility/themeColors';

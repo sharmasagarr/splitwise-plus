@@ -7,6 +7,7 @@ import {
   ActivityIndicator,
   Alert,
   Modal,
+  Image,
 } from 'react-native';
 import AppText from '../components/AppText';
 import AppTextInput from '../components/AppTextInput';
@@ -215,11 +216,18 @@ const GroupDetail: React.FC<Props> = ({ route, navigation }) => {
           }
         }}
       >
-        <View style={styles.memberAvatar}>
-          <AppText style={styles.memberAvatarText}>
-            {item.user.name.charAt(0).toUpperCase()}
-          </AppText>
-        </View>
+        {item.user.imageUrl ? (
+          <Image
+            source={{ uri: item.user.imageUrl }}
+            style={styles.memberAvatarImage}
+          />
+        ) : (
+          <View style={styles.memberAvatar}>
+            <AppText style={styles.memberAvatarText}>
+              {item.user.name?.charAt(0).toUpperCase() || '?'}
+            </AppText>
+          </View>
+        )}
         <View style={styles.memberInfo}>
           <AppText style={styles.memberName}>
             {item.user.name}
@@ -282,9 +290,12 @@ const GroupDetail: React.FC<Props> = ({ route, navigation }) => {
 
       {/* Members Section */}
       <View style={styles.sectionHeader}>
-        <AppText style={styles.sectionTitle}>
-          Members ({group.members.length})
-        </AppText>
+        <View style={styles.sectionHeaderLeft}>
+          <Icon name="Groups" width={20} height={20} color="#1e293b" />
+          <AppText style={styles.sectionTitle}>
+            Members ({group.members.length})
+          </AppText>
+        </View>
         <TouchableOpacity
           style={styles.inviteBtn}
           onPress={() => setInviteModalVisible(true)}
@@ -304,7 +315,10 @@ const GroupDetail: React.FC<Props> = ({ route, navigation }) => {
 
       {/* Expenses Section */}
       <View style={styles.sectionHeader}>
-        <AppText style={styles.sectionTitle}>Expenses ({expenses.length})</AppText>
+        <View style={styles.sectionHeaderLeft}>
+          <Icon name="MoneyWallet" width={20} height={20} color="#1e293b" />
+          <AppText style={styles.sectionTitle}>Expenses ({expenses.length})</AppText>
+        </View>
       </View>
 
       {loadingExpenses && (
@@ -480,17 +494,22 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 16,
   },
-  sectionTitle: { fontSize: 18, fontWeight: '700', color: '#1e293b' },
+  sectionHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  sectionTitle: { fontSize: 16, fontWeight: '500', color: '#1e293b' },
   inviteBtn: {
     backgroundColor: '#667eea',
     paddingHorizontal: 14,
     paddingVertical: 8,
-    borderRadius: 8,
+    borderRadius: 50,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
   },
-  inviteBtnText: { color: '#fff', fontSize: 13 },
+  inviteBtnText: { color: '#fff', fontSize: 12 },
   membersList: { marginHorizontal: 16 },
   memberItem: {
     flexDirection: 'row',
@@ -511,10 +530,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginRight: 12,
   },
-  memberAvatarText: { fontSize: 16, fontWeight: '700', color: '#667eea' },
+  memberAvatarImage: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    marginRight: 12,
+    backgroundColor: '#e2e8f0',
+  },
+  memberAvatarText: { fontSize: 14, fontWeight: '500', color: '#667eea' },
   memberInfo: { flex: 1 },
-  memberName: { fontSize: 15, fontWeight: '600', color: '#1e293b' },
-  memberUsername: { fontSize: 12, color: '#64748b', marginTop: 2 },
+  memberName: { fontSize: 14, fontWeight: '500', color: '#1e293b' },
+  memberUsername: { fontSize: 11, color: '#64748b', },
   balanceBadge: {
     paddingVertical: 4,
     borderRadius: 6,

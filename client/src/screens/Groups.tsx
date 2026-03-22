@@ -85,9 +85,12 @@ const Groups = () => {
   const listHeader =
     invites.length > 0 ? (
       <View style={styles.invitesSection}>
-        <AppText style={styles.invitesSectionTitle}>
-          Pending Invitations ({invites.length})
-        </AppText>
+        <View style={styles.invitesSectionHeader}>
+          <Icon name="Invitation" width={20} height={20} color="#92400e" />
+          <AppText style={styles.invitesSectionTitle}>
+            Pending Invitations ({invites.length})
+          </AppText>
+        </View>
         {invites.map((invite: any) => (
           <View key={invite.id} style={styles.inviteCard}>
             <View style={styles.inviteInfo}>
@@ -189,12 +192,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#667eea',
     paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: 8,
+    borderRadius: 50,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
   },
-  addButtonText: { color: '#fff', fontSize: 13 },
+  addButtonText: { color: '#fff', fontSize: 12 },
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -261,17 +264,23 @@ const styles = StyleSheet.create({
   groupInfo: { color: '#64748b', fontSize: 11 },
   chevron: { fontSize: 24, color: '#cbd5e1', },
   invitesSection: {
-    marginBottom: 20,
+    marginBottom:16,
     backgroundColor: '#fffbeb',
     borderRadius: 12,
     padding: 16,
     borderWidth: 1,
     borderColor: '#fde68a',
   },
-  invitesSectionTitle: {
-    fontSize: 16,
-    color: '#92400e',
+  invitesSectionHeader:{
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
     marginBottom: 12,
+  },
+  invitesSectionTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#92400e',
   },
   inviteCard: {
     flexDirection: 'row',
@@ -284,8 +293,8 @@ const styles = StyleSheet.create({
     borderColor: '#fde68a',
   },
   inviteInfo: { flex: 1 },
-  inviteGroupName: { fontSize: 15, color: '#1e293b' },
-  inviteMembers: { fontSize: 12, color: '#64748b', marginTop: 2 },
+  inviteGroupName: { fontSize: 14, fontWeight: '500', color: '#1e293b' },
+  inviteMembers: { fontSize: 11, color: '#64748b', marginTop: 2 },
   inviteActions: { flexDirection: 'row', gap: 8 },
   acceptBtn: {
     backgroundColor: '#10b981',
@@ -293,12 +302,12 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 8,
   },
-  acceptBtnText: { color: '#fff', fontSize: 13 },
+  acceptBtnText: { color: '#fff', fontSize: 11 },
   rejectBtn: {
     backgroundColor: '#fee2e2',
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 8,
   },
-  rejectBtnText: { color: '#dc2626', fontSize: 13 },
+  rejectBtnText: { color: '#dc2626', fontSize: 11 },
 });

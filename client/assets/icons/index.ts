@@ -21,6 +21,8 @@ import Photo from './photo.svg';
 import Bill from './bill.svg';
 import Invitation from './invitation.svg';
 import Attacment from './attachment.svg';
+import MoneyWallet from './money-wallet.svg';
+import Member from './member.svg';
 
 export const Icons = {
   Home,
@@ -46,6 +48,8 @@ export const Icons = {
   Bill,
   Invitation,
   Attacment,
+  MoneyWallet,
+  Member,
 };
 
 export type IconName = keyof typeof Icons;

@@ -173,10 +173,17 @@ const ExpenseTab = () => {
     }
   };
 
+  const isFormValid =
+    selectedGroupId !== '' &&
+    description.trim().length > 0 &&
+    parseFloat(amount) > 0 &&
+    (!customParticipants || selectedParticipantIds.length > 0);
+
   // ============ RENDER ============
   return (
-    <>
+    <View style={styles.container}>
       <ScrollView
+        style={styles.flex1}
         contentContainerStyle={styles.scroll}
         keyboardShouldPersistTaps="handled"
         onScrollBeginDrag={() => {
@@ -367,24 +374,26 @@ const ExpenseTab = () => {
               />
             </View>
 
-            <AppText style={styles.label}>Bill Attachment (Optional)</AppText>
+            <View style={styles.attachmentHeaderRow}>
+              <AppText style={[styles.label, styles.labelNoMargin]}>
+                Bill Attachment (Optional)
+              </AppText>
+              {billUri && (
+                <TouchableOpacity
+                  style={styles.billRemoveBtnInline}
+                  onPress={() => setBillUri(null)}
+                  disabled={creating || uploadingBill}
+                >
+                  <AppText style={styles.billRemoveText}>Remove</AppText>
+                </TouchableOpacity>
+              )}
+            </View>
+
             {billUri ? (
               <View style={styles.attachmentCard}>
                 <TouchableOpacity onPress={() => openBillPicker()}>
                   <Image source={{ uri: billUri }} style={styles.attachmentImage} />
                 </TouchableOpacity>
-                <AppText style={styles.attachmentFilename} numberOfLines={1}>
-                  Bill
-                </AppText>
-                <View style={styles.billPreviewActions}>
-                  <TouchableOpacity
-                    style={[styles.billActionBtn, styles.billRemoveBtn]}
-                    onPress={() => setBillUri(null)}
-                    disabled={creating || uploadingBill}
-                  >
-                    <AppText style={styles.billRemoveText}>Remove</AppText>
-                  </TouchableOpacity>
-                </View>
               </View>
             ) : (
               <TouchableOpacity
@@ -398,32 +407,34 @@ const ExpenseTab = () => {
                 <AppText style={styles.attachmentFilename} numberOfLines={1}>
                   Upload Bill
                 </AppText>
-              </TouchableOpacity>
-            )}
-
-            <TouchableOpacity
-              style={[
-                styles.submitBtn,
-                (!selectedGroupId || creating || uploadingBill) && styles.submitBtnDisabled,
-              ]}
-              onPress={handleCreate}
-              disabled={!selectedGroupId || creating || uploadingBill}
-            >
-              {creating || uploadingBill ? (
-                <View style={styles.submitLoadingRow}>
-                  <ActivityIndicator size="small" color="#fff" />
-                  <AppText style={styles.submitBtnText}>
-                    {uploadingBill ? 'Uploading bill...' : 'Saving...'}
-                  </AppText>
-                </View>
-              ) : (
-                <AppText style={styles.submitBtnText}>Save Expense</AppText>
+                </TouchableOpacity>
               )}
-            </TouchableOpacity>
 
-          </View>
-        </TouchableWithoutFeedback>
-      </ScrollView>
+            </View>
+          </TouchableWithoutFeedback>
+        </ScrollView>
+
+      <View style={styles.stickyFooter}>
+        <TouchableOpacity
+          style={[
+            styles.submitBtn,
+            (!isFormValid || creating || uploadingBill) && styles.submitBtnDisabled,
+          ]}
+          onPress={handleCreate}
+          disabled={!isFormValid || creating || uploadingBill}
+        >
+          {creating || uploadingBill ? (
+            <View style={styles.submitLoadingRow}>
+              <ActivityIndicator size="small" color="#fff" />
+              <AppText style={styles.submitBtnText}>
+                {uploadingBill ? 'Uploading bill...' : 'Saving...'}
+              </AppText>
+            </View>
+          ) : (
+            <AppText style={styles.submitBtnText}>Save Expense</AppText>
+          )}
+        </TouchableOpacity>
+      </View>
 
       {BillImagePreviewModal}
 
@@ -458,12 +469,27 @@ const ExpenseTab = () => {
           </View>
         </TouchableWithoutFeedback>
       </Modal>
-    </>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
-  scroll: { paddingHorizontal: 24, paddingBottom: 60 },
+  container: {
+    flex: 1,
+    backgroundColor: '#fff',
+  },
+  flex1: {
+    flex: 1,
+  },
+  stickyFooter: {
+    paddingHorizontal: 24,
+    paddingTop: 12,
+    paddingBottom: 12,
+    backgroundColor: '#fff',
+    borderTopWidth: 1,
+    borderTopColor: '#f1f5f9',
+  },
+  scroll: { paddingHorizontal: 24, paddingBottom: 40 },
   tabContentWrapper: { flex: 1 },
   label: {
     fontSize: 13,
@@ -753,35 +779,32 @@ const styles = StyleSheet.create({
     color: '#94a3b8',
     fontStyle: 'italic',
   },
-  billPreviewActions: {
+  attachmentHeaderRow: {
     flexDirection: 'row',
-    justifyContent: 'flex-end',
-    gap: 10,
-    marginTop: 10,
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 16,
+    marginBottom: 8,
   },
-  billActionBtn: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
-    backgroundColor: '#eef2ff',
+  labelNoMargin: {
+    marginTop: 0,
+    marginBottom: 0,
   },
-  billActionText: {
-    color: '#4f46e5',
-    fontSize: 13,
-  },
-  billRemoveBtn: {
+  billRemoveBtnInline: {
     backgroundColor: '#fee2e2',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
   },
   billRemoveText: {
     color: '#dc2626',
-    fontSize: 13,
+    fontSize: 11,
   },
   submitBtn: {
     backgroundColor: '#10b981',
     padding: 12,
     borderRadius: 12,
     alignItems: 'center',
-    marginTop: 15,
     shadowColor: '#10b981',
     shadowOpacity: 0.3,
     shadowRadius: 8,

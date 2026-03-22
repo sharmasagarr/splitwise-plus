@@ -13,7 +13,7 @@ const Add = () => {
       <Tab.Navigator
         initialRouteName="AddExpense"
         screenOptions={{
-          tabBarLabelStyle: { fontSize: 15, fontWeight: '600' },
+          tabBarLabelStyle: { fontSize: 13 , fontFamily: "GoogleSans-Medium"},
           tabBarActiveTintColor: '#4f46e5',
           tabBarInactiveTintColor: '#64748b',
           tabBarIndicatorStyle: {
@@ -21,15 +21,20 @@ const Add = () => {
             borderRadius: 12,
             height: '100%',
           },
+          tabBarItemStyle: {
+            padding: 0,
+            minHeight: 40,
+          },
           tabBarStyle: {
             backgroundColor: '#e0e7ff',
-            borderRadius: 16,
+            borderRadius: 12,
             marginHorizontal: 14,
             marginTop: 10,
             marginBottom: 8,
             elevation: 0,
             shadowOpacity: 0,
-            overflow: 'hidden',
+            height: 40,
+            justifyContent: 'center',
           },
         }}
       >

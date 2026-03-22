@@ -11,6 +11,7 @@ export const GET_GROUP_EXPENSES = gql`
       createdBy {
         id
         name
+        upiId
       }
       shares {
         id
@@ -38,6 +39,7 @@ export const GET_RECENT_ACTIVITIES = gql`
       createdBy {
         id
         name
+        upiId
       }
       groupId
       shares {

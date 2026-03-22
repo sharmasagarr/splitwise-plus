@@ -6,14 +6,10 @@ import {
   FlatList,
   RefreshControl,
   TouchableOpacity,
-  Modal,
   Alert,
-  KeyboardAvoidingView,
-  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AppText from '../components/AppText';
-import AppTextInput from '../components/AppTextInput';
 import { useAppSelector } from '../store/hooks';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -21,7 +17,6 @@ import type { RootStackParamList } from '../navigations/RootStack';
 import {
   openUpiPayment,
   confirmUpiPayment,
-  promptForUpiId,
 } from '../utils/upiHelper';
 import ProfileCard from '../components/ProfileCard';
 import {
@@ -35,6 +30,7 @@ import {
 import LineChartComponent from '../components/LineChart';
 import Icon from '../components/Icon';
 import ActivityItem from '../components/ActivityItem';
+import SettleModal from '../components/SettleModal';
 
 const Home: React.FC = () => {
   const { user } = useAppSelector(state => state.auth);
@@ -71,7 +67,8 @@ const Home: React.FC = () => {
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState<string>('');
   const [amount, setAmount] = useState('');
-  const [paymentMode, setPaymentMode] = useState('cash');
+  const [paymentMode, setPaymentMode] = useState('upi');
+  const [alreadyPaid, setAlreadyPaid] = useState(false);
 
   const activities = data?.getRecentActivities || [];
   const groups = groupsData?.getGroups || [];
@@ -111,13 +108,32 @@ const Home: React.FC = () => {
     const mode = paymentMode.toLowerCase();
 
     if (mode === 'upi') {
-      // Prompt for payee UPI ID
-      const payeeUpiId = await promptForUpiId();
-      if (!payeeUpiId) return;
+      if (alreadyPaid) {
+        settleExpense({
+          variables: {
+            toUserId: selectedUserId,
+            amount: numAmount,
+            paymentMode: mode,
+          },
+        });
+        return;
+      }
+
+      const payeeActivity = activities.find((a: any) => a.createdBy?.id === selectedUserId);
+      const payeeUpiId = payeeActivity?.createdBy?.upiId;
+      const payeeName = payeeActivity?.createdBy?.name || 'User';
+
+      if (!payeeUpiId) {
+        Alert.alert(
+          'Missing UPI ID',
+          `${payeeName} has not added a UPI ID to their profile. You cannot use the automatic UPI flow here. Check "Already paid" if you paid them manually.`,
+        );
+        return;
+      }
 
       const opened = await openUpiPayment(
         payeeUpiId,
-        'User',
+        payeeName,
         numAmount,
         'Splitwise+ Settlement',
       );
@@ -313,55 +329,18 @@ const Home: React.FC = () => {
         contentContainerStyle={styles.listContainer}
       />
 
-      <Modal visible={modalVisible} animationType="fade" transparent>
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={styles.modalOverlay}
-        >
-          <View style={styles.modalContent}>
-            <AppText style={styles.modalTitle}>Settle Expense</AppText>
-
-            <AppText style={styles.label}>Amount to Pay</AppText>
-            <AppTextInput
-              style={styles.input}
-              placeholder="0.00"
-              value={amount}
-              onChangeText={setAmount}
-              keyboardType="numeric"
-            />
-
-            <AppText style={styles.label}>
-              Payment Mode (cash, upi, bank, card)
-            </AppText>
-            <AppTextInput
-              style={styles.input}
-              placeholder="e.g. upi"
-              value={paymentMode}
-              onChangeText={setPaymentMode}
-              autoCapitalize="none"
-            />
-
-            <View style={styles.modalActions}>
-              <TouchableOpacity
-                style={[styles.btn, styles.btnCancel]}
-                onPress={() => setModalVisible(false)}
-                disabled={settling}
-              >
-                <AppText style={styles.btnTextCancel}>Cancel</AppText>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.btn, styles.btnCreate]}
-                onPress={handleSettle}
-                disabled={settling}
-              >
-                <AppText style={styles.btnTextCreate}>
-                  {settling ? 'Settling...' : 'Settle Now'}
-                </AppText>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
+      <SettleModal
+        visible={modalVisible}
+        onClose={() => setModalVisible(false)}
+        amount={amount}
+        setAmount={setAmount}
+        paymentMode={paymentMode}
+        setPaymentMode={setPaymentMode}
+        alreadyPaid={alreadyPaid}
+        setAlreadyPaid={setAlreadyPaid}
+        settling={settling}
+        onSettle={handleSettle}
+      />
     </View>
   );
 };
@@ -516,51 +495,6 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   rejectBtnText: { color: '#dc2626', fontSize: 11 },
-  // Modal
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(15, 23, 42, 0.5)',
-    justifyContent: 'flex-end',
-  },
-  modalContent: {
-    backgroundColor: '#fff',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    padding: 24,
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: '800',
-    marginBottom: 20,
-    color: '#1e293b',
-  },
-  label: { fontSize: 14, fontWeight: '600', color: '#475569', marginBottom: 8 },
-  input: {
-    borderWidth: 1,
-    borderColor: '#cbd5e1',
-    borderRadius: 10,
-    padding: 14,
-    marginBottom: 16,
-    fontSize: 16,
-    backgroundColor: '#f8fafc',
-  },
-  modalActions: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    gap: 12,
-    marginTop: 8,
-  },
-  btn: {
-    paddingHorizontal: 20,
-    paddingVertical: 14,
-    borderRadius: 10,
-    minWidth: 100,
-    alignItems: 'center',
-  },
-  btnCancel: { backgroundColor: '#f1f5f9' },
-  btnCreate: { backgroundColor: '#10b981' },
-  btnTextCancel: { color: '#475569', fontWeight: '700', fontSize: 15 },
-  btnTextCreate: { color: '#fff', fontWeight: '700', fontSize: 15 },
   listContainer: { paddingBottom: 40 },
   // Spending chart
   chartContainer: {

@@ -10,7 +10,13 @@ export const expenseResolvers = {
     ) => {
       if (!user) throw new Error("Unauthorized");
       return prisma.expense.findMany({
-        where: { groupId },
+        where: {
+          groupId,
+          OR: [
+            { createdById: user.id },
+            { shares: { some: { userId: user.id } } },
+          ],
+        },
         include: {
           shares: { include: { user: true } },
           createdBy: true,

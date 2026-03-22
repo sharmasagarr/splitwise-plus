@@ -26,7 +26,10 @@ const SettleTab = () => {
 
   // ============ RENDER ============
   return (
-    <ScrollView contentContainerStyle={styles.scroll}>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={styles.scroll}
+    >
       {/* Summary card */}
       <View style={styles.settleCard}>
         <AppText style={styles.settleCardTitle}>You Owe</AppText>
@@ -105,6 +108,10 @@ const SettleTab = () => {
 };
 
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#fff',
+  },
   oweBalanceRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -120,20 +127,20 @@ const styles = StyleSheet.create({
   settleCard: {
     backgroundColor: '#fef2f2',
     borderRadius: 16,
-    padding: 20,
+    padding: 10,
     alignItems: 'center',
     borderWidth: 1,
     borderColor: '#fecaca',
   },
   settleCardTitle: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '600',
     color: '#dc2626',
     marginBottom: 4,
   },
   settleCardAmount: {
     fontSize: 32,
-    fontWeight: '800',
+    fontWeight: '700',
     color: '#dc2626',
   },
   balanceLoaderContainer: {

@@ -331,6 +331,7 @@ const GroupDetail: React.FC<Props> = ({ route, navigation }) => {
 
       {!loadingExpenses && expenses.length === 0 && (
         <View style={styles.emptyExpenses}>
+          <Icon name="MoneyWallet" width={40} height={40} color="#94a3b8" />
           <AppText style={styles.emptyText}>No expenses yet</AppText>
         </View>
       )}
@@ -546,7 +547,7 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   balanceOwes: {
-    fontSize: 12,
+    fontSize: 10,
     fontWeight: '500',
     color: '#16a34a',
     backgroundColor: '#dcffe7',
@@ -556,8 +557,8 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   balanceOwed: {
-    fontSize: 12,
-    fontWeight: '600',
+    fontSize: 10,
+    fontWeight: '500',
     color: '#dc2626',
     backgroundColor: '#fef2f2',
     paddingHorizontal: 10,

@@ -140,8 +140,9 @@ const ExpenseDetail: React.FC<Props> = ({ route }) => {
 
       {/* Split Breakdown */}
       <View style={styles.section}>
+        <Icon name="Rupee" width={18} height={18} color="#475569" />
         <AppText style={styles.sectionTitle}>
-          💰 Split Breakdown ({expense.shares.length} people)
+          Split Breakdown ({expense.shares.length} people)
         </AppText>
       </View>
 
@@ -161,9 +162,17 @@ const ExpenseDetail: React.FC<Props> = ({ route }) => {
               </View>
             )}
             <View style={styles.shareAvatar}>
-              <AppText style={styles.shareAvatarText}>
-                {share.user.name.charAt(0).toUpperCase()}
-              </AppText>
+              {share.user.imageUrl ? (
+                <Image
+                  source={{ uri: share.user.imageUrl }}
+                  style={styles.shareAvatarImage}
+                  resizeMode="cover"
+                />
+              ) : (
+                <AppText style={styles.shareAvatarText}>
+                  {share.user.name.charAt(0).toUpperCase()}
+                </AppText>
+              )}
             </View>
             <View style={styles.shareInfo}>
               <AppText style={styles.shareName}>
@@ -190,10 +199,12 @@ const ExpenseDetail: React.FC<Props> = ({ route }) => {
 
       {/* Attachments Section */}
       <View style={styles.section}>
+        <Icon name="Attacment" width={18} height={18} color="#475569" />
         <AppText style={styles.sectionTitle}>
-          📎 Bills & Receipts ({attachments.length})
+          Bills & Receipts ({attachments.length})
         </AppText>
-
+      </View>
+      <View style={styles.billsSection}>
         {attachments.length > 0 ? (
           <ScrollView
             horizontal
@@ -227,7 +238,7 @@ const ExpenseDetail: React.FC<Props> = ({ route }) => {
           </ScrollView>
         ) : (
           <View style={styles.emptyAttachments}>
-            <Icon name="Photo" width={40} height={40} color="#94a3b8" style={styles.emptyAttachmentsIcon} />
+            <Icon name="Bill" width={35} height={35} color="#94a3b8" style={styles.emptyAttachmentsIcon} />
             <AppText style={styles.emptyAttachmentsText}>
               No bills uploaded yet
             </AppText>
@@ -244,7 +255,7 @@ const ExpenseDetail: React.FC<Props> = ({ route }) => {
             <ActivityIndicator size="small" color="#fff" />
           ) : (
             <>
-              <Icon name="Photo" width={25} height={25} color="#fff" />
+              <Icon name="Bill" width={25} height={25} color="#fff" />
               <AppText style={styles.uploadBtnText}>Add Bill / Receipt</AppText>
             </>
           )}
@@ -313,37 +324,28 @@ const styles = StyleSheet.create({
   groupBadgeText: { fontSize: 13, color: '#4f46e5', fontWeight: '600' },
 
   // Sections
-  section: { paddingHorizontal: 16, paddingTop: 20 },
+  section: { 
+    paddingHorizontal: 16, 
+    paddingTop: 20, 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    gap: 8,
+    marginBottom: 12,
+  },
   sectionTitle: {
     fontSize: 16,
     fontWeight: '500',
     color: '#1e293b',
-    marginBottom: 12,
+  },
+  billsSection: {
+    paddingHorizontal: 16,
   },
 
-  // Group members
-  membersRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  memberChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#fff',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
+  shareAvatarImage: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
   },
-  memberChipAvatar: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: '#e0e7ff',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 8,
-  },
-  memberChipAvatarText: { fontSize: 12, fontWeight: '700', color: '#667eea' },
-  memberChipName: { fontSize: 13, fontWeight: '600', color: '#475569' },
 
   // Shares
   shareCard: {
@@ -371,9 +373,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginRight: 12,
   },
-  shareAvatarText: { fontSize: 17, fontWeight: '700', color: '#667eea' },
+  shareAvatarText: { fontSize: 17, fontWeight: '500', color: '#667eea' },
   shareInfo: { flex: 1 },
-  shareName: { fontSize: 15, fontWeight: '600', color: '#1e293b' },
+  shareName: { fontSize: 15, fontWeight: '500', color: '#1e293b' },
   shareUsername: { fontSize: 11, color: '#94a3b8', marginTop: 1 },
   shareAmounts: {
     flexDirection: 'row',

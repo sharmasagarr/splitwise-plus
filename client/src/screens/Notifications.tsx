@@ -23,13 +23,15 @@ interface NotificationItem {
 function getNotificationIcon(type: string) {
   switch (type) {
     case 'expense_added':
-      return 'Rupee';
+      return <Icon name="Rupee" width={22} height={22} color="#047faf" style={styles.icon} />;
     case 'settlement_received':
-      return 'CheckBadge';
+      return <Icon name="CheckBadge" width={24} height={24} color="#20af04" style={styles.icon} />;
     case 'user_joined_group':
-      return 'UserCheck';
+      return <Icon name="UserCheck" width={22} height={22} color="#047faf" style={styles.icon} />;
+    case 'group_invitation':
+      return <Icon name="Invitation" width={22} height={22} color="#047faf" style={styles.icon} />;
     default:
-      return 'Bell';
+      return <Icon name="Bell" width={22} height={22} color="#534f4e" style={styles.icon} />;
   }
 }
 
@@ -144,7 +146,7 @@ export default function Notifications() {
         activeOpacity={0.7}
       >
 
-        <Icon name={getNotificationIcon(item.type)} width={22} height={22} style={styles.icon} />
+        {getNotificationIcon(item.type)}
         <View style={styles.content}>
           {parsed.title ? (
             <AppText

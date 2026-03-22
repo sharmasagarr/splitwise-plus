@@ -98,6 +98,7 @@ export const GET_EXPENSE_DETAIL = gql`
           id
           name
           username
+          imageUrl
         }
       }
       attachments {

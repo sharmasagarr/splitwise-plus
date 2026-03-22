@@ -18,6 +18,9 @@ import UserCheck from './user-check.svg';
 import CheckBadge from './check-badge.svg';
 import Graph from './graph.svg';
 import Photo from './photo.svg';
+import Bill from './bill.svg';
+import Invitation from './invitation.svg';
+import Attacment from './attachment.svg';
 
 export const Icons = {
   Home,
@@ -40,6 +43,9 @@ export const Icons = {
   CheckBadge,
   Graph,
   Photo,
+  Bill,
+  Invitation,
+  Attacment,
 };
 
 export type IconName = keyof typeof Icons;

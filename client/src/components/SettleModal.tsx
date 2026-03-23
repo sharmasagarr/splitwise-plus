@@ -1,5 +1,11 @@
-import React from 'react';
-import { Modal, View, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useRef } from 'react';
+import { Alert, StyleSheet, TouchableOpacity, View } from 'react-native';
+import {
+  BottomSheetBackdrop,
+  BottomSheetBackdropProps,
+  BottomSheetModal,
+  BottomSheetView,
+} from '@gorhom/bottom-sheet';
 import AppText from './AppText';
 import AppTextInput from './AppTextInput';
 
@@ -30,144 +36,166 @@ export default function SettleModal({
   onSettle,
   paymentModes = ['upi', 'cash'],
 }: SettleModalProps) {
+  const bottomSheetRef = useRef<BottomSheetModal>(null);
+  const snapPoints = useMemo(() => ['62%'], []);
+
+  const renderBackdrop = useCallback(
+    (props: BottomSheetBackdropProps) => (
+      <BottomSheetBackdrop
+        {...props}
+        appearsOnIndex={0}
+        disappearsOnIndex={-1}
+        opacity={0.35}
+        pressBehavior="close"
+      />
+    ),
+    [],
+  );
+
+  useEffect(() => {
+    if (visible) {
+      bottomSheetRef.current?.present();
+      return;
+    }
+
+    bottomSheetRef.current?.dismiss();
+  }, [visible]);
+
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="slide"
-      onRequestClose={onClose}
+    <BottomSheetModal
+      ref={bottomSheetRef}
+      index={0}
+      snapPoints={snapPoints}
+      animateOnMount
+      enablePanDownToClose
+      backdropComponent={renderBackdrop}
+      backgroundStyle={styles.bottomSheetBackground}
+      handleIndicatorStyle={styles.bottomSheetHandle}
+      keyboardBehavior="interactive"
+      keyboardBlurBehavior="restore"
+      android_keyboardInputMode="adjustResize"
+      onDismiss={onClose}
     >
-      <View style={styles.bottomSheetBackdrop}>
-        <TouchableOpacity
-          style={styles.bottomSheetOverlay}
-          activeOpacity={1}
-          onPress={onClose}
+      <BottomSheetView style={styles.bottomSheetContent}>
+        <AppText style={styles.modalTitle}>Complete Settlement</AppText>
+        <AppText style={styles.modalSubtitle}>
+          Choose amount and payment mode.
+        </AppText>
+
+        <AppText style={styles.label}>Amount to pay</AppText>
+        <AppTextInput
+          style={styles.input}
+          value={amount}
+          onChangeText={setAmount}
+          placeholder="0.00"
+          keyboardType="numeric"
+          placeholderTextColor="#94a3b8"
         />
-        <View style={styles.bottomSheetCard}>
-          <View style={styles.bottomSheetHandle} />
-          <AppText style={styles.modalTitle}>Complete Settlement</AppText>
-          <AppText style={styles.modalSubtitle}>
-            Choose amount and payment mode.
-          </AppText>
 
-          <AppText style={styles.label}>Amount to pay</AppText>
-          <AppTextInput
-            style={styles.input}
-            value={amount}
-            onChangeText={setAmount}
-            placeholder="0.00"
-            keyboardType="numeric"
-            placeholderTextColor="#94a3b8"
-          />
-
-          <AppText style={styles.label}>Payment mode</AppText>
-          <View style={styles.paymentModes}>
-            {paymentModes.map(mode => (
-              <TouchableOpacity
-                key={mode}
+        <AppText style={styles.label}>Payment mode</AppText>
+        <View style={styles.paymentModes}>
+          {paymentModes.map(mode => (
+            <TouchableOpacity
+              key={mode}
+              style={[
+                styles.modeBtn,
+                paymentMode === mode && styles.modeBtnSelected,
+              ]}
+              onPress={() => setPaymentMode(mode)}
+              activeOpacity={0.85}
+            >
+              <AppText
                 style={[
-                  styles.modeBtn,
-                  paymentMode === mode && styles.modeBtnSelected,
+                  styles.modeBtnText,
+                  paymentMode === mode && styles.modeBtnTextSelected,
                 ]}
-                onPress={() => setPaymentMode(mode)}
               >
-                <AppText
-                  style={[
-                    styles.modeBtnText,
-                    paymentMode === mode && styles.modeBtnTextSelected,
-                  ]}
-                >
-                  {mode.toUpperCase()}
+                {mode.toUpperCase()}
+              </AppText>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        <View style={styles.alreadyPaidRow}>
+          <TouchableOpacity
+            style={styles.alreadyPaidToggle}
+            onPress={() => setAlreadyPaid(prev => !prev)}
+            activeOpacity={0.85}
+          >
+            <View
+              style={[
+                styles.alreadyPaidCheckbox,
+                alreadyPaid && styles.alreadyPaidCheckboxSelected,
+              ]}
+            >
+              {alreadyPaid ? (
+                <AppText style={styles.alreadyPaidCheckboxTick}>
+                  {'\u2713'}
                 </AppText>
-              </TouchableOpacity>
-            ))}
-          </View>
-
-          <View style={styles.alreadyPaidRow}>
-            <TouchableOpacity
-              style={styles.alreadyPaidToggle}
-              onPress={() => setAlreadyPaid(prev => !prev)}
-            >
-              <View
-                style={[
-                  styles.alreadyPaidCheckbox,
-                  alreadyPaid && styles.alreadyPaidCheckboxSelected,
-                ]}
-              >
-                {alreadyPaid ? (
-                  <AppText style={styles.alreadyPaidCheckboxTick}>✓</AppText>
-                ) : null}
-              </View>
-              <AppText style={styles.alreadyPaidText}>Already paid</AppText>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.infoBtn}
-              onPress={() =>
-                Alert.alert(
-                  'Already Paid',
-                  'Enable this if you have already paid outside the app. For UPI mode, settlement will be recorded directly without opening payment apps.',
-                )
-              }
-            >
-              <AppText style={styles.infoBtnText}>i</AppText>
-            </TouchableOpacity>
-          </View>
+              ) : null}
+            </View>
+            <AppText style={styles.alreadyPaidText}>Already paid</AppText>
+          </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.settleBtn, settling && styles.settleBtnDisabled]}
-            onPress={onSettle}
-            disabled={settling}
+            style={styles.infoBtn}
+            onPress={() =>
+              Alert.alert(
+                'Already Paid',
+                'Enable this if you have already paid outside the app. For UPI mode, settlement will be recorded directly without opening payment apps.',
+              )
+            }
+            activeOpacity={0.85}
           >
-            <AppText style={styles.settleBtnText}>
-              {settling ? 'Settling...' : 'Settle Shares'}
-            </AppText>
+            <AppText style={styles.infoBtnText}>i</AppText>
           </TouchableOpacity>
         </View>
-      </View>
-    </Modal>
+
+        <TouchableOpacity
+          style={[styles.settleBtn, settling && styles.settleBtnDisabled]}
+          onPress={onSettle}
+          disabled={settling}
+          activeOpacity={0.9}
+        >
+          <AppText style={styles.settleBtnText}>
+            {settling ? 'Settling...' : 'Settle Shares'}
+          </AppText>
+        </TouchableOpacity>
+      </BottomSheetView>
+    </BottomSheetModal>
   );
 }
 
 const styles = StyleSheet.create({
-  bottomSheetBackdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(15, 23, 42, 0.35)',
-    justifyContent: 'flex-end',
-  },
-  bottomSheetOverlay: {
-    flex: 1,
-  },
-  bottomSheetCard: {
-    backgroundColor: '#fff',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    paddingHorizontal: 16,
-    paddingTop: 10,
-    paddingBottom: 18,
+  bottomSheetBackground: {
+    backgroundColor: '#ffffff',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
     borderWidth: 1,
     borderColor: '#e2e8f0',
-    maxHeight: '72%',
   },
   bottomSheetHandle: {
-    alignSelf: 'center',
+    backgroundColor: '#cbd5e1',
     width: 44,
     height: 5,
-    borderRadius: 4,
-    backgroundColor: '#cbd5e1',
-    marginBottom: 10,
+  },
+  bottomSheetContent: {
+    paddingHorizontal: 18,
+    paddingTop: 6,
+    paddingBottom: 26,
   },
   modalTitle: {
     color: '#0f172a',
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: '700',
   },
   modalSubtitle: {
     color: '#475569',
     fontSize: 12,
+    marginTop: 4,
   },
   label: {
-    marginTop: 14,
+    marginTop: 16,
     marginBottom: 8,
     color: '#475569',
     fontSize: 15,
@@ -175,7 +203,7 @@ const styles = StyleSheet.create({
   input: {
     borderWidth: 1,
     borderColor: '#cbd5e1',
-    borderRadius: 12,
+    borderRadius: 14,
     padding: 14,
     backgroundColor: '#fff',
     color: '#0f172a',
@@ -187,7 +215,7 @@ const styles = StyleSheet.create({
   },
   modeBtn: {
     paddingHorizontal: 14,
-    paddingVertical: 8,
+    paddingVertical: 9,
     borderRadius: 18,
     backgroundColor: '#e2e8f0',
     borderWidth: 1,
@@ -197,10 +225,15 @@ const styles = StyleSheet.create({
     backgroundColor: '#4f46e5',
     borderColor: '#4338ca',
   },
-  modeBtnText: { color: '#475569', fontWeight: '600' },
-  modeBtnTextSelected: { color: '#fff' },
+  modeBtnText: {
+    color: '#475569',
+    fontWeight: '600',
+  },
+  modeBtnTextSelected: {
+    color: '#fff',
+  },
   alreadyPaidRow: {
-    marginTop: 10,
+    marginTop: 12,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -250,12 +283,18 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   settleBtn: {
-    marginTop: 20,
+    marginTop: 22,
     backgroundColor: '#4f46e5',
-    borderRadius: 12,
+    borderRadius: 14,
     paddingVertical: 15,
     alignItems: 'center',
   },
-  settleBtnDisabled: { opacity: 0.7 },
-  settleBtnText: { color: '#fff', fontSize: 14 },
+  settleBtnDisabled: {
+    opacity: 0.7,
+  },
+  settleBtnText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
 });

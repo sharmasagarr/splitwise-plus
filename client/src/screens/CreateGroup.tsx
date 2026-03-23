@@ -207,7 +207,7 @@ const CreateGroup: React.FC<Props> = ({ navigation }) => {
               autoCorrect={false}
             />
             <AppText style={styles.tokenHint}>
-              Ask the group admin to share the invite link or token with you.
+              Ask the group admin to share the invite token with you.
             </AppText>
           </View>
         )}
@@ -254,7 +254,7 @@ export default CreateGroup;
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f8fafc' },
-  content: { padding: 20, paddingBottom: 100 },
+  content: { paddingHorizontal: 20, paddingBottom: 100 },
   footerToggleRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -264,13 +264,13 @@ const styles = StyleSheet.create({
   footerToggleLabel: {
     flex: 1,
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: '500',
     color: '#475569',
     marginRight: 12,
   },
   label: {
-    fontSize: 14,
-    fontWeight: '700',
+    fontSize: 12,
+    fontWeight: '500',
     color: '#475569',
     marginBottom: 8,
     marginTop: 16,
@@ -279,8 +279,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#cbd5e1',
     borderRadius: 12,
-    padding: 14,
-    fontSize: 16,
+    padding: 10,
+    fontSize: 14,
     backgroundColor: '#fff',
     color: '#1e293b',
   },
@@ -321,10 +321,10 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontStyle: 'italic',
   },
-  tokenSection: { marginTop: 8 },
+  tokenSection: { marginTop: 0 },
   tokenHint: {
     marginTop: 10,
-    fontSize: 13,
+    fontSize: 10,
     lineHeight: 19,
     color: '#64748b',
   },
@@ -359,10 +359,10 @@ const styles = StyleSheet.create({
   },
   createBtn: {
     backgroundColor: '#667eea',
-    padding: 16,
+    padding: 14,
     borderRadius: 12,
     alignItems: 'center',
   },
   createBtnDisabled: { opacity: 0.6 },
-  createBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  createBtnText: { color: '#fff', fontSize: 14, fontWeight: '600' },
 });

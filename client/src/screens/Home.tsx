@@ -197,16 +197,54 @@ const Home: React.FC = () => {
     />
   );
 
+  const emptyStateMessage =
+    groups.length === 0
+      ? 'Create a group and add your first shared expense to start tracking balances.'
+      : 'Add an expense or settlement from the Add tab and your latest updates will show up here.';
+
+  const emptyState = !loading ? (
+    <View style={styles.emptyStateWrap}>
+      <View style={styles.emptyStateCard}>
+        <View style={styles.emptyStateIcon}>
+          <Icon name="Bill" width={28} height={28} color="#4f46e5" />
+        </View>
+        <AppText style={styles.emptyStateTitle}>No activity yet</AppText>
+        <AppText style={styles.emptyStateSubtitle}>{emptyStateMessage}</AppText>
+
+        {groups.length === 0 ? (
+          <TouchableOpacity
+            style={styles.emptyStatePrimaryBtn}
+            onPress={() => navigation.navigate('CreateGroup')}
+            activeOpacity={0.85}
+          >
+            <Icon name="PlusSquare" width={16} height={16} color="#ffffff" />
+            <AppText style={styles.emptyStatePrimaryText}>
+              Create your first group
+            </AppText>
+          </TouchableOpacity>
+        ) : (
+          <View style={styles.emptyStateHintRow}>
+            <AppText style={styles.emptyStateHint}>
+              Your next split, payment, or settlement will appear here.
+            </AppText>
+          </View>
+        )}
+      </View>
+    </View>
+  ) : null;
+
   const listHeader = (
     <View style={styles.content}>
-      <ProfileCard
-        name={user.name}
-        username={user.username}
-        imageUrl={user.imageUrl}
-        groupsCount={groups.length}
-        amountOwe={`₹${totalOwe.toFixed(0)}`}
-        amountOwed={`₹${totalOwed.toFixed(0)}`}
-      />
+      <View style={styles.profileCardWrapper}>
+        <ProfileCard
+          name={user.name}
+          username={user.username}
+          imageUrl={user.imageUrl}
+          groupsCount={groups.length}
+          amountOwe={`₹${totalOwe.toFixed(0)}`}
+          amountOwed={`₹${totalOwed.toFixed(0)}`}
+        />
+      </View>
 
       {/* Spending Chart */}
       {activities.length > 0 &&
@@ -305,13 +343,6 @@ const Home: React.FC = () => {
           <AppText style={styles.viewAllTxArrow}>›</AppText>
         </TouchableOpacity>
       </View>
-      {activities.length === 0 && !loading && (
-        <View style={styles.placeholderSection}>
-          <AppText style={styles.placeholderText}>
-            No recent activities found.
-          </AppText>
-        </View>
-      )}
     </View>
   );
 
@@ -330,8 +361,12 @@ const Home: React.FC = () => {
           />
         }
         ListHeaderComponent={listHeader}
+        ListEmptyComponent={emptyState}
         renderItem={renderActivity}
-        contentContainerStyle={styles.listContainer}
+        contentContainerStyle={[
+          styles.listContainer,
+          activities.length === 0 && styles.emptyListContainer,
+        ]}
       />
 
       <SettleModal
@@ -368,8 +403,11 @@ const styles = StyleSheet.create({
     elevation: 3,
     alignItems: 'center',
   },
-  container: { backgroundColor: '#f8fafc' },
+  container: { backgroundColor: '#f8fafc', flex: 1, },
   content: { paddingHorizontal: 15, paddingTop: 10 },
+  profileCardWrapper: {
+    marginBottom: 10,
+  },
   sectionHeaderRow: {
     marginTop: 10,
     marginBottom: 10,
@@ -501,6 +539,82 @@ const styles = StyleSheet.create({
   },
   rejectBtnText: { color: '#dc2626', fontSize: 11 },
   listContainer: { paddingBottom: 40 },
+  emptyListContainer: { flexGrow: 1 },
+  emptyStateWrap: {
+    paddingHorizontal: 15,
+    paddingTop: 4,
+    paddingBottom: 24,
+  },
+  emptyStateCard: {
+    minHeight: 220,
+    backgroundColor: '#ffffff',
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: '#dbeafe',
+    paddingHorizontal: 24,
+    paddingVertical: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#2563eb',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.08,
+    shadowRadius: 20,
+    elevation: 4,
+  },
+  emptyStateIcon: {
+    width: 68,
+    height: 68,
+    borderRadius: 34,
+    backgroundColor: '#eef2ff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 18,
+  },
+  emptyStateTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#64748b',
+    marginBottom: 8,
+  },
+  emptyStateSubtitle: {
+    fontSize: 12,
+    lineHeight: 21,
+    color: '#64748b',
+    textAlign: 'center',
+    maxWidth: 280,
+  },
+  emptyStatePrimaryBtn: {
+    marginTop: 22,
+    backgroundColor: '#2563eb',
+    borderRadius: 999,
+    paddingHorizontal: 18,
+    paddingVertical: 11,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  emptyStatePrimaryText: {
+    color: '#ffffff',
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  emptyStateHintRow: {
+    marginTop: 20,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 999,
+    backgroundColor: '#eef2ff',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  emptyStateHint: {
+    flex: 1,
+    fontSize: 12,
+    lineHeight: 18,
+    color: '#4338ca',
+    textAlign: 'center',
+  },
   // Spending chart
   chartContainer: {
     backgroundColor: '#fff',

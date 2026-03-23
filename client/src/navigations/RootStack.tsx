@@ -1,6 +1,8 @@
 import React from 'react';
+import { NavigatorScreenParams } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import BottomTabs from './BottomTabs';
+import type { RootTabParamList } from './BottomTabs';
 import CreateGroup from '../screens/CreateGroup';
 import GroupDetail from '../screens/GroupDetail';
 import ChatScreen from '../screens/ChatScreen';
@@ -10,7 +12,7 @@ import SettleUserShares from '../screens/SettleUserSharesScreen';
 import Transactions from '../screens/Transactions';
 
 export type RootStackParamList = {
-  MainTabs: undefined;
+  MainTabs: NavigatorScreenParams<RootTabParamList> | undefined;
   CreateGroup: undefined;
   GroupDetail: { groupId: string; groupName?: string };
   ChatScreen: {

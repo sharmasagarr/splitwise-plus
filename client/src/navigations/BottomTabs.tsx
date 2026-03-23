@@ -7,7 +7,10 @@ import {
   TouchableOpacity,
   Text as RNText,
 } from 'react-native';
-import { useLinkBuilder } from '@react-navigation/native';
+import {
+  NavigatorScreenParams,
+  useLinkBuilder,
+} from '@react-navigation/native';
 import { PlatformPressable } from '@react-navigation/elements';
 import AppText from '../components/AppText';
 import {
@@ -16,7 +19,7 @@ import {
 } from '@react-navigation/bottom-tabs';
 import Home from '../screens/Home';
 import GroupsStack from './GroupsStack';
-import Add from '../screens/Add';
+import Add, { AddTopTabParamList } from '../screens/Add';
 import MessagesStack from './MessagesStack';
 import ProfileStack from './ProfileStack';
 import { lightTheme } from '../utility/themeColors';
@@ -28,10 +31,10 @@ import { useNavigation } from '@react-navigation/native';
 
 import { IconName } from '../../assets/icons';
 
-type RootTabParamList = {
+export type RootTabParamList = {
   Home: undefined;
   Groups: undefined;
-  Add: undefined;
+  Add: NavigatorScreenParams<AddTopTabParamList> | undefined;
   Messages: undefined;
   Profile: undefined;
 };

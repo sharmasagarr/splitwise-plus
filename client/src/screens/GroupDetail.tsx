@@ -1,16 +1,16 @@
 import React, { useState } from 'react';
 import {
-  StyleSheet,
-  View,
-  FlatList,
-  TouchableOpacity,
   ActivityIndicator,
   Alert,
-  Modal,
+  FlatList,
   Image,
+  StyleSheet,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import AppText from '../components/AppText';
-import AppTextInput from '../components/AppTextInput';
+import SettleModal from '../components/SettleModal';
+import InviteGroupSheet from '../components/InviteGroupSheet';
 import {
   useGetGroupDetails,
   useGetGroupExpenses,
@@ -20,8 +20,8 @@ import {
 import { GET_GROUP_EXPENSES } from '../graphql';
 import { useAppSelector } from '../store/hooks';
 import {
-  openUpiPayment,
   confirmUpiPayment,
+  openUpiPayment,
   promptForUpiId,
 } from '../utility/upiHelper';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -29,6 +29,8 @@ import type { RootStackParamList } from '../navigations/RootStack';
 import Icon from '../components/Icon';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'GroupDetail'>;
+
+const settlePaymentModes = ['upi', 'cash', 'bank', 'card'];
 
 const GroupDetail: React.FC<Props> = ({ route, navigation }) => {
   const { groupId } = route.params;
@@ -51,8 +53,8 @@ const GroupDetail: React.FC<Props> = ({ route, navigation }) => {
   const [settleModalVisible, setSettleModalVisible] = useState(false);
   const [settleAmount, setSettleAmount] = useState('');
   const [settleUserId, setSettleUserId] = useState('');
-  const [settleUserName, setSettleUserName] = useState('');
   const [selectedPaymentMode, setSelectedPaymentMode] = useState('upi');
+  const [alreadyPaid, setAlreadyPaid] = useState(false);
 
   const [inviteToGroup, { loading: inviting }] = useInviteToGroup({
     onCompleted: () => {
@@ -66,13 +68,13 @@ const GroupDetail: React.FC<Props> = ({ route, navigation }) => {
   });
 
   const [settleExpense, { loading: settling }] = useSettleExpense({
-    refetchQueries: [
-      { query: GET_GROUP_EXPENSES, variables: { groupId } },
-    ],
+    refetchQueries: [{ query: GET_GROUP_EXPENSES, variables: { groupId } }],
     onCompleted: () => {
       setSettleModalVisible(false);
       setSettleAmount('');
       setSettleUserId('');
+      setSelectedPaymentMode('upi');
+      setAlreadyPaid(false);
       Alert.alert('Success', 'Settlement recorded!');
       refetchExpenses();
     },
@@ -81,11 +83,38 @@ const GroupDetail: React.FC<Props> = ({ route, navigation }) => {
     },
   });
 
+  const group = groupData?.getGroupDetails;
+  const expenses = expensesData?.getGroupExpenses || [];
+
+  if (loadingGroup && !groupData) {
+    return (
+      <View style={styles.center}>
+        <ActivityIndicator size="large" color="#667eea" />
+      </View>
+    );
+  }
+
+  if (!group) {
+    return (
+      <View style={styles.center}>
+        <AppText style={styles.errorText}>Group not found</AppText>
+      </View>
+    );
+  }
+
+  const isGroupOwner = group.ownerId === user?.id;
+
   const handleInvite = () => {
+    if (!isGroupOwner) {
+      Alert.alert('Permission denied', 'Only the group creator can invite members.');
+      return;
+    }
+
     if (!inviteEmail.trim()) {
       Alert.alert('Error', 'Email cannot be empty');
       return;
     }
+
     inviteToGroup({ variables: { groupId, email: inviteEmail.trim() } });
   };
 
@@ -96,32 +125,42 @@ const GroupDetail: React.FC<Props> = ({ route, navigation }) => {
       return;
     }
 
+    if (selectedPaymentMode === 'upi' && alreadyPaid) {
+      settleExpense({
+        variables: {
+          toUserId: settleUserId,
+          amount: numericAmount,
+          paymentMode: selectedPaymentMode,
+          groupId,
+        },
+      });
+      return;
+    }
+
     if (selectedPaymentMode === 'upi') {
-      // Find payee's UPI ID from group members
-      const payeeMember = group?.members?.find(
-        (m: any) => m.user.id === settleUserId,
+      const payeeMember = group.members?.find(
+        (member: any) => member.user.id === settleUserId,
       );
       let payeeUpiId = payeeMember?.user?.upiId;
 
       if (!payeeUpiId) {
-        // Prompt user to enter UPI ID
         const enteredId = await promptForUpiId();
         if (!enteredId) return;
         payeeUpiId = enteredId;
       }
 
       const payeeName = payeeMember?.user?.name || 'User';
-
-      // Open UPI app
       const opened = await openUpiPayment(
         payeeUpiId,
         payeeName,
         numericAmount,
         `Splitwise+ settlement to ${payeeName}`,
       );
-      if (!opened) return;
 
-      // Wait a moment for the app switch, then show confirmation
+      if (!opened) {
+        return;
+      }
+
       setTimeout(async () => {
         const confirmed = await confirmUpiPayment();
         if (confirmed) {
@@ -135,66 +174,62 @@ const GroupDetail: React.FC<Props> = ({ route, navigation }) => {
           });
         }
       }, 1000);
-    } else {
-      // Non-UPI: direct settle
-      settleExpense({
-        variables: {
-          toUserId: settleUserId,
-          amount: numericAmount,
-          paymentMode: selectedPaymentMode,
-          groupId,
-        },
-      });
+      return;
     }
+
+    settleExpense({
+      variables: {
+        toUserId: settleUserId,
+        amount: numericAmount,
+        paymentMode: selectedPaymentMode,
+        groupId,
+      },
+    });
   };
 
-  const openSettleForUser = (memberId: string, memberName: string) => {
-    if (memberId === user?.id) return;
+  const openSettleForUser = (memberId: string) => {
+    if (memberId === user?.id) {
+      return;
+    }
+
     setSettleUserId(memberId);
-    setSettleUserName(memberName);
     setSettleAmount('');
     setSelectedPaymentMode('upi');
+    setAlreadyPaid(false);
     setSettleModalVisible(true);
   };
 
-  if (loadingGroup && !groupData) {
-    return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" color="#667eea" />
-      </View>
-    );
-  }
+  const handleOpenAddExpense = () => {
+    navigation.navigate('MainTabs', {
+      screen: 'Add',
+      params: {
+        screen: 'AddExpense',
+      },
+    });
+  };
 
-  const group = groupData?.getGroupDetails;
-  const expenses = expensesData?.getGroupExpenses || [];
-
-  if (!group) {
-    return (
-      <View style={styles.center}>
-        <AppText style={styles.errorText}>Group not found</AppText>
-      </View>
-    );
-  }
-
-  // Compute per-member balance within this group's expenses
   const computeMemberBalance = (memberId: string) => {
-    let owes = 0; // how much this member owes to the current user
-    let owed = 0; // how much current user owes this member
-    expenses.forEach((exp: any) => {
-      if (exp.createdBy?.id === user?.id) {
-        // I created this expense, this member owes me
-        const theirShare = exp.shares?.find(
-          (s: any) => s.userId === memberId && s.status === 'owed',
+    let owes = 0;
+    let owed = 0;
+
+    expenses.forEach((expense: any) => {
+      if (expense.createdBy?.id === user?.id) {
+        const theirShare = expense.shares?.find(
+          (share: any) => share.userId === memberId && share.status === 'owed',
         );
-        if (theirShare) owes += parseFloat(theirShare.shareAmount) || 0;
-      } else if (exp.createdBy?.id === memberId) {
-        // They created, I owe them
-        const myShare = exp.shares?.find(
-          (s: any) => s.userId === user?.id && s.status === 'owed',
+        if (theirShare) {
+          owes += parseFloat(theirShare.shareAmount) || 0;
+        }
+      } else if (expense.createdBy?.id === memberId) {
+        const myShare = expense.shares?.find(
+          (share: any) => share.userId === user?.id && share.status === 'owed',
         );
-        if (myShare) owed += parseFloat(myShare.shareAmount) || 0;
+        if (myShare) {
+          owed += parseFloat(myShare.shareAmount) || 0;
+        }
       }
     });
+
     return { owes, owed };
   };
 
@@ -211,10 +246,10 @@ const GroupDetail: React.FC<Props> = ({ route, navigation }) => {
         disabled={isMe || net === 0}
         onPress={() => {
           if (net < 0) {
-            // I owe them
-            openSettleForUser(item.user.id, item.user.name);
+            openSettleForUser(item.user.id);
           }
         }}
+        activeOpacity={0.85}
       >
         {item.user.imageUrl ? (
           <Image
@@ -235,17 +270,21 @@ const GroupDetail: React.FC<Props> = ({ route, navigation }) => {
           </AppText>
           <AppText style={styles.memberUsername}>@{item.user.username}</AppText>
         </View>
-        {!isMe && net !== 0 && (
+        {!isMe && net !== 0 ? (
           <View style={styles.balanceBadge}>
             {net > 0 ? (
-              <AppText style={styles.balanceOwes}>owes ₹{net.toFixed(0)}</AppText>
+              <AppText style={styles.balanceOwes}>
+                owes {'\u20B9'}
+                {net.toFixed(0)}
+              </AppText>
             ) : (
               <AppText style={styles.balanceOwed}>
-                you owe ₹{Math.abs(net).toFixed(0)}
+                you owe {'\u20B9'}
+                {Math.abs(net).toFixed(0)}
               </AppText>
             )}
           </View>
-        )}
+        ) : null}
       </TouchableOpacity>
     );
   };
@@ -253,29 +292,30 @@ const GroupDetail: React.FC<Props> = ({ route, navigation }) => {
   const renderExpense = ({ item }: any) => (
     <TouchableOpacity
       style={styles.expenseCard}
-      onPress={() =>
-        navigation.navigate('ExpenseDetail', { expenseId: item.id })
-      }
+      onPress={() => navigation.navigate('ExpenseDetail', { expenseId: item.id })}
+      activeOpacity={0.85}
     >
       <View style={styles.expenseInfo}>
         <AppText style={styles.expenseDesc}>{item.note || 'Expense'}</AppText>
         <AppText style={styles.expenseBy}>
-          by {item.createdBy?.id === user?.id ? 'You' : item.createdBy?.name || 'Unknown'}
+          by{' '}
+          {item.createdBy?.id === user?.id
+            ? 'You'
+            : item.createdBy?.name || 'Unknown'}
         </AppText>
       </View>
       <View style={styles.expenseRight}>
         <AppText style={styles.expenseAmount}>
-          {item.currency === 'INR' ? '₹' : item.currency || '₹'}
+          {item.currency === 'INR' ? '\u20B9' : item.currency || '\u20B9'}
           {parseFloat(item.totalAmount).toFixed(2)}
         </AppText>
-        <AppText style={styles.expenseChevron}>›</AppText>
+        <AppText style={styles.expenseChevron}>{'>'}</AppText>
       </View>
     </TouchableOpacity>
   );
 
   const listHeader = (
     <View>
-      {/* Group Info */}
       <View style={styles.groupHeader}>
         <View style={styles.groupIcon}>
           <AppText style={styles.groupIconText}>
@@ -283,12 +323,11 @@ const GroupDetail: React.FC<Props> = ({ route, navigation }) => {
           </AppText>
         </View>
         <AppText style={styles.groupName}>{group.name}</AppText>
-        {group.description && (
+        {group.description ? (
           <AppText style={styles.groupDescription}>{group.description}</AppText>
-        )}
+        ) : null}
       </View>
 
-      {/* Members Section */}
       <View style={styles.sectionHeader}>
         <View style={styles.sectionHeaderLeft}>
           <Icon name="Groups" width={20} height={20} color="#1e293b" />
@@ -296,13 +335,16 @@ const GroupDetail: React.FC<Props> = ({ route, navigation }) => {
             Members ({group.members.length})
           </AppText>
         </View>
-        <TouchableOpacity
-          style={styles.inviteBtn}
-          onPress={() => setInviteModalVisible(true)}
-        >
-          <Icon name="PlusCircle" width={16} height={16} />
-          <AppText style={styles.inviteBtnText}>Invite</AppText>
-        </TouchableOpacity>
+        {isGroupOwner ? (
+          <TouchableOpacity
+            style={styles.inviteBtn}
+            onPress={() => setInviteModalVisible(true)}
+            activeOpacity={0.85}
+          >
+            <Icon name="PlusCircle" width={16} height={16} />
+            <AppText style={styles.inviteBtnText}>Invite</AppText>
+          </TouchableOpacity>
+        ) : null}
       </View>
 
       <FlatList
@@ -313,28 +355,51 @@ const GroupDetail: React.FC<Props> = ({ route, navigation }) => {
         style={styles.membersList}
       />
 
-      {/* Expenses Section */}
       <View style={styles.sectionHeader}>
         <View style={styles.sectionHeaderLeft}>
           <Icon name="MoneyWallet" width={20} height={20} color="#1e293b" />
           <AppText style={styles.sectionTitle}>Expenses ({expenses.length})</AppText>
         </View>
+        <TouchableOpacity
+          style={styles.addExpenseBtn}
+          onPress={handleOpenAddExpense}
+          activeOpacity={0.85}
+        >
+          <Icon name="PlusSquare" width={15} height={15} color="#ffffff" />
+          <AppText style={styles.addExpenseBtnText}>Add Expense</AppText>
+        </TouchableOpacity>
       </View>
 
-      {loadingExpenses && (
+      {loadingExpenses ? (
         <ActivityIndicator
           size="small"
           color="#667eea"
           style={styles.expenseLoader}
         />
-      )}
+      ) : null}
 
-      {!loadingExpenses && expenses.length === 0 && (
-        <View style={styles.emptyExpenses}>
-          <Icon name="MoneyWallet" width={40} height={40} color="#94a3b8" />
-          <AppText style={styles.emptyText}>No expenses yet</AppText>
+      {!loadingExpenses && expenses.length === 0 ? (
+        <View style={styles.emptyExpensesCard}>
+          <View style={styles.emptyExpensesIconWrap}>
+            <Icon name="Bill" width={30} height={30} color="#4f46e5" />
+          </View>
+          <AppText style={styles.emptyExpensesTitle}>No expenses yet</AppText>
+          <AppText style={styles.emptyExpensesSubtitle}>
+            Start this group off with the first shared expense so balances and
+            repayments show up here.
+          </AppText>
+          <TouchableOpacity
+            style={styles.emptyExpensesBtn}
+            onPress={handleOpenAddExpense}
+            activeOpacity={0.9}
+          >
+            <Icon name="PlusSquare" width={16} height={16} color="#ffffff" />
+            <AppText style={styles.emptyExpensesBtnText}>
+              Add first expense
+            </AppText>
+          </TouchableOpacity>
         </View>
-      )}
+      ) : null}
     </View>
   );
 
@@ -344,8 +409,8 @@ const GroupDetail: React.FC<Props> = ({ route, navigation }) => {
         data={expenses}
         keyExtractor={(item: any) => item.id}
         renderItem={renderExpense}
-        ListHeaderComponent={<>{listHeader}</>}
-        refreshing={loadingGroup}
+        ListHeaderComponent={listHeader}
+        refreshing={loadingGroup || loadingExpenses}
         onRefresh={() => {
           refetchGroup();
           refetchExpenses();
@@ -353,105 +418,29 @@ const GroupDetail: React.FC<Props> = ({ route, navigation }) => {
         contentContainerStyle={styles.listContent}
       />
 
-      {/* Invite Modal */}
-      <Modal visible={inviteModalVisible} animationType="fade" transparent>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <AppText style={styles.modalTitle}>Invite Member</AppText>
-            <AppTextInput
-              style={styles.modalInput}
-              placeholder="Enter email address"
-              value={inviteEmail}
-              onChangeText={setInviteEmail}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              placeholderTextColor="#94a3b8"
-            />
-            <View style={styles.modalActions}>
-              <TouchableOpacity
-                style={[styles.modalBtn, styles.modalBtnCancel]}
-                onPress={() => setInviteModalVisible(false)}
-                disabled={inviting}
-              >
-                <AppText style={styles.modalBtnCancelText}>Cancel</AppText>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.modalBtn, styles.modalBtnSend]}
-                onPress={handleInvite}
-                disabled={inviting}
-              >
-                <AppText style={styles.modalBtnSendText}>
-                  {inviting ? 'Sending...' : 'Send Invite'}
-                </AppText>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
+      <InviteGroupSheet
+        visible={inviteModalVisible}
+        onClose={() => setInviteModalVisible(false)}
+        email={inviteEmail}
+        setEmail={setInviteEmail}
+        onInvite={handleInvite}
+        inviting={inviting}
+        groupName={group.name}
+      />
 
-      {/* Settle Modal */}
-      <Modal visible={settleModalVisible} animationType="fade" transparent>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <AppText style={styles.modalTitle}>
-              💰 Settle with {settleUserName}
-            </AppText>
-
-            <AppText style={styles.settleLabel}>Amount</AppText>
-            <AppTextInput
-              style={styles.modalInput}
-              placeholder="0.00"
-              value={settleAmount}
-              onChangeText={setSettleAmount}
-              keyboardType="numeric"
-              placeholderTextColor="#94a3b8"
-            />
-
-            <AppText style={styles.settleLabel}>Payment Mode</AppText>
-            <View style={styles.paymentModes}>
-              {['upi', 'cash', 'bank', 'card'].map(mode => (
-                <TouchableOpacity
-                  key={mode}
-                  style={[
-                    styles.modeBtn,
-                    selectedPaymentMode === mode && styles.modeBtnSelected,
-                  ]}
-                  onPress={() => setSelectedPaymentMode(mode)}
-                >
-                  <AppText
-                    style={[
-                      styles.modeBtnText,
-                      selectedPaymentMode === mode &&
-                        styles.modeBtnTextSelected,
-                    ]}
-                  >
-                    {mode.toUpperCase()}
-                  </AppText>
-                </TouchableOpacity>
-              ))}
-            </View>
-
-            <View style={styles.modalActions}>
-              <TouchableOpacity
-                style={[styles.modalBtn, styles.modalBtnCancel]}
-                onPress={() => setSettleModalVisible(false)}
-                disabled={settling}
-              >
-                <AppText style={styles.modalBtnCancelText}>Cancel</AppText>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.modalBtn, styles.modalBtnSend]}
-                onPress={handleSettle}
-                disabled={settling}
-              >
-                <AppText style={styles.modalBtnSendText}>
-                  {settling ? 'Settling...' : 'Settle'}
-                </AppText>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
+      <SettleModal
+        visible={settleModalVisible}
+        onClose={() => setSettleModalVisible(false)}
+        amount={settleAmount}
+        setAmount={setSettleAmount}
+        paymentMode={selectedPaymentMode}
+        setPaymentMode={setSelectedPaymentMode}
+        alreadyPaid={alreadyPaid}
+        setAlreadyPaid={setAlreadyPaid}
+        settling={settling}
+        onSettle={handleSettle}
+        paymentModes={settlePaymentModes}
+      />
     </View>
   );
 };
@@ -459,10 +448,22 @@ const GroupDetail: React.FC<Props> = ({ route, navigation }) => {
 export default GroupDetail;
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f8fafc' },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  errorText: { fontSize: 16, color: '#ef4444' },
-  listContent: { paddingBottom: 40 },
+  container: {
+    flex: 1,
+    backgroundColor: '#f8fafc',
+  },
+  center: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  errorText: {
+    fontSize: 16,
+    color: '#ef4444',
+  },
+  listContent: {
+    paddingBottom: 40,
+  },
   groupHeader: {
     alignItems: 'center',
     paddingVertical: 28,
@@ -480,8 +481,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 12,
   },
-  groupIconText: { fontSize: 30, fontWeight: '700', color: '#667eea' },
-  groupName: { fontSize: 24, fontWeight: '800', color: '#1e293b' },
+  groupIconText: {
+    fontSize: 30,
+    fontWeight: '700',
+    color: '#667eea',
+  },
+  groupName: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: '#1e293b',
+  },
   groupDescription: {
     fontSize: 14,
     color: '#64748b',
@@ -500,7 +509,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
   },
-  sectionTitle: { fontSize: 16, fontWeight: '500', color: '#1e293b' },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1e293b',
+  },
   inviteBtn: {
     backgroundColor: '#667eea',
     paddingHorizontal: 14,
@@ -510,14 +523,34 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 6,
   },
-  inviteBtnText: { color: '#fff', fontSize: 12 },
-  membersList: { marginHorizontal: 16 },
+  inviteBtnText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  addExpenseBtn: {
+    backgroundColor: '#10b981',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 50,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  addExpenseBtnText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  membersList: {
+    marginHorizontal: 16,
+  },
   memberItem: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#fff',
     padding: 14,
-    borderRadius: 10,
+    borderRadius: 12,
     marginBottom: 8,
     borderWidth: 1,
     borderColor: '#f1f5f9',
@@ -538,17 +571,30 @@ const styles = StyleSheet.create({
     marginRight: 12,
     backgroundColor: '#e2e8f0',
   },
-  memberAvatarText: { fontSize: 14, fontWeight: '500', color: '#667eea' },
-  memberInfo: { flex: 1 },
-  memberName: { fontSize: 14, fontWeight: '500', color: '#1e293b' },
-  memberUsername: { fontSize: 11, color: '#64748b', },
+  memberAvatarText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#667eea',
+  },
+  memberInfo: {
+    flex: 1,
+  },
+  memberName: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1e293b',
+  },
+  memberUsername: {
+    fontSize: 11,
+    color: '#64748b',
+  },
   balanceBadge: {
     paddingVertical: 4,
     borderRadius: 6,
   },
   balanceOwes: {
     fontSize: 10,
-    fontWeight: '500',
+    fontWeight: '600',
     color: '#16a34a',
     backgroundColor: '#dcffe7',
     paddingHorizontal: 10,
@@ -558,7 +604,7 @@ const styles = StyleSheet.create({
   },
   balanceOwed: {
     fontSize: 10,
-    fontWeight: '500',
+    fontWeight: '600',
     color: '#dc2626',
     backgroundColor: '#fef2f2',
     paddingHorizontal: 10,
@@ -572,95 +618,93 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     padding: 16,
     marginHorizontal: 16,
-    borderRadius: 10,
+    borderRadius: 12,
     marginBottom: 8,
     borderWidth: 1,
     borderColor: '#f1f5f9',
   },
-  expenseInfo: { flex: 1 },
-  expenseDesc: { fontSize: 15, fontWeight: '600', color: '#1e293b' },
-  expenseBy: { fontSize: 12, color: '#64748b', marginTop: 4 },
-  expenseAmount: { fontSize: 17, fontWeight: '700', color: '#10b981' },
+  expenseInfo: {
+    flex: 1,
+  },
+  expenseDesc: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#1e293b',
+  },
+  expenseBy: {
+    fontSize: 12,
+    color: '#64748b',
+    marginTop: 4,
+  },
+  expenseAmount: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#10b981',
+  },
   expenseRight: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
   },
   expenseChevron: {
-    fontSize: 20,
+    fontSize: 18,
     color: '#94a3b8',
-    fontWeight: '600',
+    fontWeight: '700',
   },
-  expenseLoader: { padding: 20 },
-  emptyExpenses: { padding: 20, alignItems: 'center' },
-  emptyText: { fontSize: 14, color: '#94a3b8', fontStyle: 'italic' },
-  // Modals
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(15, 23, 42, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
+  expenseLoader: {
     padding: 20,
   },
-  modalContent: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 24,
-    width: '100%',
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: '#1e293b',
-    marginBottom: 16,
-  },
-  modalInput: {
+  emptyExpensesCard: {
+    marginHorizontal: 20,
+    marginBottom: 10,
+    backgroundColor: '#ffffff',
+    borderRadius: 22,
     borderWidth: 1,
-    borderColor: '#cbd5e1',
-    borderRadius: 10,
-    padding: 14,
-    fontSize: 16,
-    backgroundColor: '#f8fafc',
-    color: '#1e293b',
+    borderColor: '#dbeafe',
+    paddingHorizontal: 24,
+    paddingVertical: 28,
+    alignItems: 'center',
+    shadowColor: '#2563eb',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.08,
+    shadowRadius: 20,
+    elevation: 4,
+  },
+  emptyExpensesIconWrap: {
+    width: 50,
+    height: 50,
+    borderRadius: 34,
+    backgroundColor: '#eef2ff',
+    justifyContent: 'center',
+    alignItems: 'center',
     marginBottom: 16,
   },
-  modalActions: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    gap: 12,
-  },
-  modalBtn: {
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 10,
-    minWidth: 90,
-    alignItems: 'center',
-  },
-  modalBtnCancel: { backgroundColor: '#f1f5f9' },
-  modalBtnSend: { backgroundColor: '#667eea' },
-  modalBtnCancelText: { color: '#475569', fontWeight: '700' },
-  modalBtnSendText: { color: '#fff', fontWeight: '700' },
-  settleLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#475569',
+  emptyExpensesTitle: {
+    fontSize: 15,
+    fontWeight: '500',
+    color: '#64748b',
     marginBottom: 8,
   },
-  paymentModes: {
+  emptyExpensesSubtitle: {
+    fontSize: 10,
+    lineHeight: 21,
+    color: '#64748b',
+    textAlign: 'center',
+    maxWidth: 280,
+  },
+  emptyExpensesBtn: {
+    marginTop: 22,
+    backgroundColor: '#10b981',
+    borderRadius: 999,
+    paddingHorizontal: 18,
+    paddingVertical: 11,
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-    marginBottom: 16,
+    alignItems: 'center',
+    gap: 8,
   },
-  modeBtn: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 16,
-    backgroundColor: '#e2e8f0',
-    borderWidth: 1,
-    borderColor: '#cbd5e1',
+  emptyExpensesBtnText: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: '600',
   },
-  modeBtnSelected: { backgroundColor: '#667eea', borderColor: '#4f46e5' },
-  modeBtnText: { color: '#475569', fontWeight: '600', fontSize: 12 },
-  modeBtnTextSelected: { color: '#fff' },
 });

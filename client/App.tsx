@@ -10,6 +10,8 @@ import {
 } from 'react-native';
 import BootSplash from 'react-native-bootsplash';
 import { ApolloProvider, useMutation } from '@apollo/client/react';
+import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import {
   getMessaging,
@@ -184,6 +186,9 @@ const Root = () => {
 };
 
 const styles = StyleSheet.create({
+  gestureRoot: {
+    flex: 1,
+  },
   appSafeArea: {
     flex: 1,
     backgroundColor: '#fff',
@@ -228,23 +233,30 @@ const toastConfig: ToastConfig = {
 
 export default function App() {
   return (
-    <SafeAreaProvider>
-      <ApolloProvider client={client}>
-        <Provider store={store}>
-          <StatusBar
-            translucent={false}
-            backgroundColor="#ffffff"
-            barStyle="dark-content"
-          />
-          <SafeAreaView style={styles.appSafeArea} edges={['left', 'right', 'bottom']}>
-            <Root />
-          </SafeAreaView>
-          {/* Toast wrapped in SafeAreaView for top safe area */}
-          <SafeAreaView edges={["top"]} style={styles.toastSafeArea}>
-            <Toast config={toastConfig} />
-          </SafeAreaView>
-        </Provider>
-      </ApolloProvider>
-    </SafeAreaProvider>
+    <GestureHandlerRootView style={styles.gestureRoot}>
+      <SafeAreaProvider>
+        <ApolloProvider client={client}>
+          <Provider store={store}>
+            <BottomSheetModalProvider>
+              <StatusBar
+                translucent={false}
+                backgroundColor="#ffffff"
+                barStyle="dark-content"
+              />
+              <SafeAreaView
+                style={styles.appSafeArea}
+                edges={['left', 'right', 'bottom']}
+              >
+                <Root />
+              </SafeAreaView>
+              {/* Toast wrapped in SafeAreaView for top safe area */}
+              <SafeAreaView edges={['top']} style={styles.toastSafeArea}>
+                <Toast config={toastConfig} />
+              </SafeAreaView>
+            </BottomSheetModalProvider>
+          </Provider>
+        </ApolloProvider>
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }

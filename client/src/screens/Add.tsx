@@ -5,7 +5,12 @@ import ExpenseTab from '../components/ExpenseTab';
 import SettleTab from '../components/SettleTab';
 import { createMaterialTopTabNavigator } from '@react-navigation/material-top-tabs';
 
-const Tab = createMaterialTopTabNavigator();
+export type AddTopTabParamList = {
+  AddExpense: undefined;
+  SettleUp: undefined;
+};
+
+const Tab = createMaterialTopTabNavigator<AddTopTabParamList>();
 
 const Add = () => {
   return (

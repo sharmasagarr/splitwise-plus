@@ -82,6 +82,7 @@ export const authResolvers = {
             emailOtpAttempts: 0,
             emailOtpLastSentAt: new Date(),
             locale: "en-IN",
+            bio: "Managing expenses smartly with friends and family. Making every split fair and transparent.",
           },
         });
       } else {
@@ -97,6 +98,7 @@ export const authResolvers = {
             emailOtpAttempts: 0,
             emailOtpLastSentAt: new Date(),
             locale: "en-IN",
+            bio: user.bio ?? "Managing expenses smartly with friends and family. Making every split fair and transparent.",
           },
         });
       }

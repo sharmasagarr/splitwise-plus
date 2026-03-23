@@ -24,6 +24,8 @@ const Add = () => {
           tabBarItemStyle: {
             padding: 0,
             minHeight: 40,
+            justifyContent: 'center',
+            alignItems: 'center',
           },
           tabBarStyle: {
             backgroundColor: '#e0e7ff',
@@ -33,8 +35,6 @@ const Add = () => {
             marginBottom: 8,
             elevation: 0,
             shadowOpacity: 0,
-            height: 40,
-            justifyContent: 'center',
           },
         }}
       >

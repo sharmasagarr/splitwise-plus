@@ -105,6 +105,9 @@ const CreateGroup: React.FC<Props> = ({ navigation }) => {
     (user: UserResult) =>
       !selectedMembers.find(member => member.id === user.id),
   );
+  const toggleLabel = hasToken
+    ? 'Create a new group instead'
+    : 'Have an invite token instead?';
 
   return (
     <KeyboardAvoidingView
@@ -112,17 +115,6 @@ const CreateGroup: React.FC<Props> = ({ navigation }) => {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <ScrollView contentContainerStyle={styles.content}>
-        <View style={styles.toggleRow}>
-          <AppText style={styles.toggleLabel}>I have an invite token</AppText>
-          <Switch
-            value={hasToken}
-            onValueChange={setHasToken}
-            trackColor={{ false: '#cbd5e1', true: '#a5b4fc' }}
-            thumbColor={hasToken ? '#4f46e5' : '#fff'}
-            ios_backgroundColor="#cbd5e1"
-          />
-        </View>
-
         {!hasToken ? (
           <>
             <AppText style={styles.label}>Group Name</AppText>
@@ -222,6 +214,16 @@ const CreateGroup: React.FC<Props> = ({ navigation }) => {
       </ScrollView>
 
       <View style={styles.footer}>
+        <View style={styles.footerToggleRow}>
+          <AppText style={styles.footerToggleLabel}>{toggleLabel}</AppText>
+          <Switch
+            value={hasToken}
+            onValueChange={setHasToken}
+            trackColor={{ false: '#cbd5e1', true: '#a5b4fc' }}
+            thumbColor={hasToken ? '#4f46e5' : '#fff'}
+            ios_backgroundColor="#cbd5e1"
+          />
+        </View>
         {hasToken ? (
           <TouchableOpacity
             style={[styles.createBtn, joining && styles.createBtnDisabled]}
@@ -253,22 +255,17 @@ export default CreateGroup;
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f8fafc' },
   content: { padding: 20, paddingBottom: 100 },
-  toggleRow: {
+  footerToggleRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    padding: 16,
-    marginBottom: 8,
+    marginBottom: 14,
   },
-  toggleLabel: {
+  footerToggleLabel: {
     flex: 1,
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '600',
-    color: '#1e293b',
+    color: '#475569',
     marginRight: 12,
   },
   label: {

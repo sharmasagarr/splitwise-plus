@@ -13,29 +13,12 @@ const Add = () => {
       <Tab.Navigator
         initialRouteName="AddExpense"
         screenOptions={{
-          tabBarLabelStyle: { fontSize: 13 , fontFamily: "GoogleSans-Medium"},
+          tabBarLabelStyle: styles.tabBarLabel,
           tabBarActiveTintColor: '#4f46e5',
           tabBarInactiveTintColor: '#64748b',
-          tabBarIndicatorStyle: {
-            backgroundColor: 'rgba(79, 70, 229, 0.15)',
-            borderRadius: 12,
-            height: '100%',
-          },
-          tabBarItemStyle: {
-            padding: 0,
-            minHeight: 40,
-            justifyContent: 'center',
-            alignItems: 'center',
-          },
-          tabBarStyle: {
-            backgroundColor: '#e0e7ff',
-            borderRadius: 12,
-            marginHorizontal: 14,
-            marginTop: 10,
-            marginBottom: 8,
-            elevation: 0,
-            shadowOpacity: 0,
-          },
+          tabBarIndicatorStyle: styles.tabBarIndicator,
+          tabBarItemStyle: styles.tabBarItem,
+          tabBarStyle: styles.tabBar,
         }}
       >
         <Tab.Screen
@@ -59,5 +42,35 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f8fafc',
+  },
+  tabBar: {
+    backgroundColor: '#e0e7ff',
+    borderRadius: 12,
+    marginHorizontal: 14,
+    marginTop: 10,
+    marginBottom: 8,
+    minHeight: 44,
+    elevation: 0,
+    shadowOpacity: 0,
+  },
+  tabBarItem: {
+    padding: 0,
+    minHeight: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  tabBarIndicator: {
+    backgroundColor: 'rgba(79, 70, 229, 0.15)',
+    borderRadius: 12,
+    height: '100%',
+  },
+  tabBarLabel: {
+    fontSize: 13,
+    fontFamily: 'GoogleSans-Medium',
+    lineHeight: 16,
+    includeFontPadding: false,
+    textAlignVertical: 'center',
+    margin: 0,
+    padding: 0,
   },
 });

@@ -509,7 +509,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     marginTop: 16,
   },
-  errorText: { color: '#ef4444', fontStyle: 'italic', marginBottom: 16 },
+  errorText: { color: '#ef4444', fontSize: 12, marginTop: 4 },
   dropdownBackdrop: {
     position: 'absolute',
     top: -1000,

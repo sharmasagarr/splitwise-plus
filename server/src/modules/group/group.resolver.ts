@@ -162,6 +162,31 @@ export const groupResolvers = {
         await prisma.groupMember.create({
           data: { groupId: invite.groupId, userId: user.id, role: "member" },
         });
+
+        // Also add to group conversation
+        const group = await prisma.group.findUnique({
+          where: { id: invite.groupId },
+        });
+        if (group?.conversationId) {
+          const existingParticipant =
+            await prisma.conversationParticipant.findUnique({
+              where: {
+                conversationId_userId: {
+                  conversationId: group.conversationId,
+                  userId: user.id,
+                },
+              },
+            });
+          if (!existingParticipant) {
+            await prisma.conversationParticipant.create({
+              data: {
+                conversationId: group.conversationId,
+                userId: user.id,
+                role: "member",
+              },
+            });
+          }
+        }
       }
 
       await prisma.invite.update({

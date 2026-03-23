@@ -21,6 +21,7 @@ type ActivityItemProps = {
     totalAmount: number;
     createdAt: string | number;
     createdBy: User;
+    paidBy: User;
     groupId: string;
     shares: Share[];
   };

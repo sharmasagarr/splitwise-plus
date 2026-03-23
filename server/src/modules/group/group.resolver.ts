@@ -28,7 +28,10 @@ export const groupResolvers = {
 
       return prisma.user.findMany({
         where: {
-          email: { contains: query.trim(), mode: "insensitive" },
+          OR: [
+            { email: { contains: query.trim(), mode: "insensitive" } },
+            { username: { contains: query.trim(), mode: "insensitive" } },
+          ],
           id: { not: user.id },
         },
         take: 10,

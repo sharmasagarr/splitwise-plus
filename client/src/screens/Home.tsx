@@ -17,7 +17,7 @@ import type { RootStackParamList } from '../navigations/RootStack';
 import {
   openUpiPayment,
   confirmUpiPayment,
-} from '../utils/upiHelper';
+} from '../utility/upiHelper';
 import ProfileCard from '../components/ProfileCard';
 import {
   useGetRecentActivities,

@@ -20,7 +20,7 @@ import { RootStackParamList } from '../navigations/RootStack';
 import {
   openUpiPayment,
   confirmUpiPayment,
-} from '../utils/upiHelper';
+} from '../utility/upiHelper';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'SettleUserShares'>;
 

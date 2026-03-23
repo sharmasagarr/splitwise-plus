@@ -23,7 +23,7 @@ import {
   openUpiPayment,
   confirmUpiPayment,
   promptForUpiId,
-} from '../utils/upiHelper';
+} from '../utility/upiHelper';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigations/RootStack';
 import Icon from '../components/Icon';

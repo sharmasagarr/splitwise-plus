@@ -132,7 +132,7 @@ const Groups = () => {
         activeOpacity={0.85}
       >
         <Icon name="PlusSquare" width={16} height={16} color="#ffffff" />
-        <AppText style={styles.emptyCtaText}>Create New Group</AppText>
+        <AppText style={styles.emptyCtaText}>New Group</AppText>
       </TouchableOpacity>
     </View>
   );
@@ -221,7 +221,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#667eea',
     paddingHorizontal: 18,
     paddingVertical: 10,
-    borderRadius: 10,
+    borderRadius: 60,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,

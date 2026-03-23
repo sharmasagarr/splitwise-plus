@@ -7,6 +7,7 @@ import {
   GET_GROUP_EXPENSES,
   GET_MY_INVITES,
   INVITE_TO_GROUP,
+  JOIN_GROUP,
   RESPOND_TO_INVITE,
   SEARCH_USERS,
 } from '../graphql';
@@ -70,6 +71,16 @@ export const useRespondToInvite = (callbacks?: {
   onError?: (err: any) => void;
 }) => {
   return useMutation<any>(RESPOND_TO_INVITE, {
+    onCompleted: callbacks?.onCompleted,
+    onError: callbacks?.onError ?? ((err: any) => Alert.alert('Error', err.message)),
+  });
+};
+
+export const useJoinGroup = (callbacks?: {
+  onCompleted?: () => void;
+  onError?: (err: any) => void;
+}) => {
+  return useMutation<any>(JOIN_GROUP, {
     onCompleted: callbacks?.onCompleted,
     onError: callbacks?.onError ?? ((err: any) => Alert.alert('Error', err.message)),
   });

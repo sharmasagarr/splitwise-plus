@@ -1,4 +1,5 @@
 import { randomUUID } from "crypto";
+import { sendNotification } from "../notification/notification.service.js";
 
 export const groupResolvers = {
   Query: {
@@ -78,6 +79,8 @@ export const groupResolvers = {
       if (!name || name.trim().length === 0)
         throw new Error("Group name is required");
 
+      const dbUser = await prisma.user.findUnique({ where: { id: user.id } });
+
       const newGroup = await prisma.group.create({
         data: {
           name: name.trim(),
@@ -137,6 +140,15 @@ export const groupResolvers = {
                   status: "pending",
                 },
               });
+
+              sendNotification({
+                prisma,
+                recipientId: targetUser.id,
+                type: "group_invitation",
+                title: "Group Invitation",
+                body: `${dbUser?.name} invited you to join ${newGroup.name}`,
+                data: { groupId: newGroup.id },
+              }).catch((err: any) => console.error("Notification error:", err));
             }
           }
         }
@@ -190,6 +202,28 @@ export const groupResolvers = {
             });
           }
         }
+
+        const dbUser = await prisma.user.findUnique({ where: { id: user.id } });
+        if (group && dbUser) {
+          const groupWithMembers = await prisma.group.findUnique({
+            where: { id: group.id },
+            include: { members: true },
+          });
+          if (groupWithMembers) {
+            for (const member of groupWithMembers.members) {
+              if (member.userId !== user.id) {
+                sendNotification({
+                  prisma,
+                  recipientId: member.userId,
+                  type: "user_joined_group",
+                  title: "New Member",
+                  body: `${dbUser.name} joined ${group.name} by using invitation token`,
+                  data: { groupId: group.id },
+                }).catch((err: any) => console.error("Notification error:", err));
+              }
+            }
+          }
+        }
       }
 
       await prisma.invite.update({
@@ -205,6 +239,8 @@ export const groupResolvers = {
       { prisma, user }: any,
     ) => {
       if (!user) throw new Error("Unauthorized");
+
+      const dbUser = await prisma.user.findUnique({ where: { id: user.id } });
 
       // Verify caller is a member
       const callerMember = await prisma.groupMember.findUnique({
@@ -252,6 +288,17 @@ export const groupResolvers = {
         where: { id: groupId },
         include: { members: { include: { user: true } } },
       });
+
+      if (group) {
+        sendNotification({
+          prisma,
+          recipientId: targetUser.id,
+          type: "group_invitation",
+          title: "Group Invitation",
+          body: `${dbUser?.name} invited you to join ${group.name}`,
+          data: { groupId: group.id },
+        }).catch((err: any) => console.error("Notification error:", err));
+      }
 
       return { ...invite, group };
     },
@@ -313,6 +360,27 @@ export const groupResolvers = {
                 role: "member",
               },
             });
+          }
+        }
+
+        if (group && dbUser) {
+          const groupWithMembers = await prisma.group.findUnique({
+            where: { id: group.id },
+            include: { members: true },
+          });
+          if (groupWithMembers) {
+            for (const member of groupWithMembers.members) {
+              if (member.userId !== user.id) {
+                sendNotification({
+                  prisma,
+                  recipientId: member.userId,
+                  type: "user_joined_group",
+                  title: "New Member",
+                  body: `${dbUser.name} joined ${group.name} by accepting invitation`,
+                  data: { groupId: group.id },
+                }).catch((err: any) => console.error("Notification error:", err));
+              }
+            }
           }
         }
       }

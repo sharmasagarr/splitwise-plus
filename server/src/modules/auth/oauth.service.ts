@@ -74,6 +74,7 @@ export const findOrCreateOAuthUser = async ({
         email,
         imageUrl,
         emailVerified: true, // OAuth emails are trusted
+        bio: "Managing expenses smartly with friends and family.",
       },
     });
   }

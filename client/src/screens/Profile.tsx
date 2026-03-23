@@ -367,7 +367,7 @@ const Profile: React.FC = () => {
                 </AppText>
                 <AppText style={styles.bio}>
                   {user.bio ||
-                    'Managing expenses smartly with friends and family. Making every split fair and transparent.'}
+                    'Managing expenses smartly with friends and family.'}
                 </AppText>
                 <TouchableOpacity
                   onPress={() => setIsEditing(true)}

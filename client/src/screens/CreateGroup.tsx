@@ -274,7 +274,7 @@ const CreateGroup: React.FC<Props> = ({ navigation }) => {
                         </View>
                       </View>
                       <View style={[styles.checkbox, styles.checkboxChecked]}>
-                        <View style={styles.checkboxInner}>✓</View>
+                        <AppText style={styles.checkboxInner}>✓</AppText>
                       </View>
                     </TouchableOpacity>
                   ))}
@@ -590,10 +590,11 @@ const styles = StyleSheet.create({
     borderColor: '#4f46e5',
   },
   checkboxInner: {
-    width: 8,
-    height: 8,
-    borderRadius: 999,
-    backgroundColor: '#ffffff',
+    fontSize: 12,
+    fontWeith: '500',
+    color: '#ffffff',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   tokenSection: {
     marginTop: 0,

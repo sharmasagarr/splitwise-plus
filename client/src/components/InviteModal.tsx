@@ -20,6 +20,7 @@ export type InviteSearchUser = {
   id: string;
   name: string;
   email: string;
+  username?: string | null;
   imageUrl?: string | null;
 };
 
@@ -37,7 +38,6 @@ export default function InviteModal({
   onClose,
   onInviteUsers,
   inviting,
-  // groupName,
   excludedUserIds = [],
 }: InviteModalProps) {
   const bottomSheetRef = useRef<BottomSheetModal>(null);
@@ -112,7 +112,6 @@ export default function InviteModal({
     setSelectedUsers(prev =>
       prev.some(selected => selected.id === user.id) ? prev : [...prev, user],
     );
-    setQuery('');
   };
 
   const handleRemoveUser = (userId: string) => {
@@ -120,6 +119,8 @@ export default function InviteModal({
   };
 
   const canSearch = query.trim().length >= 2;
+  const getUserMeta = (user: InviteSearchUser) =>
+    user.username ? `@${user.username}` : user.email;
 
   return (
     <BottomSheetModal
@@ -147,7 +148,7 @@ export default function InviteModal({
 
         <AppTextInput
           style={styles.input}
-          placeholder="Search by username or email"
+          placeholder="Enter username or email"
           value={query}
           onChangeText={setQuery}
           autoCapitalize="none"
@@ -182,12 +183,14 @@ export default function InviteModal({
                       </View>
                     )}
                     <View style={styles.userTextWrap}>
-                      <AppText style={styles.userName}>{user.name}</AppText>
-                      <AppText style={styles.userEmail}>{user.email}</AppText>
+                      <AppText style={styles.name}>{user.name}</AppText>
+                      <AppText style={styles.username}>
+                        {getUserMeta(user)}
+                      </AppText>
                     </View>
                   </View>
                   <View style={[styles.checkbox, styles.checkboxChecked]}>
-                    <AppText style={styles.checkboxTick}>✓</AppText>
+                    <View style={styles.checkboxInner} />
                   </View>
                 </TouchableOpacity>
               ))}
@@ -240,8 +243,10 @@ export default function InviteModal({
                       </View>
                     )}
                     <View style={styles.userTextWrap}>
-                      <AppText style={styles.userName}>{user.name}</AppText>
-                      <AppText style={styles.userEmail}>{user.email}</AppText>
+                      <AppText style={styles.name}>{user.name}</AppText>
+                      <AppText style={styles.username}>
+                        {getUserMeta(user)}
+                      </AppText>
                     </View>
                   </View>
                   <View style={styles.checkbox} />
@@ -313,13 +318,6 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     marginTop: 6,
     marginBottom: 6,
-  },
-  label: {
-    marginTop: 18,
-    marginBottom: 8,
-    color: '#475569',
-    fontSize: 14,
-    fontWeight: '600',
   },
   input: {
     borderWidth: 1,
@@ -402,15 +400,14 @@ const styles = StyleSheet.create({
   userTextWrap: {
     flex: 1,
   },
-  userName: {
+  name: {
     color: '#0f172a',
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: '500',
   },
-  userEmail: {
-    color: '#64748b',
+  username: {
+    color: '#0a5aca',
     fontSize: 12,
-    marginTop: 2,
   },
   checkbox: {
     width: 22,
@@ -426,10 +423,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#4f46e5',
     borderColor: '#4f46e5',
   },
-  checkboxTick: {
-    color: '#ffffff',
-    fontSize: 12,
-    fontWeight: '700',
+  checkboxInner: {
+    width: 8,
+    height: 8,
+    borderRadius: 999,
+    backgroundColor: '#ffffff',
   },
   actions: {
     flexDirection: 'row',

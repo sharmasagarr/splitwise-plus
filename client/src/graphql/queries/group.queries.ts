@@ -52,6 +52,7 @@ export const SEARCH_USERS = gql`
       id
       name
       email
+      username
       imageUrl
     }
   }

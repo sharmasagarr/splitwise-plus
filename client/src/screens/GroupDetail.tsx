@@ -10,7 +10,9 @@ import {
 } from 'react-native';
 import AppText from '../components/AppText';
 import SettleModal from '../components/SettleModal';
-import InviteGroupSheet from '../components/InviteGroupSheet';
+import InviteModal, {
+  type InviteSearchUser,
+} from '../components/InviteModal';
 import {
   useGetGroupDetails,
   useGetGroupExpenses,
@@ -49,7 +51,6 @@ const GroupDetail: React.FC<Props> = ({ route, navigation }) => {
   } = useGetGroupExpenses(groupId);
 
   const [inviteModalVisible, setInviteModalVisible] = useState(false);
-  const [inviteEmail, setInviteEmail] = useState('');
   const [settleModalVisible, setSettleModalVisible] = useState(false);
   const [settleAmount, setSettleAmount] = useState('');
   const [settleUserId, setSettleUserId] = useState('');
@@ -57,14 +58,7 @@ const GroupDetail: React.FC<Props> = ({ route, navigation }) => {
   const [alreadyPaid, setAlreadyPaid] = useState(false);
 
   const [inviteToGroup, { loading: inviting }] = useInviteToGroup({
-    onCompleted: () => {
-      setInviteModalVisible(false);
-      setInviteEmail('');
-      Alert.alert('Success', 'Invitation sent!');
-    },
-    onError: (err: any) => {
-      Alert.alert('Error', err.message);
-    },
+    onError: () => {},
   });
 
   const [settleExpense, { loading: settling }] = useSettleExpense({
@@ -104,18 +98,57 @@ const GroupDetail: React.FC<Props> = ({ route, navigation }) => {
 
   const isGroupOwner = group.ownerId === user?.id;
 
-  const handleInvite = () => {
+  const handleInviteUsers = async (selectedUsers: InviteSearchUser[]) => {
     if (!isGroupOwner) {
       Alert.alert('Permission denied', 'Only the group creator can invite members.');
       return;
     }
 
-    if (!inviteEmail.trim()) {
-      Alert.alert('Error', 'Email cannot be empty');
+    if (selectedUsers.length === 0) {
+      Alert.alert('Error', 'Select at least one user to invite.');
       return;
     }
 
-    inviteToGroup({ variables: { groupId, email: inviteEmail.trim() } });
+    const results = await Promise.allSettled(
+      selectedUsers.map(userToInvite =>
+        inviteToGroup({
+          variables: { groupId, email: userToInvite.email.trim() },
+        }),
+      ),
+    );
+
+    const successCount = results.filter(
+      result => result.status === 'fulfilled',
+    ).length;
+    const failedResults = results.filter(
+      (result): result is PromiseRejectedResult => result.status === 'rejected',
+    );
+
+    if (successCount > 0) {
+      setInviteModalVisible(false);
+    }
+
+    if (successCount === selectedUsers.length) {
+      Alert.alert(
+        'Success',
+        `Invitation${successCount > 1 ? 's' : ''} sent to ${successCount} user${successCount > 1 ? 's' : ''}.`,
+      );
+      return;
+    }
+
+    const firstError =
+      failedResults[0]?.reason?.message ||
+      'Some invitations could not be sent.';
+
+    if (successCount > 0) {
+      Alert.alert(
+        'Partial Success',
+        `${successCount} invitation${successCount > 1 ? 's were' : ' was'} sent. ${failedResults.length} failed.\n\n${firstError}`,
+      );
+      return;
+    }
+
+    Alert.alert('Error', firstError);
   };
 
   const handleSettle = async () => {
@@ -418,14 +451,13 @@ const GroupDetail: React.FC<Props> = ({ route, navigation }) => {
         contentContainerStyle={styles.listContent}
       />
 
-      <InviteGroupSheet
+      <InviteModal
         visible={inviteModalVisible}
         onClose={() => setInviteModalVisible(false)}
-        email={inviteEmail}
-        setEmail={setInviteEmail}
-        onInvite={handleInvite}
+        onInviteUsers={handleInviteUsers}
         inviting={inviting}
         groupName={group.name}
+        excludedUserIds={group.members.map((member: any) => member.user.id)}
       />
 
       <SettleModal

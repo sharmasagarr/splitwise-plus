@@ -73,8 +73,8 @@ export const JOIN_GROUP = gql`
 `;
 
 export const INVITE_TO_GROUP = gql`
-  mutation InviteToGroup($groupId: String!, $email: String!) {
-    inviteToGroup(groupId: $groupId, email: $email) {
+  mutation InviteToGroup($groupId: String!, $userIds: [String!]!) {
+    inviteToGroup(groupId: $groupId, userIds: $userIds) {
       id
       groupId
       invitedEmail

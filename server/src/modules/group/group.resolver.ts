@@ -277,72 +277,121 @@ export const groupResolvers = {
     },
     inviteToGroup: async (
       _: any,
-      { groupId, email }: any,
+      { groupId, userIds }: any,
       { prisma, user }: any,
     ) => {
       if (!user) throw new Error("Unauthorized");
 
-      const dbUser = await prisma.user.findUnique({ where: { id: user.id } });
+      const uniqueUserIds = Array.from(
+        new Set(
+          (userIds || [])
+            .map((id: string) => id?.trim())
+            .filter((id: string) => Boolean(id)),
+        ),
+      );
 
-      // Verify caller is a member
-      const callerMember = await prisma.groupMember.findUnique({
-        where: { groupId_userId: { groupId, userId: user.id } },
-      });
-      if (!callerMember) throw new Error("You are not a member of this group");
+      if (uniqueUserIds.length === 0) {
+        throw new Error("Select at least one user to invite");
+      }
 
-      const trimmedEmail = email.trim().toLowerCase();
+      const [dbUser, group] = await Promise.all([
+        prisma.user.findUnique({ where: { id: user.id } }),
+        prisma.group.findUnique({
+          where: { id: groupId },
+          include: { members: true },
+        }),
+      ]);
 
-      // Check the target user exists
-      const targetUser = await prisma.user.findUnique({
-        where: { email: trimmedEmail },
-      });
-      if (!targetUser) throw new Error("No user found with that email");
+      if (!group) throw new Error("Group not found");
+      if (group.ownerId !== user.id) {
+        throw new Error("Only the group owner can invite members");
+      }
 
-      // Check not already a member
-      const existingMember = await prisma.groupMember.findUnique({
+      const memberIds = new Set(group.members.map((member: any) => member.userId));
+      const candidateUserIds = uniqueUserIds.filter(
+        (targetUserId: string) =>
+          targetUserId !== user.id && !memberIds.has(targetUserId),
+      );
+
+      if (candidateUserIds.length === 0) {
+        throw new Error("Selected users are already members of this group");
+      }
+
+      const targetUsers = await prisma.user.findMany({
         where: {
-          groupId_userId: { groupId, userId: targetUser.id },
+          id: { in: candidateUserIds },
         },
       });
-      if (existingMember) throw new Error("User is already a member");
 
-      // Check for existing pending invite
-      const existingInvite = await prisma.invite.findFirst({
+      if (targetUsers.length === 0) {
+        throw new Error("No valid users found to invite");
+      }
+
+      const pendingInvites = await prisma.invite.findMany({
         where: {
           groupId,
-          invitedEmail: trimmedEmail,
+          invitedEmail: {
+            in: targetUsers.map((targetUser: any) =>
+              targetUser.email.toLowerCase(),
+            ),
+          },
           status: "pending",
         },
       });
-      if (existingInvite) throw new Error("Invite already sent to this user");
 
-      const invite = await prisma.invite.create({
-        data: {
+      const pendingEmails = new Set(
+        pendingInvites.map((invite: any) => invite.invitedEmail.toLowerCase()),
+      );
+
+      const inviteRows = targetUsers
+        .filter(
+          (targetUser: any) =>
+            !pendingEmails.has(targetUser.email.toLowerCase()),
+        )
+        .map((targetUser: any) => ({
           groupId,
-          invitedEmail: trimmedEmail,
+          invitedEmail: targetUser.email.toLowerCase(),
           token: randomUUID(),
           inviterId: user.id,
           status: "pending",
-        },
-      });
+        }));
 
-      const group = await prisma.group.findUnique({
-        where: { id: groupId },
-        include: { members: { include: { user: true } } },
-      });
-
-      if (group) {
-        sendNotification({
-          prisma,
-          recipientId: targetUser.id,
-          type: "group_invitation",
-          title: "Group Invitation",
-          body: `${dbUser?.name} invited you to join ${group.name}`,
-          data: { groupId: group.id },
-        }).catch((err: any) => console.error("Notification error:", err));
+      if (inviteRows.length === 0) {
+        throw new Error("Invites have already been sent to the selected users");
       }
 
-      return { ...invite, group };
+      await prisma.invite.createMany({
+        data: inviteRows,
+      });
+
+      const createdInvites = await prisma.invite.findMany({
+        where: {
+          token: { in: inviteRows.map((invite: any) => invite.token) },
+        },
+        orderBy: { createdAt: "desc" },
+      });
+
+      const invitedEmailSet = new Set(
+        inviteRows.map((invite: any) => invite.invitedEmail),
+      );
+      const usersToNotify = targetUsers.filter((targetUser: any) =>
+        invitedEmailSet.has(targetUser.email.toLowerCase()),
+      );
+
+      await Promise.allSettled(
+        usersToNotify.map((targetUser: any) =>
+          sendNotification({
+            prisma,
+            recipientId: targetUser.id,
+            type: "group_invitation",
+            title: "Group Invitation",
+            body: `${dbUser?.name} invited you to join ${group.name}`,
+            data: { groupId: group.id },
+          }),
+        ),
+      );
+
+      return createdInvites;
     },
     respondToInvite: async (
       _: any,

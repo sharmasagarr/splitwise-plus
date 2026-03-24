@@ -123,46 +123,41 @@ const GroupDetail: React.FC<Props> = ({ route, navigation }) => {
       return;
     }
 
-    const results = await Promise.allSettled(
-      selectedUsers.map(userToInvite =>
-        inviteToGroup({
-          variables: { groupId, email: userToInvite.email.trim() },
-        }),
-      ),
-    );
-
-    const successCount = results.filter(
-      result => result.status === 'fulfilled',
-    ).length;
-    const failedResults = results.filter(
-      (result): result is PromiseRejectedResult => result.status === 'rejected',
-    );
-
-    if (successCount > 0) {
-      setInviteModalVisible(false);
-    }
-
-    if (successCount === selectedUsers.length) {
-      Alert.alert(
-        'Success',
-        `Invitation${successCount > 1 ? 's' : ''} sent to ${successCount} user${successCount > 1 ? 's' : ''}.`,
+    try {
+      const uniqueUserIds = Array.from(
+        new Set(selectedUsers.map(userToInvite => userToInvite.id)),
       );
-      return;
+
+      const { data } = await inviteToGroup({
+        variables: { groupId, userIds: uniqueUserIds },
+      });
+
+      const successCount = data?.inviteToGroup?.length || 0;
+
+      if (successCount > 0) {
+        setInviteModalVisible(false);
+      }
+
+      if (successCount === uniqueUserIds.length) {
+        Alert.alert(
+          'Success',
+          `Invitation${successCount > 1 ? 's' : ''} sent to ${successCount} user${successCount > 1 ? 's' : ''}.`,
+        );
+        return;
+      }
+
+      if (successCount > 0) {
+        Alert.alert(
+          'Partial Success',
+          `${successCount} invitation${successCount > 1 ? 's were' : ' was'} sent. Some selected users may already be members or already have pending invites.`,
+        );
+        return;
+      }
+
+      Alert.alert('Error', 'No invitations were sent.');
+    } catch (error: any) {
+      Alert.alert('Error', error.message || 'Failed to send invitations.');
     }
-
-    const firstError =
-      failedResults[0]?.reason?.message ||
-      'Some invitations could not be sent.';
-
-    if (successCount > 0) {
-      Alert.alert(
-        'Partial Success',
-        `${successCount} invitation${successCount > 1 ? 's were' : ' was'} sent. ${failedResults.length} failed.\n\n${firstError}`,
-      );
-      return;
-    }
-
-    Alert.alert('Error', firstError);
   };
 
   const handleSaveGroup = (values: {

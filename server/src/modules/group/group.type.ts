@@ -49,7 +49,7 @@ export const groupTypeDefs = `#graphql
       imageUrl: String
     ): Group!
     joinGroup(token: String!): Boolean!
-    inviteToGroup(groupId: String!, email: String!): GroupInvite!
+    inviteToGroup(groupId: String!, userIds: [String!]!): [GroupInvite!]!
     respondToInvite(inviteId: String!, accept: Boolean!): Boolean!
   }
 `;

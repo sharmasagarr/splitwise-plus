@@ -114,6 +114,7 @@ export type Group = {
   createdAt: Scalars['String']['output'];
   description?: Maybe<Scalars['String']['output']>;
   id: Scalars['ID']['output'];
+  imageUrl?: Maybe<Scalars['String']['output']>;
   isPublic: Scalars['Boolean']['output'];
   members: Array<GroupMember>;
   name?: Maybe<Scalars['String']['output']>;
@@ -163,7 +164,7 @@ export type Mutation = {
   addReaction: Scalars['Boolean']['output'];
   createExpense: Expense;
   createGroup: Group;
-  inviteToGroup: GroupInvite;
+  inviteToGroup: Array<GroupInvite>;
   joinGroup: Scalars['Boolean']['output'];
   login: AuthResponse;
   logout: Scalars['Boolean']['output'];
@@ -178,6 +179,7 @@ export type Mutation = {
   settleSpecificShares: Settlement;
   signup: OtpResponse;
   startDirectConversation: ChatConversation;
+  updateGroup: Group;
   updateProfile: User;
   verifySignupOtp: AuthResponse;
 };
@@ -198,14 +200,16 @@ export type MutationCreateExpenseArgs = {
 
 
 export type MutationCreateGroupArgs = {
+  description?: InputMaybe<Scalars['String']['input']>;
+  imageUrl?: InputMaybe<Scalars['String']['input']>;
   memberEmails?: InputMaybe<Array<Scalars['String']['input']>>;
   name: Scalars['String']['input'];
 };
 
 
 export type MutationInviteToGroupArgs = {
-  email: Scalars['String']['input'];
   groupId: Scalars['String']['input'];
+  userIds: Array<Scalars['String']['input']>;
 };
 
 
@@ -280,6 +284,14 @@ export type MutationSignupArgs = {
 
 export type MutationStartDirectConversationArgs = {
   userId: Scalars['String']['input'];
+};
+
+
+export type MutationUpdateGroupArgs = {
+  description?: InputMaybe<Scalars['String']['input']>;
+  id: Scalars['String']['input'];
+  imageUrl?: InputMaybe<Scalars['String']['input']>;
+  name?: InputMaybe<Scalars['String']['input']>;
 };
 
 
@@ -477,11 +489,23 @@ export type SettleSpecificSharesMutation = { __typename?: 'Mutation', settleSpec
 
 export type CreateGroupMutationVariables = Exact<{
   name: Scalars['String']['input'];
+  description?: InputMaybe<Scalars['String']['input']>;
+  imageUrl?: InputMaybe<Scalars['String']['input']>;
   memberEmails?: InputMaybe<Array<Scalars['String']['input']> | Scalars['String']['input']>;
 }>;
 
 
-export type CreateGroupMutation = { __typename?: 'Mutation', createGroup: { __typename?: 'Group', id: string, name?: string | null, description?: string | null, ownerId: string, createdAt: string, members: Array<{ __typename?: 'GroupMember', id: string, role: string, user: { __typename?: 'User', id: string, name: string, email: string, imageUrl?: string | null } }> } };
+export type CreateGroupMutation = { __typename?: 'Mutation', createGroup: { __typename?: 'Group', id: string, name?: string | null, description?: string | null, imageUrl?: string | null, ownerId: string, createdAt: string, members: Array<{ __typename?: 'GroupMember', id: string, role: string, user: { __typename?: 'User', id: string, name: string, email: string, imageUrl?: string | null } }> } };
+
+export type UpdateGroupMutationVariables = Exact<{
+  id: Scalars['String']['input'];
+  name?: InputMaybe<Scalars['String']['input']>;
+  description?: InputMaybe<Scalars['String']['input']>;
+  imageUrl?: InputMaybe<Scalars['String']['input']>;
+}>;
+
+
+export type UpdateGroupMutation = { __typename?: 'Mutation', updateGroup: { __typename?: 'Group', id: string, name?: string | null, description?: string | null, imageUrl?: string | null, ownerId: string, createdAt: string, members: Array<{ __typename?: 'GroupMember', id: string, role: string, user: { __typename?: 'User', id: string, name: string, email: string, imageUrl?: string | null } }> } };
 
 export type JoinGroupMutationVariables = Exact<{
   token: Scalars['String']['input'];
@@ -492,11 +516,11 @@ export type JoinGroupMutation = { __typename?: 'Mutation', joinGroup: boolean };
 
 export type InviteToGroupMutationVariables = Exact<{
   groupId: Scalars['String']['input'];
-  email: Scalars['String']['input'];
+  userIds: Array<Scalars['String']['input']> | Scalars['String']['input'];
 }>;
 
 
-export type InviteToGroupMutation = { __typename?: 'Mutation', inviteToGroup: { __typename?: 'GroupInvite', id: string, groupId?: string | null, invitedEmail: string, status: string } };
+export type InviteToGroupMutation = { __typename?: 'Mutation', inviteToGroup: Array<{ __typename?: 'GroupInvite', id: string, groupId?: string | null, invitedEmail: string, status: string }> };
 
 export type RespondToInviteMutationVariables = Exact<{
   inviteId: Scalars['String']['input'];
@@ -615,21 +639,21 @@ export type GetMyTransactionsQuery = { __typename?: 'Query', getMyTransactions: 
 export type GetGroupsQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type GetGroupsQuery = { __typename?: 'Query', getGroups: Array<{ __typename?: 'Group', id: string, name?: string | null, description?: string | null, ownerId: string, createdAt: string, members: Array<{ __typename?: 'GroupMember', id: string, role: string, user: { __typename?: 'User', id: string, name: string, email: string, imageUrl?: string | null } }> }> };
+export type GetGroupsQuery = { __typename?: 'Query', getGroups: Array<{ __typename?: 'Group', id: string, name?: string | null, description?: string | null, imageUrl?: string | null, ownerId: string, createdAt: string, members: Array<{ __typename?: 'GroupMember', id: string, role: string, user: { __typename?: 'User', id: string, name: string, email: string, imageUrl?: string | null } }> }> };
 
 export type GetGroupDetailsQueryVariables = Exact<{
   id: Scalars['ID']['input'];
 }>;
 
 
-export type GetGroupDetailsQuery = { __typename?: 'Query', getGroupDetails?: { __typename?: 'Group', id: string, name?: string | null, description?: string | null, ownerId: string, createdAt: string, members: Array<{ __typename?: 'GroupMember', id: string, role: string, joinedAt: string, user: { __typename?: 'User', id: string, name: string, username: string, imageUrl?: string | null, upiId?: string | null } }> } | null };
+export type GetGroupDetailsQuery = { __typename?: 'Query', getGroupDetails?: { __typename?: 'Group', id: string, name?: string | null, description?: string | null, imageUrl?: string | null, ownerId: string, createdAt: string, members: Array<{ __typename?: 'GroupMember', id: string, role: string, joinedAt: string, user: { __typename?: 'User', id: string, name: string, username: string, imageUrl?: string | null, upiId?: string | null } }> } | null };
 
 export type SearchUsersQueryVariables = Exact<{
   query: Scalars['String']['input'];
 }>;
 
 
-export type SearchUsersQuery = { __typename?: 'Query', searchUsers: Array<{ __typename?: 'User', id: string, name: string, email: string, imageUrl?: string | null }> };
+export type SearchUsersQuery = { __typename?: 'Query', searchUsers: Array<{ __typename?: 'User', id: string, name: string, email: string, username: string, imageUrl?: string | null }> };
 
 export type GetMyInvitesQueryVariables = Exact<{ [key: string]: never; }>;
 

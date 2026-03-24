@@ -72,7 +72,7 @@ export const groupResolvers = {
   Mutation: {
     createGroup: async (
       _: any,
-      { name, memberEmails }: any,
+      { name, description, imageUrl, memberEmails }: any,
       { prisma, user }: any,
     ) => {
       if (!user) throw new Error("Unauthorized");
@@ -84,7 +84,9 @@ export const groupResolvers = {
       const newGroup = await prisma.group.create({
         data: {
           name: name.trim(),
+          description: description?.trim() || null,
           ownerId: user.id,
+          imageUrl: imageUrl?.trim() || null,
           members: {
             create: { userId: user.id, role: "owner" },
           },
@@ -158,6 +160,46 @@ export const groupResolvers = {
         where: { id: newGroup.id },
         include: { members: { include: { user: true } } },
       });
+    },
+    updateGroup: async (
+      _: any,
+      { id, name, description, imageUrl }: any,
+      { prisma, user }: any,
+    ) => {
+      if (!user) throw new Error("Unauthorized");
+
+      const group = await prisma.group.findUnique({
+        where: { id },
+      });
+      if (!group) throw new Error("Group not found");
+      if (group.ownerId !== user.id)
+        throw new Error("Only the group owner can edit this group");
+
+      const trimmedName = typeof name === "string" ? name.trim() : undefined;
+      if (trimmedName !== undefined && trimmedName.length === 0) {
+        throw new Error("Group name is required");
+      }
+
+      const updatedGroup = await prisma.group.update({
+        where: { id },
+        data: {
+          ...(trimmedName !== undefined ? { name: trimmedName } : {}),
+          ...(description !== undefined
+            ? { description: description?.trim() || null }
+            : {}),
+          ...(imageUrl !== undefined ? { imageUrl: imageUrl?.trim() || null } : {}),
+        },
+        include: { members: { include: { user: true } } },
+      });
+
+      if (group.conversationId && trimmedName !== undefined) {
+        await prisma.conversation.update({
+          where: { id: group.conversationId },
+          data: { title: trimmedName },
+        });
+      }
+
+      return updatedGroup;
     },
     joinGroup: async (_: any, { token }: any, { prisma, user }: any) => {
       if (!user) throw new Error("Unauthorized");

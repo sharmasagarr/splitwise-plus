@@ -11,6 +11,7 @@ import "./modules/auth/passport.js";
 import authRoutes from "./modules/auth/auth.routes.js";
 import expenseUploadRoutes from "./modules/expense/upload.routes.js";
 import userUploadRoutes from "./modules/user/upload.routes.js";
+import groupUploadRoutes from "./modules/group/upload.routes.js";
 
 export async function startServer() {
   const app = express();
@@ -23,6 +24,7 @@ export async function startServer() {
   app.use("/auth", authRoutes);
   app.use("/api/upload", expenseUploadRoutes);
   app.use("/api/upload", userUploadRoutes);
+  app.use("/api/upload", groupUploadRoutes);
   const httpServer = http.createServer(app);
 
   const apolloServer = new ApolloServer({

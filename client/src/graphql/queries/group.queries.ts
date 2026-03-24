@@ -6,6 +6,7 @@ export const GET_GROUPS = gql`
       id
       name
       description
+      imageUrl
       ownerId
       createdAt
       members {
@@ -28,6 +29,7 @@ export const GET_GROUP_DETAILS = gql`
       id
       name
       description
+      imageUrl
       ownerId
       createdAt
       members {

@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import AppText from '../components/AppText';
 import SettleModal from '../components/SettleModal';
+import EditGroupSheet from '../components/EditGroupSheet';
 import InviteModal, {
   type InviteSearchUser,
 } from '../components/InviteModal';
@@ -18,6 +19,7 @@ import {
   useGetGroupExpenses,
   useInviteToGroup,
   useSettleExpense,
+  useUpdateGroup,
 } from '../services';
 import { GET_GROUP_EXPENSES } from '../graphql';
 import { useAppSelector } from '../store/hooks';
@@ -51,6 +53,7 @@ const GroupDetail: React.FC<Props> = ({ route, navigation }) => {
   } = useGetGroupExpenses(groupId);
 
   const [inviteModalVisible, setInviteModalVisible] = useState(false);
+  const [editGroupVisible, setEditGroupVisible] = useState(false);
   const [settleModalVisible, setSettleModalVisible] = useState(false);
   const [settleAmount, setSettleAmount] = useState('');
   const [settleUserId, setSettleUserId] = useState('');
@@ -59,6 +62,17 @@ const GroupDetail: React.FC<Props> = ({ route, navigation }) => {
 
   const [inviteToGroup, { loading: inviting }] = useInviteToGroup({
     onError: () => {},
+  });
+
+  const [updateGroup, { loading: updatingGroup }] = useUpdateGroup({
+    onCompleted: async () => {
+      setEditGroupVisible(false);
+      await refetchGroup();
+      Alert.alert('Success', 'Group updated successfully.');
+    },
+    onError: (err: any) => {
+      Alert.alert('Error', err.message);
+    },
   });
 
   const [settleExpense, { loading: settling }] = useSettleExpense({
@@ -149,6 +163,26 @@ const GroupDetail: React.FC<Props> = ({ route, navigation }) => {
     }
 
     Alert.alert('Error', firstError);
+  };
+
+  const handleSaveGroup = (values: {
+    name: string;
+    description: string;
+    imageUrl: string | null;
+  }) => {
+    if (!isGroupOwner) {
+      Alert.alert('Permission denied', 'Only the group creator can edit this group.');
+      return;
+    }
+
+    updateGroup({
+      variables: {
+        id: groupId,
+        name: values.name,
+        description: values.description.trim() || null,
+        imageUrl: values.imageUrl,
+      },
+    });
   };
 
   const handleSettle = async () => {
@@ -350,11 +384,25 @@ const GroupDetail: React.FC<Props> = ({ route, navigation }) => {
   const listHeader = (
     <View>
       <View style={styles.groupHeader}>
-        <View style={styles.groupIcon}>
-          <AppText style={styles.groupIconText}>
-            {group.name?.charAt(0).toUpperCase()}
-          </AppText>
-        </View>
+        {isGroupOwner ? (
+          <TouchableOpacity
+            style={styles.editGroupBtn}
+            onPress={() => setEditGroupVisible(true)}
+            activeOpacity={0.85}
+          >
+            <Icon name="Pencil" width={14} height={14} color="#4f46e5" />
+            <AppText style={styles.editGroupBtnText}>Edit</AppText>
+          </TouchableOpacity>
+        ) : null}
+        {group.imageUrl ? (
+          <Image source={{ uri: group.imageUrl }} style={styles.groupImage} />
+        ) : (
+          <View style={styles.groupIcon}>
+            <AppText style={styles.groupIconText}>
+              {group.name?.charAt(0).toUpperCase()}
+            </AppText>
+          </View>
+        )}
         <AppText style={styles.groupName}>{group.name}</AppText>
         {group.description ? (
           <AppText style={styles.groupDescription}>{group.description}</AppText>
@@ -460,6 +508,16 @@ const GroupDetail: React.FC<Props> = ({ route, navigation }) => {
         excludedUserIds={group.members.map((member: any) => member.user.id)}
       />
 
+      <EditGroupSheet
+        visible={editGroupVisible}
+        onClose={() => setEditGroupVisible(false)}
+        initialName={group.name}
+        initialDescription={group.description}
+        initialImageUrl={group.imageUrl}
+        saving={updatingGroup}
+        onSave={handleSaveGroup}
+      />
+
       <SettleModal
         visible={settleModalVisible}
         onClose={() => setSettleModalVisible(false)}
@@ -503,6 +561,25 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderBottomWidth: 1,
     borderBottomColor: '#e2e8f0',
+    position: 'relative',
+  },
+  editGroupBtn: {
+    position: 'absolute',
+    top: 16,
+    right: 16,
+    zIndex: 1,
+    backgroundColor: '#eef2ff',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 999,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  editGroupBtnText: {
+    color: '#4f46e5',
+    fontSize: 12,
+    fontWeight: '700',
   },
   groupIcon: {
     width: 72,
@@ -512,6 +589,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 12,
+  },
+  groupImage: {
+    width: 88,
+    height: 88,
+    borderRadius: 24,
+    marginBottom: 12,
+    backgroundColor: '#e2e8f0',
   },
   groupIconText: {
     fontSize: 30,

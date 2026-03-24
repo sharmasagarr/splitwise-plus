@@ -1,4 +1,6 @@
 import { useQuery, useMutation, useLazyQuery } from '@apollo/client/react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import ReactNativeBlobUtil from 'react-native-blob-util';
 import { Alert } from 'react-native';
 import {
   CREATE_GROUP,
@@ -10,7 +12,9 @@ import {
   JOIN_GROUP,
   RESPOND_TO_INVITE,
   SEARCH_USERS,
+  UPDATE_GROUP,
 } from '../graphql';
+import { API_URL } from '../apollo/client';
 
 // ─── Queries ───────────────────────────────────────────────
 
@@ -84,4 +88,63 @@ export const useJoinGroup = (callbacks?: {
     onCompleted: callbacks?.onCompleted,
     onError: callbacks?.onError ?? ((err: any) => Alert.alert('Error', err.message)),
   });
+};
+
+export const useUpdateGroup = (callbacks?: {
+  onCompleted?: () => void;
+  onError?: (err: any) => void;
+}) => {
+  return useMutation<any>(UPDATE_GROUP, {
+    onCompleted: callbacks?.onCompleted,
+    onError: callbacks?.onError ?? ((err: any) => Alert.alert('Error', err.message)),
+  });
+};
+
+export const uploadGroupImage = async (imageUri: string) => {
+  const token = await AsyncStorage.getItem('token');
+  if (!token) {
+    throw new Error('You need to be logged in');
+  }
+
+  const fileName = `group_${Date.now()}.jpg`;
+  const fileType = 'image/jpeg';
+  const uploadUrl = `${API_URL}/api/upload/group-image`;
+
+  const uploadResponse = await ReactNativeBlobUtil.fetch(
+    'POST',
+    uploadUrl,
+    {
+      Authorization: `Bearer ${token}`,
+      Accept: 'application/json',
+      'Content-Type': 'multipart/form-data',
+    },
+    [
+      {
+        name: 'file',
+        filename: fileName,
+        type: fileType,
+        data: ReactNativeBlobUtil.wrap(imageUri.replace('file://', '')),
+      },
+    ],
+  );
+
+  const statusCode = uploadResponse.info().status;
+  const rawText = await Promise.resolve(uploadResponse.text());
+  const responseText =
+    typeof rawText === 'string' ? rawText : JSON.stringify(rawText ?? '');
+
+  let json: any;
+  try {
+    json = await Promise.resolve(uploadResponse.json());
+  } catch {
+    throw new Error(
+      `Invalid server response: ${responseText.substring(0, 100)}`,
+    );
+  }
+
+  if (statusCode < 200 || statusCode >= 300) {
+    throw new Error(json.error || `Upload failed: HTTP ${statusCode}`);
+  }
+
+  return json;
 };

@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Alert,
+  Image,
 } from 'react-native';
 import AppText from '../components/AppText';
 import { useGetGroups, useGetMyInvites, useRespondToInvite } from '../services';
@@ -164,18 +165,24 @@ const Groups = () => {
             }
             activeOpacity={0.7}
           >
-            <View style={styles.groupIconContainer}>
-              <AppText style={styles.groupIconText}>
-                {item.name.charAt(0).toUpperCase()}
-              </AppText>
-            </View>
+            {item.imageUrl ? (
+              <Image source={{ uri: item.imageUrl }} style={styles.groupImage} />
+            ) : (
+              <View style={styles.groupIconContainer}>
+                <AppText style={styles.groupIconText}>
+                  {item.name.charAt(0).toUpperCase()}
+                </AppText>
+              </View>
+            )}
             <View style={styles.groupInfoContainer}>
               <AppText style={styles.groupName}>{item.name}</AppText>
-              <AppText style={styles.groupInfo}>
-                {item.members.length} members
+              <AppText style={styles.groupInfo} numberOfLines={1}>
+                {item.description?.trim()
+                  ? item.description
+                  : `${item.members.length} members`}
               </AppText>
             </View>
-            <AppText style={styles.chevron}>›</AppText>
+            <AppText style={styles.chevron}>{'>'}</AppText>
           </TouchableOpacity>
         )}
       />
@@ -254,6 +261,13 @@ const styles = StyleSheet.create({
     marginRight: 16,
   },
   groupIconText: { color: '#667eea', fontWeight: '600', fontSize: 18 },
+  groupImage: {
+    width: 50,
+    height: 50,
+    borderRadius: 16,
+    marginRight: 16,
+    backgroundColor: '#e2e8f0',
+  },
   groupInfoContainer: { flex: 1 },
   groupName: {
     fontSize: 15,
@@ -262,16 +276,16 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   groupInfo: { color: '#64748b', fontSize: 11 },
-  chevron: { fontSize: 24, color: '#cbd5e1', },
+  chevron: { fontSize: 24, color: '#cbd5e1' },
   invitesSection: {
-    marginBottom:16,
+    marginBottom: 16,
     backgroundColor: '#fffbeb',
     borderRadius: 12,
     padding: 16,
     borderWidth: 1,
     borderColor: '#fde68a',
   },
-  invitesSectionHeader:{
+  invitesSectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,

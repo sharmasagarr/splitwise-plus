@@ -3,6 +3,7 @@ export const groupTypeDefs = `#graphql
     id: ID!
     name: String
     description: String
+    imageUrl: String
     ownerId: String!
     isPublic: Boolean!
     createdAt: String!
@@ -35,7 +36,18 @@ export const groupTypeDefs = `#graphql
   }
 
   extend type Mutation {
-    createGroup(name: String!, memberEmails: [String!]): Group!
+    createGroup(
+      name: String!
+      description: String
+      imageUrl: String
+      memberEmails: [String!]
+    ): Group!
+    updateGroup(
+      id: String!
+      name: String
+      description: String
+      imageUrl: String
+    ): Group!
     joinGroup(token: String!): Boolean!
     inviteToGroup(groupId: String!, email: String!): GroupInvite!
     respondToInvite(inviteId: String!, accept: Boolean!): Boolean!

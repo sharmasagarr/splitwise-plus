@@ -1,11 +1,55 @@
 import { gql } from '@apollo/client';
 
 export const CREATE_GROUP = gql`
-  mutation CreateGroup($name: String!, $memberEmails: [String!]) {
-    createGroup(name: $name, memberEmails: $memberEmails) {
+  mutation CreateGroup(
+    $name: String!
+    $description: String
+    $imageUrl: String
+    $memberEmails: [String!]
+  ) {
+    createGroup(
+      name: $name
+      description: $description
+      imageUrl: $imageUrl
+      memberEmails: $memberEmails
+    ) {
       id
       name
       description
+      imageUrl
+      ownerId
+      createdAt
+      members {
+        id
+        role
+        user {
+          id
+          name
+          email
+          imageUrl
+        }
+      }
+    }
+  }
+`;
+
+export const UPDATE_GROUP = gql`
+  mutation UpdateGroup(
+    $id: String!
+    $name: String
+    $description: String
+    $imageUrl: String
+  ) {
+    updateGroup(
+      id: $id
+      name: $name
+      description: $description
+      imageUrl: $imageUrl
+    ) {
+      id
+      name
+      description
+      imageUrl
       ownerId
       createdAt
       members {

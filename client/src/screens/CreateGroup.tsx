@@ -14,8 +14,15 @@ import {
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import AppText from '../components/AppText';
 import AppTextInput from '../components/AppTextInput';
+import Icon from '../components/Icon';
+import { useImagePickerWithCrop } from '../components/ImagePickerModal';
 import type { RootStackParamList } from '../navigations/RootStack';
-import { useCreateGroup, useJoinGroup, useSearchUsers } from '../services';
+import {
+  uploadGroupImage,
+  useCreateGroup,
+  useJoinGroup,
+  useSearchUsers,
+} from '../services';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'CreateGroup'>;
 
@@ -29,10 +36,13 @@ type UserResult = {
 
 const CreateGroup: React.FC<Props> = ({ navigation }) => {
   const [groupName, setGroupName] = useState('');
+  const [groupDescription, setGroupDescription] = useState('');
+  const [groupImageUrl, setGroupImageUrl] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedMembers, setSelectedMembers] = useState<UserResult[]>([]);
   const [hasToken, setHasToken] = useState(false);
   const [inviteToken, setInviteToken] = useState('');
+  const [uploadingImage, setUploadingImage] = useState(false);
 
   const [searchUsers, { data: searchData, loading: searching }] =
     useSearchUsers();
@@ -55,6 +65,27 @@ const CreateGroup: React.FC<Props> = ({ navigation }) => {
     onError: (err: any) => {
       Alert.alert('Error', err.message);
     },
+  });
+
+  const handleUploadGroupPhoto = async (uri: string) => {
+    try {
+      setUploadingImage(true);
+      const json = await uploadGroupImage(uri);
+      setGroupImageUrl(json.imageUrl || null);
+      Alert.alert('Success', 'Group image uploaded successfully.');
+    } catch (error: any) {
+      Alert.alert('Upload Error', error.message || 'Failed to upload group image');
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
+  const {
+    handlePickImage,
+    ImagePreviewModal,
+  } = useImagePickerWithCrop({
+    onImageSelected: handleUploadGroupPhoto,
+    cropShape: 'square',
   });
 
   useEffect(() => {
@@ -104,7 +135,12 @@ const CreateGroup: React.FC<Props> = ({ navigation }) => {
 
     const emails = selectedMembers.map(member => member.email);
     createGroup({
-      variables: { name: groupName.trim(), memberEmails: emails },
+      variables: {
+        name: groupName.trim(),
+        description: groupDescription.trim() || null,
+        imageUrl: groupImageUrl,
+        memberEmails: emails,
+      },
     });
   };
 
@@ -137,6 +173,41 @@ const CreateGroup: React.FC<Props> = ({ navigation }) => {
       >
         {!hasToken ? (
           <>
+            <AppText style={styles.label}>Group Image</AppText>
+            <TouchableOpacity
+              style={styles.imageCard}
+              onPress={handlePickImage}
+              activeOpacity={0.88}
+              disabled={uploadingImage || creating}
+            >
+              {groupImageUrl ? (
+                <Image source={{ uri: groupImageUrl }} style={styles.imagePreview} />
+              ) : (
+                <View style={styles.imagePlaceholder}>
+                  <Icon name="Photo" width={24} height={24} color="#4f46e5" />
+                  <AppText style={styles.imagePlaceholderText}>
+                    Add group image
+                  </AppText>
+                </View>
+              )}
+
+              <View style={styles.imageAction}>
+                {uploadingImage ? (
+                  <View style={styles.imageActionLoading}>
+                    <ActivityIndicator size="small" color="#4f46e5" />
+                    <AppText style={styles.imageActionText}>Uploading...</AppText>
+                  </View>
+                ) : (
+                  <>
+                    <Icon name="Pencil" width={14} height={14} color="#4f46e5" />
+                    <AppText style={styles.imageActionText}>
+                      {groupImageUrl ? 'Change image' : 'Upload image'}
+                    </AppText>
+                  </>
+                )}
+              </View>
+            </TouchableOpacity>
+
             <AppText style={styles.label}>Group Name</AppText>
             <AppTextInput
               style={styles.input}
@@ -144,6 +215,18 @@ const CreateGroup: React.FC<Props> = ({ navigation }) => {
               value={groupName}
               onChangeText={setGroupName}
               placeholderTextColor="#94a3b8"
+            />
+
+            <AppText style={styles.label}>Description</AppText>
+            <AppTextInput
+              style={[styles.input, styles.descriptionInput]}
+              placeholder="What is this group for?"
+              value={groupDescription}
+              onChangeText={setGroupDescription}
+              placeholderTextColor="#94a3b8"
+              multiline
+              textAlignVertical="top"
+              maxLength={180}
             />
 
             <AppText style={styles.label}>Add Members</AppText>
@@ -300,17 +383,25 @@ const CreateGroup: React.FC<Props> = ({ navigation }) => {
           </TouchableOpacity>
         ) : (
           <TouchableOpacity
-            style={[styles.createBtn, creating && styles.createBtnDisabled]}
+            style={[
+              styles.createBtn,
+              (creating || uploadingImage) && styles.createBtnDisabled,
+            ]}
             onPress={handleCreate}
-            disabled={creating}
+            disabled={creating || uploadingImage}
             activeOpacity={0.9}
           >
             <AppText style={styles.createBtnText}>
-              {creating ? 'Creating...' : 'Create Group'}
+              {uploadingImage
+                ? 'Uploading image...'
+                : creating
+                ? 'Creating...'
+                : 'Create Group'}
             </AppText>
           </TouchableOpacity>
         )}
       </View>
+      {ImagePreviewModal}
     </KeyboardAvoidingView>
   );
 };
@@ -354,6 +445,53 @@ const styles = StyleSheet.create({
     fontSize: 14,
     backgroundColor: '#fff',
     color: '#1e293b',
+  },
+  descriptionInput: {
+    minHeight: 96,
+  },
+  imageCard: {
+    marginTop: 18,
+    backgroundColor: '#f8fafc',
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: '#dbeafe',
+    overflow: 'hidden',
+  },
+  imagePreview: {
+    width: '100%',
+    height: 170,
+    backgroundColor: '#e2e8f0',
+  },
+  imagePlaceholder: {
+    height: 170,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    backgroundColor: '#eef2ff',
+  },
+  imagePlaceholderText: {
+    color: '#4f46e5',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  imageAction: {
+    minHeight: 46,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingHorizontal: 16,
+    backgroundColor: '#ffffff',
+  },
+  imageActionLoading: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  imageActionText: {
+    color: '#4f46e5',
+    fontSize: 13,
+    fontWeight: '700',
   },
   section: {
     marginTop: 18,

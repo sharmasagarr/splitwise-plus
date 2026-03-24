@@ -177,9 +177,7 @@ const Groups = () => {
             <View style={styles.groupInfoContainer}>
               <AppText style={styles.groupName}>{item.name}</AppText>
               <AppText style={styles.groupInfo} numberOfLines={1}>
-                {item.description?.trim()
-                  ? item.description
-                  : `${item.members.length} members`}
+                {item.members.length > 1 ? `${item.members.length} members` : '1 member'}
               </AppText>
             </View>
             <AppText style={styles.chevron}>{'›'}</AppText>

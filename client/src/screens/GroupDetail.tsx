@@ -9,6 +9,7 @@ import {
   View,
 } from 'react-native';
 import AppText from '../components/AppText';
+import AppModal from '../components/Modal';
 import SettleModal from '../components/SettleModal';
 import EditGroupSheet from '../components/EditGroupSheet';
 import InviteModal, {
@@ -18,10 +19,11 @@ import {
   useGetGroupDetails,
   useGetGroupExpenses,
   useInviteToGroup,
+  useRemoveGroupMember,
   useSettleExpense,
   useUpdateGroup,
 } from '../services';
-import { GET_GROUP_EXPENSES } from '../graphql';
+import { GET_GROUP_DETAILS, GET_GROUP_EXPENSES, GET_GROUPS } from '../graphql';
 import { useAppSelector } from '../store/hooks';
 import {
   confirmUpiPayment,
@@ -59,10 +61,14 @@ const GroupDetail: React.FC<Props> = ({ route, navigation }) => {
   const [settleUserId, setSettleUserId] = useState('');
   const [selectedPaymentMode, setSelectedPaymentMode] = useState('upi');
   const [alreadyPaid, setAlreadyPaid] = useState(false);
+  const [memberToRemove, setMemberToRemove] = useState<null | { id: string; name: string; username: string; imageUrl?: string | null }>(null);
+  const [removingMemberId, setRemovingMemberId] = useState<string | null>(null);
 
   const [inviteToGroup, { loading: inviting }] = useInviteToGroup({
     onError: () => {},
   });
+
+  const [removeGroupMember, { loading: removingMember }] = useRemoveGroupMember();
 
   const [updateGroup, { loading: updatingGroup }] = useUpdateGroup({
     onCompleted: async () => {
@@ -94,6 +100,31 @@ const GroupDetail: React.FC<Props> = ({ route, navigation }) => {
   const group = groupData?.getGroupDetails;
   const expenses = expensesData?.getGroupExpenses || [];
   const isGroupOwner = group?.ownerId === user?.id;
+  const ownerMember = group?.members?.find(
+    (member: any) => member.user.id === group.ownerId,
+  );
+  const ownerDisplayName =
+    ownerMember?.user?.id === user?.id
+      ? 'You'
+      : ownerMember?.user?.name || 'Unknown';
+  const sortedMembers = [...(group?.members || [])].sort((a: any, b: any) => {
+    const aIsOwner = a.user.id === group?.ownerId;
+    const bIsOwner = b.user.id === group?.ownerId;
+    if (aIsOwner !== bIsOwner) {
+      return aIsOwner ? -1 : 1;
+    }
+    return (a.user.name || '').localeCompare(b.user.name || '');
+  });
+
+  // For EditGroupSheet
+  const editSheetMembers = sortedMembers
+    .filter((m: any) => m.user.id !== group.ownerId) // Don't allow removing owner
+    .map((m: any) => ({
+      id: m.user.id,
+      name: m.user.name,
+      username: m.user.username,
+      imageUrl: m.user.imageUrl,
+    }));
 
   useLayoutEffect(() => {
     navigation.setOptions({
@@ -195,6 +226,28 @@ const GroupDetail: React.FC<Props> = ({ route, navigation }) => {
         imageUrl: values.imageUrl,
       },
     });
+  };
+
+  const handleRemoveMember = async (member: { id: string; name: string; username: string; imageUrl?: string | null }) => {
+    setRemovingMemberId(member.id);
+    try {
+      await removeGroupMember({
+        variables: {
+          groupId,
+          memberUserId: member.id,
+        },
+        refetchQueries: [
+          { query: GET_GROUP_DETAILS, variables: { id: groupId } },
+          { query: GET_GROUPS },
+        ],
+        awaitRefetchQueries: true,
+      });
+      Alert.alert('Success', `${member.name} was removed from the group.`);
+    } catch (error: any) {
+      Alert.alert('Error', error.message || 'Failed to remove member.');
+    } finally {
+      setRemovingMemberId(null);
+    }
   };
 
   const handleSettle = async () => {
@@ -312,59 +365,55 @@ const GroupDetail: React.FC<Props> = ({ route, navigation }) => {
     return { owes, owed };
   };
 
+  // Remove open Remove button from member list
   const renderMember = ({ item }: any) => {
     const isMe = item.user.id === user?.id;
+    const isOwnerMember = item.user.id === group.ownerId;
     const { owes, owed } = isMe
       ? { owes: 0, owed: 0 }
       : computeMemberBalance(item.user.id);
     const net = owes - owed;
+    const canSettleMember = !isMe && net < 0;
 
     return (
-      <TouchableOpacity
-        style={styles.memberItem}
-        disabled={isMe || net === 0}
-        onPress={() => {
-          if (net < 0) {
-            openSettleForUser(item.user.id);
-          }
-        }}
-        activeOpacity={0.85}
-      >
-        {item.user.imageUrl ? (
-          <Image
-            source={{ uri: item.user.imageUrl }}
-            style={styles.memberAvatarImage}
-          />
-        ) : (
-          <View style={styles.memberAvatar}>
-            <AppText style={styles.memberAvatarText}>
-              {item.user.name?.charAt(0).toUpperCase() || '?'}
+      <View style={styles.memberItem}>
+        <TouchableOpacity
+          style={styles.memberMainPressable}
+          disabled={!canSettleMember}
+          onPress={() => openSettleForUser(item.user.id)}
+          activeOpacity={canSettleMember ? 0.85 : 1}
+        >
+          {item.user.imageUrl ? (
+            <Image
+              source={{ uri: item.user.imageUrl }}
+              style={styles.memberAvatarImage}
+            />
+          ) : (
+            <View style={styles.memberAvatar}>
+              <AppText style={styles.memberAvatarText}>
+                {item.user.name?.charAt(0).toUpperCase() || '?'}
+              </AppText>
+            </View>
+          )}
+          <View style={styles.memberInfo}>
+            <AppText style={styles.memberName}>
+              {item.user.name}
+              {isMe ? ' (You)' : ''}
             </AppText>
-          </View>
-        )}
-        <View style={styles.memberInfo}>
-          <AppText style={styles.memberName}>
-            {item.user.name}
-            {isMe ? ' (You)' : ''}
-          </AppText>
-          <AppText style={styles.memberUsername}>@{item.user.username}</AppText>
-        </View>
-        {!isMe && net !== 0 ? (
-          <View style={styles.balanceBadge}>
-            {net > 0 ? (
-              <AppText style={styles.balanceOwes}>
-                owes {'\u20B9'}
-                {net.toFixed(0)}
+            <View style={styles.memberMetaRow}>
+              <AppText style={styles.memberUsername}>
+                @{item.user.username || 'user'}
               </AppText>
-            ) : (
-              <AppText style={styles.balanceOwed}>
-                you owe {'\u20B9'}
-                {Math.abs(net).toFixed(0)}
-              </AppText>
-            )}
+              {isOwnerMember ? (
+                <View style={styles.ownerBadge}>
+                  <AppText style={styles.ownerBadgeText}>Owner</AppText>
+                </View>
+              ) : null}
+            </View>
           </View>
-        ) : null}
-      </TouchableOpacity>
+        </TouchableOpacity>
+        {/* Remove button is now only in EditGroupSheet */}
+      </View>
     );
   };
 
@@ -409,6 +458,10 @@ const GroupDetail: React.FC<Props> = ({ route, navigation }) => {
         {group.description ? (
           <AppText style={styles.groupDescription}>{group.description}</AppText>
         ) : null}
+        <View style={styles.ownerInfoPill}>
+          <Icon name="UserCheck" width={14} height={14} color="#4f46e5" />
+          <AppText style={styles.ownerInfoText}>Owner: {ownerDisplayName}</AppText>
+        </View>
       </View>
 
       <View style={styles.sectionHeader}>
@@ -431,7 +484,7 @@ const GroupDetail: React.FC<Props> = ({ route, navigation }) => {
       </View>
 
       <FlatList
-        data={group.members}
+        data={sortedMembers}
         keyExtractor={(item: any) => item.id}
         renderItem={renderMember}
         scrollEnabled={false}
@@ -518,6 +571,36 @@ const GroupDetail: React.FC<Props> = ({ route, navigation }) => {
         initialImageUrl={group.imageUrl}
         saving={updatingGroup}
         onSave={handleSaveGroup}
+        members={editSheetMembers}
+        onRemoveMember={handleRemoveMember}
+        removingMemberId={removingMemberId}
+      />
+
+      <AppModal
+        visible={Boolean(memberToRemove)}
+        onClose={() => {
+          if (!removingMember) {
+            setMemberToRemove(null);
+          }
+        }}
+        closeOnBackdropPress={!removingMember}
+        title="Remove Member"
+        description={
+          memberToRemove
+            ? `Remove ${memberToRemove.name} from this group? They will lose access to this group and its chat.`
+            : ''
+        }
+        secondaryButton={{
+          text: 'Cancel',
+          onPress: () => setMemberToRemove(null),
+          disabled: removingMember,
+        }}
+        primaryButton={{
+          text: removingMember ? 'Removing...' : 'Remove',
+          variant: 'danger',
+          onPress: handleRemoveMember,
+          disabled: removingMember,
+        }}
       />
 
       <SettleModal
@@ -610,6 +693,23 @@ const styles = StyleSheet.create({
     marginTop: 4,
     textAlign: 'center',
   },
+  ownerInfoPill: {
+    marginTop: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 999,
+    backgroundColor: '#eef2ff',
+    borderWidth: 1,
+    borderColor: '#c7d2fe',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  ownerInfoText: {
+    color: '#4338ca',
+    fontSize: 12,
+    fontWeight: '600',
+  },
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -668,6 +768,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#f1f5f9',
   },
+  memberMainPressable: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   memberAvatar: {
     width: 40,
     height: 40,
@@ -697,9 +802,34 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#1e293b',
   },
+  memberMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 3,
+  },
   memberUsername: {
     fontSize: 11,
     color: '#64748b',
+  },
+  ownerBadge: {
+    backgroundColor: '#eef2ff',
+    borderWidth: 1,
+    borderColor: '#c7d2fe',
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  ownerBadgeText: {
+    color: '#4338ca',
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  memberActions: {
+    marginLeft: 12,
+    alignItems: 'flex-end',
+    gap: 8,
   },
   balanceBadge: {
     paddingVertical: 4,
@@ -724,6 +854,22 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: 6,
     overflow: 'hidden',
+  },
+  removeMemberBtn: {
+    backgroundColor: '#fef2f2',
+    borderWidth: 1,
+    borderColor: '#fecaca',
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+  },
+  removeMemberBtnDisabled: {
+    opacity: 0.6,
+  },
+  removeMemberBtnText: {
+    color: '#dc2626',
+    fontSize: 11,
+    fontWeight: '700',
   },
   expenseCard: {
     flexDirection: 'row',

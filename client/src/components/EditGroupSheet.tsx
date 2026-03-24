@@ -19,6 +19,13 @@ import Icon from './Icon';
 import { useImagePickerWithCrop } from './ImagePickerModal';
 import { uploadGroupImage } from '../services';
 
+type Member = {
+  id: string;
+  name: string;
+  username: string;
+  imageUrl?: string | null;
+};
+
 type EditGroupSheetProps = {
   visible: boolean;
   onClose: () => void;
@@ -31,6 +38,9 @@ type EditGroupSheetProps = {
     description: string;
     imageUrl: string | null;
   }) => void;
+  members?: Member[];
+  onRemoveMember?: (member: Member) => void;
+  removingMemberId?: string | null;
 };
 
 export default function EditGroupSheet({
@@ -41,6 +51,9 @@ export default function EditGroupSheet({
   initialImageUrl,
   saving,
   onSave,
+  members = [],
+  onRemoveMember,
+  removingMemberId,
 }: EditGroupSheetProps) {
   const bottomSheetRef = useRef<BottomSheetModal>(null);
   const snapPoints = useMemo(() => ['82%'], []);
@@ -48,6 +61,7 @@ export default function EditGroupSheet({
   const [description, setDescription] = useState(initialDescription || '');
   const [imageUrl, setImageUrl] = useState<string | null>(initialImageUrl || null);
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [removeMode, setRemoveMode] = useState(false);
 
   useEffect(() => {
     setName(initialName || '');
@@ -132,85 +146,138 @@ export default function EditGroupSheet({
           keyboardShouldPersistTaps="handled"
         >
           <AppText style={styles.title}>Edit Group</AppText>
-          <AppText style={styles.subtitle}>
-            Update the group name, description, and image.
-          </AppText>
-
-          <TouchableOpacity
-            style={styles.imageCard}
-            onPress={handlePickImage}
-            activeOpacity={0.88}
-            disabled={uploadingImage || saving}
-          >
-            {imageUrl ? (
-              <Image source={{ uri: imageUrl }} style={styles.imagePreview} />
-            ) : (
-              <View style={styles.imagePlaceholder}>
-                <Icon name="Photo" width={24} height={24} color="#4f46e5" />
-                <AppText style={styles.imagePlaceholderText}>
-                  Add group image
-                </AppText>
-              </View>
-            )}
-
-            <View style={styles.imageAction}>
-              {uploadingImage ? (
-                <View style={styles.imageActionLoading}>
-                  <ActivityIndicator size="small" color="#4f46e5" />
-                  <AppText style={styles.imageActionText}>Uploading...</AppText>
-                </View>
-              ) : (
-                <>
-                  <Icon name="Pencil" width={14} height={14} color="#4f46e5" />
-                  <AppText style={styles.imageActionText}>
-                    {imageUrl ? 'Change image' : 'Upload image'}
-                  </AppText>
-                </>
-              )}
-            </View>
-          </TouchableOpacity>
-
-          <AppText style={styles.label}>Group Name</AppText>
-          <AppTextInput
-            style={styles.input}
-            value={name}
-            onChangeText={setName}
-            placeholder="Enter group name"
-            placeholderTextColor="#94a3b8"
-          />
-
-          <AppText style={styles.label}>Description</AppText>
-          <AppTextInput
-            style={[styles.input, styles.multilineInput]}
-            value={description}
-            onChangeText={setDescription}
-            placeholder="Say what this group is for"
-            placeholderTextColor="#94a3b8"
-            multiline
-            textAlignVertical="top"
-            maxLength={180}
-          />
-
-          <View style={styles.actions}>
-            <TouchableOpacity
-              style={[styles.actionBtn, styles.secondaryBtn]}
-              onPress={onClose}
-              disabled={saving || uploadingImage}
-              activeOpacity={0.85}
-            >
-              <AppText style={styles.secondaryBtnText}>Cancel</AppText>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.actionBtn, styles.primaryBtn]}
-              onPress={handleSubmit}
-              disabled={saving || uploadingImage}
-              activeOpacity={0.9}
-            >
-              <AppText style={styles.primaryBtnText}>
-                {saving ? 'Saving...' : 'Save Changes'}
+          {!removeMode ? (
+            <>
+              <AppText style={styles.subtitle}>
+                Update the group name, description, and image.
               </AppText>
-            </TouchableOpacity>
-          </View>
+
+              <TouchableOpacity
+                style={styles.imageCard}
+                onPress={handlePickImage}
+                activeOpacity={0.88}
+                disabled={uploadingImage || saving}
+              >
+                {imageUrl ? (
+                  <Image source={{ uri: imageUrl }} style={styles.imagePreview} />
+                ) : (
+                  <View style={styles.imagePlaceholder}>
+                    <Icon name="Photo" width={24} height={24} color="#4f46e5" />
+                    <AppText style={styles.imagePlaceholderText}>
+                      Add group image
+                    </AppText>
+                  </View>
+                )}
+
+                <View style={styles.imageAction}>
+                  {uploadingImage ? (
+                    <View style={styles.imageActionLoading}>
+                      <ActivityIndicator size="small" color="#4f46e5" />
+                      <AppText style={styles.imageActionText}>Uploading...</AppText>
+                    </View>
+                  ) : (
+                    <>
+                      <Icon name="Pencil" width={14} height={14} color="#4f46e5" />
+                      <AppText style={styles.imageActionText}>
+                        {imageUrl ? 'Change image' : 'Upload image'}
+                      </AppText>
+                    </>
+                  )}
+                </View>
+              </TouchableOpacity>
+
+              <AppText style={styles.label}>Group Name</AppText>
+              <AppTextInput
+                style={styles.input}
+                value={name}
+                onChangeText={setName}
+                placeholder="Enter group name"
+                placeholderTextColor="#94a3b8"
+              />
+
+              <AppText style={styles.label}>Description</AppText>
+              <AppTextInput
+                style={[styles.input, styles.multilineInput]}
+                value={description}
+                onChangeText={setDescription}
+                placeholder="Say what this group is for"
+                placeholderTextColor="#94a3b8"
+                multiline
+                textAlignVertical="top"
+                maxLength={180}
+              />
+
+              <TouchableOpacity
+                style={[styles.actionBtn, { backgroundColor: '#fee2e2', marginTop: 18 }]}
+                onPress={() => setRemoveMode(true)}
+                activeOpacity={0.85}
+              >
+                <AppText style={{ color: '#dc2626', fontWeight: '700' }}>Remove a member</AppText>
+              </TouchableOpacity>
+
+              <View style={styles.actions}>
+                <TouchableOpacity
+                  style={[styles.actionBtn, styles.secondaryBtn]}
+                  onPress={onClose}
+                  disabled={saving || uploadingImage}
+                  activeOpacity={0.85}
+                >
+                  <AppText style={styles.secondaryBtnText}>Cancel</AppText>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.actionBtn, styles.primaryBtn]}
+                  onPress={handleSubmit}
+                  disabled={saving || uploadingImage}
+                  activeOpacity={0.9}
+                >
+                  <AppText style={styles.primaryBtnText}>
+                    {saving ? 'Saving...' : 'Save Changes'}
+                  </AppText>
+                </TouchableOpacity>
+              </View>
+            </>
+          ) : (
+            <>
+              <AppText style={styles.subtitle}>Select a member to remove from the group.</AppText>
+              <View style={{ marginTop: 10 }}>
+                {members.map(member => (
+                  <View key={member.id} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 14, backgroundColor: '#f8fafc', borderRadius: 12, padding: 10, borderWidth: 1, borderColor: '#e2e8f0' }}>
+                    {member.imageUrl ? (
+                      <Image source={{ uri: member.imageUrl }} style={{ width: 38, height: 38, borderRadius: 19, marginRight: 12, backgroundColor: '#e2e8f0' }} />
+                    ) : (
+                      <View style={{ width: 38, height: 38, borderRadius: 19, marginRight: 12, backgroundColor: '#e0e7ff', justifyContent: 'center', alignItems: 'center' }}>
+                        <AppText style={{ color: '#667eea', fontWeight: '700', fontSize: 15 }}>{member.name?.charAt(0).toUpperCase() || '?'}</AppText>
+                      </View>
+                    )}
+                    <View style={{ flex: 1 }}>
+                      <AppText style={{ fontWeight: '600', color: '#1e293b', fontSize: 14 }}>{member.name}</AppText>
+                      <AppText style={{ color: '#64748b', fontSize: 11 }}>@{member.username}</AppText>
+                    </View>
+                    {onRemoveMember && (
+                      <TouchableOpacity
+                        style={{ backgroundColor: '#fee2e2', borderRadius: 999, paddingHorizontal: 14, paddingVertical: 7, borderWidth: 1, borderColor: '#fecaca', marginLeft: 8, opacity: removingMemberId === member.id ? 0.6 : 1 }}
+                        onPress={() => onRemoveMember(member)}
+                        disabled={removingMemberId === member.id}
+                        activeOpacity={0.85}
+                      >
+                        <AppText style={{ color: '#dc2626', fontWeight: '700', fontSize: 12 }}>{removingMemberId === member.id ? 'Removing...' : 'Remove'}</AppText>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                ))}
+              </View>
+              <View style={styles.actions}>
+                <TouchableOpacity
+                  style={[styles.actionBtn, styles.secondaryBtn]}
+                  onPress={() => setRemoveMode(false)}
+                  disabled={removingMemberId != null}
+                  activeOpacity={0.85}
+                >
+                  <AppText style={styles.secondaryBtnText}>Back</AppText>
+                </TouchableOpacity>
+              </View>
+            </>
+          )}
         </BottomSheetScrollView>
       </BottomSheetModal>
       {ImagePreviewModal}

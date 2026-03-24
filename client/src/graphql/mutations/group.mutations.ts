@@ -83,6 +83,32 @@ export const INVITE_TO_GROUP = gql`
   }
 `;
 
+export const REMOVE_GROUP_MEMBER = gql`
+  mutation RemoveGroupMember($groupId: String!, $memberUserId: String!) {
+    removeGroupMember(groupId: $groupId, memberUserId: $memberUserId) {
+      id
+      name
+      description
+      imageUrl
+      ownerId
+      createdAt
+      members {
+        id
+        role
+        joinedAt
+        user {
+          id
+          name
+          username
+          email
+          imageUrl
+          upiId
+        }
+      }
+    }
+  }
+`;
+
 export const RESPOND_TO_INVITE = gql`
   mutation RespondToInvite($inviteId: String!, $accept: Boolean!) {
     respondToInvite(inviteId: $inviteId, accept: $accept)

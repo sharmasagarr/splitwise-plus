@@ -171,6 +171,7 @@ export type Mutation = {
   markAllNotificationsRead: Scalars['Boolean']['output'];
   markNotificationRead: Notification;
   registerFcmToken: Scalars['Boolean']['output'];
+  removeGroupMember: Group;
   removeReaction: Scalars['Boolean']['output'];
   resendSignupOtp: OtpResponse;
   respondToInvite: Scalars['Boolean']['output'];
@@ -231,6 +232,12 @@ export type MutationMarkNotificationReadArgs = {
 
 export type MutationRegisterFcmTokenArgs = {
   token: Scalars['String']['input'];
+};
+
+
+export type MutationRemoveGroupMemberArgs = {
+  groupId: Scalars['String']['input'];
+  memberUserId: Scalars['String']['input'];
 };
 
 
@@ -521,6 +528,14 @@ export type InviteToGroupMutationVariables = Exact<{
 
 
 export type InviteToGroupMutation = { __typename?: 'Mutation', inviteToGroup: Array<{ __typename?: 'GroupInvite', id: string, groupId?: string | null, invitedEmail: string, status: string }> };
+
+export type RemoveGroupMemberMutationVariables = Exact<{
+  groupId: Scalars['String']['input'];
+  memberUserId: Scalars['String']['input'];
+}>;
+
+
+export type RemoveGroupMemberMutation = { __typename?: 'Mutation', removeGroupMember: { __typename?: 'Group', id: string, name?: string | null, description?: string | null, imageUrl?: string | null, ownerId: string, createdAt: string, members: Array<{ __typename?: 'GroupMember', id: string, role: string, joinedAt: string, user: { __typename?: 'User', id: string, name: string, username: string, email: string, imageUrl?: string | null, upiId?: string | null } }> } };
 
 export type RespondToInviteMutationVariables = Exact<{
   inviteId: Scalars['String']['input'];

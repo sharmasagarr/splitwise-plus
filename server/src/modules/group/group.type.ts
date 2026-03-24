@@ -50,6 +50,7 @@ export const groupTypeDefs = `#graphql
     ): Group!
     joinGroup(token: String!): Boolean!
     inviteToGroup(groupId: String!, userIds: [String!]!): [GroupInvite!]!
+    removeGroupMember(groupId: String!, memberUserId: String!): Group!
     respondToInvite(inviteId: String!, accept: Boolean!): Boolean!
   }
 `;

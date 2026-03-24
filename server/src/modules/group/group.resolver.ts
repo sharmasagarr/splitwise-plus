@@ -393,6 +393,74 @@ export const groupResolvers = {
 
       return createdInvites;
     },
+    removeGroupMember: async (
+      _: any,
+      { groupId, memberUserId }: any,
+      { prisma, user }: any,
+    ) => {
+      if (!user) throw new Error("Unauthorized");
+
+      const group = await prisma.group.findUnique({
+        where: { id: groupId },
+        include: { members: { include: { user: true } } },
+      });
+
+      if (!group) throw new Error("Group not found");
+      if (group.ownerId !== user.id) {
+        throw new Error("Only the group owner can remove members");
+      }
+      if (memberUserId === group.ownerId) {
+        throw new Error("The group owner cannot be removed");
+      }
+
+      const member = group.members.find(
+        (groupMember: any) => groupMember.userId === memberUserId,
+      );
+
+      if (!member) {
+        throw new Error("Member not found in this group");
+      }
+
+      const updatedGroup = await prisma.$transaction(async (tx: any) => {
+        await tx.groupMember.delete({
+          where: {
+            groupId_userId: {
+              groupId,
+              userId: memberUserId,
+            },
+          },
+        });
+
+        if (group.conversationId) {
+          await tx.conversationParticipant.deleteMany({
+            where: {
+              conversationId: group.conversationId,
+              userId: memberUserId,
+            },
+          });
+        }
+
+        return tx.group.findUnique({
+          where: { id: groupId },
+          include: { members: { include: { user: true } } },
+        });
+      });
+
+      if (!updatedGroup) {
+        throw new Error("Failed to update group members");
+      }
+
+      sendNotification({
+        prisma,
+        recipientId: memberUserId,
+        type: "removed_from_group",
+        title: "Removed from group",
+        body: `You were removed from ${group.name || "the group"}`,
+        data: { groupId },
+      }).catch((err: any) => console.error("Notification error:", err));
+
+      return updatedGroup;
+    },
     respondToInvite: async (
       _: any,
       { inviteId, accept }: any,

@@ -10,6 +10,7 @@ import {
   GET_MY_INVITES,
   INVITE_TO_GROUP,
   JOIN_GROUP,
+  REMOVE_GROUP_MEMBER,
   RESPOND_TO_INVITE,
   SEARCH_USERS,
   UPDATE_GROUP,
@@ -75,6 +76,16 @@ export const useRespondToInvite = (callbacks?: {
   onError?: (err: any) => void;
 }) => {
   return useMutation<any>(RESPOND_TO_INVITE, {
+    onCompleted: callbacks?.onCompleted,
+    onError: callbacks?.onError ?? ((err: any) => Alert.alert('Error', err.message)),
+  });
+};
+
+export const useRemoveGroupMember = (callbacks?: {
+  onCompleted?: () => void;
+  onError?: (err: any) => void;
+}) => {
+  return useMutation<any>(REMOVE_GROUP_MEMBER, {
     onCompleted: callbacks?.onCompleted,
     onError: callbacks?.onError ?? ((err: any) => Alert.alert('Error', err.message)),
   });

@@ -1,5 +1,5 @@
-import React, { useCallback, useEffect, useMemo, useRef } from 'react';
-import { Alert, StyleSheet, TouchableOpacity, View } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { StyleSheet, TouchableOpacity, View } from 'react-native';
 import {
   BottomSheetBackdrop,
   BottomSheetBackdropProps,
@@ -8,6 +8,7 @@ import {
 } from '@gorhom/bottom-sheet';
 import AppText from './AppText';
 import AppTextInput from './AppTextInput';
+import AppModal from './Modal';
 
 type SettleModalProps = {
   visible: boolean;
@@ -38,6 +39,7 @@ export default function SettleModal({
 }: SettleModalProps) {
   const bottomSheetRef = useRef<BottomSheetModal>(null);
   const snapPoints = useMemo(() => ['62%'], []);
+  const [showAlreadyPaidInfo, setShowAlreadyPaidInfo] = useState(false);
 
   const renderBackdrop = useCallback(
     (props: BottomSheetBackdropProps) => (
@@ -59,110 +61,119 @@ export default function SettleModal({
     }
 
     bottomSheetRef.current?.dismiss();
+    setShowAlreadyPaidInfo(false);
   }, [visible]);
 
   return (
-    <BottomSheetModal
-      ref={bottomSheetRef}
-      index={0}
-      snapPoints={snapPoints}
-      animateOnMount
-      enablePanDownToClose
-      backdropComponent={renderBackdrop}
-      backgroundStyle={styles.bottomSheetBackground}
-      handleIndicatorStyle={styles.bottomSheetHandle}
-      keyboardBehavior="interactive"
-      keyboardBlurBehavior="restore"
-      android_keyboardInputMode="adjustResize"
-      onDismiss={onClose}
-    >
-      <BottomSheetView style={styles.bottomSheetContent}>
-        <AppText style={styles.modalTitle}>Complete Settlement</AppText>
-        <AppText style={styles.modalSubtitle}>
-          Choose amount and payment mode.
-        </AppText>
+    <>
+      <BottomSheetModal
+        ref={bottomSheetRef}
+        index={0}
+        snapPoints={snapPoints}
+        animateOnMount
+        enablePanDownToClose
+        backdropComponent={renderBackdrop}
+        backgroundStyle={styles.bottomSheetBackground}
+        handleIndicatorStyle={styles.bottomSheetHandle}
+        keyboardBehavior="interactive"
+        keyboardBlurBehavior="restore"
+        android_keyboardInputMode="adjustResize"
+        onDismiss={onClose}
+      >
+        <BottomSheetView style={styles.bottomSheetContent}>
+          <AppText style={styles.modalTitle}>Complete Settlement</AppText>
+          <AppText style={styles.modalSubtitle}>
+            Choose amount and payment mode.
+          </AppText>
 
-        <AppText style={styles.label}>Amount to pay</AppText>
-        <AppTextInput
-          style={styles.input}
-          value={amount}
-          onChangeText={setAmount}
-          placeholder="0.00"
-          keyboardType="numeric"
-          placeholderTextColor="#94a3b8"
-        />
+          <AppText style={styles.label}>Amount to pay</AppText>
+          <AppTextInput
+            style={styles.input}
+            value={amount}
+            onChangeText={setAmount}
+            placeholder="0.00"
+            keyboardType="numeric"
+            placeholderTextColor="#94a3b8"
+          />
 
-        <AppText style={styles.label}>Payment mode</AppText>
-        <View style={styles.paymentModes}>
-          {paymentModes.map(mode => (
+          <AppText style={styles.label}>Payment mode</AppText>
+          <View style={styles.paymentModes}>
+            {paymentModes.map(mode => (
+              <TouchableOpacity
+                key={mode}
+                style={[
+                  styles.modeBtn,
+                  paymentMode === mode && styles.modeBtnSelected,
+                ]}
+                onPress={() => setPaymentMode(mode)}
+                activeOpacity={0.85}
+              >
+                <AppText
+                  style={[
+                    styles.modeBtnText,
+                    paymentMode === mode && styles.modeBtnTextSelected,
+                  ]}
+                >
+                  {mode.toUpperCase()}
+                </AppText>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          <View style={styles.alreadyPaidRow}>
             <TouchableOpacity
-              key={mode}
-              style={[
-                styles.modeBtn,
-                paymentMode === mode && styles.modeBtnSelected,
-              ]}
-              onPress={() => setPaymentMode(mode)}
+              style={styles.alreadyPaidToggle}
+              onPress={() => setAlreadyPaid(prev => !prev)}
               activeOpacity={0.85}
             >
-              <AppText
+              <View
                 style={[
-                  styles.modeBtnText,
-                  paymentMode === mode && styles.modeBtnTextSelected,
+                  styles.alreadyPaidCheckbox,
+                  alreadyPaid && styles.alreadyPaidCheckboxSelected,
                 ]}
               >
-                {mode.toUpperCase()}
-              </AppText>
+                {alreadyPaid ? (
+                  <AppText style={styles.alreadyPaidCheckboxTick}>
+                    {'\u2713'}
+                  </AppText>
+                ) : null}
+              </View>
+              <AppText style={styles.alreadyPaidText}>Already paid</AppText>
             </TouchableOpacity>
-          ))}
-        </View>
 
-        <View style={styles.alreadyPaidRow}>
-          <TouchableOpacity
-            style={styles.alreadyPaidToggle}
-            onPress={() => setAlreadyPaid(prev => !prev)}
-            activeOpacity={0.85}
-          >
-            <View
-              style={[
-                styles.alreadyPaidCheckbox,
-                alreadyPaid && styles.alreadyPaidCheckboxSelected,
-              ]}
+            <TouchableOpacity
+              style={styles.infoBtn}
+              onPress={() => setShowAlreadyPaidInfo(true)}
+              activeOpacity={0.85}
             >
-              {alreadyPaid ? (
-                <AppText style={styles.alreadyPaidCheckboxTick}>
-                  {'\u2713'}
-                </AppText>
-              ) : null}
-            </View>
-            <AppText style={styles.alreadyPaidText}>Already paid</AppText>
-          </TouchableOpacity>
+              <AppText style={styles.infoBtnText}>i</AppText>
+            </TouchableOpacity>
+          </View>
 
           <TouchableOpacity
-            style={styles.infoBtn}
-            onPress={() =>
-              Alert.alert(
-                'Already Paid',
-                'Enable this if you have already paid outside the app. For UPI mode, settlement will be recorded directly without opening payment apps.',
-              )
-            }
-            activeOpacity={0.85}
+            style={[styles.settleBtn, settling && styles.settleBtnDisabled]}
+            onPress={onSettle}
+            disabled={settling}
+            activeOpacity={0.9}
           >
-            <AppText style={styles.infoBtnText}>i</AppText>
+            <AppText style={styles.settleBtnText}>
+              {settling ? 'Settling...' : 'Settle Shares'}
+            </AppText>
           </TouchableOpacity>
-        </View>
+        </BottomSheetView>
+      </BottomSheetModal>
 
-        <TouchableOpacity
-          style={[styles.settleBtn, settling && styles.settleBtnDisabled]}
-          onPress={onSettle}
-          disabled={settling}
-          activeOpacity={0.9}
-        >
-          <AppText style={styles.settleBtnText}>
-            {settling ? 'Settling...' : 'Settle Shares'}
-          </AppText>
-        </TouchableOpacity>
-      </BottomSheetView>
-    </BottomSheetModal>
+      <AppModal
+        visible={showAlreadyPaidInfo}
+        onClose={() => setShowAlreadyPaidInfo(false)}
+        title="Already Paid"
+        description="Enable this if you have already paid outside the app. For UPI mode, settlement will be recorded directly without opening payment apps."
+        primaryButton={{
+          text: 'Understood',
+          onPress: () => setShowAlreadyPaidInfo(false),
+        }}
+      />
+    </>
   );
 }
 

@@ -22,6 +22,7 @@ import AppTextInput from '../components/AppTextInput';
 import { useImagePickerWithCrop } from '../components/ImagePickerModal';
 import type { User } from '../types/graphql';
 import Icon from '../components/Icon';
+import AppModal from '../components/Modal';
 
 const Profile: React.FC = () => {
   const { user } = useAppSelector(state => state.auth);
@@ -35,6 +36,7 @@ const Profile: React.FC = () => {
   const [editPhone, setEditPhone] = useState(user?.phone || '');
   const [editUpiId, setEditUpiId] = useState(user?.upiId || '');
   const [uploadingPicture, setUploadingPicture] = useState(false);
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [updateProfile, { loading: updating }] = useUpdateProfile();
 
   const { data: groupsData } = useGetGroupsForProfile();
@@ -125,16 +127,7 @@ const Profile: React.FC = () => {
   });
 
   const handleLogout = () => {
-    Alert.alert('Logout', 'Are you sure you want to logout?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Logout',
-        style: 'destructive',
-        onPress: () => {
-          dispatch(logoutUser());
-        },
-      },
-    ]);
+    setShowLogoutModal(true);
   };
 
   // Function to get initials from name
@@ -455,6 +448,24 @@ const Profile: React.FC = () => {
         </View>
       </ScrollView>
       {ProfileImagePreviewModal}
+      <AppModal
+        visible={showLogoutModal}
+        onClose={() => setShowLogoutModal(false)}
+        title="Logout"
+        description="Are you sure you want to logout?"
+        secondaryButton={{
+          text: 'Cancel',
+          onPress: () => setShowLogoutModal(false),
+        }}
+        primaryButton={{
+          text: 'Logout',
+          variant: 'danger',
+          onPress: () => {
+            setShowLogoutModal(false);
+            dispatch(logoutUser());
+          },
+        }}
+      />
     </View>
     </>
   );

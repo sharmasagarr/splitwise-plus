@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useLayoutEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -93,6 +93,25 @@ const GroupDetail: React.FC<Props> = ({ route, navigation }) => {
 
   const group = groupData?.getGroupDetails;
   const expenses = expensesData?.getGroupExpenses || [];
+  const isGroupOwner = group?.ownerId === user?.id;
+
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      headerRight: isGroupOwner
+        ? () => (
+            <TouchableOpacity
+              style={styles.headerEditBtn}
+              onPress={() => setEditGroupVisible(true)}
+              activeOpacity={0.85}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <Icon name="Pencil" width={13} height={13} color="#4f46e5" />
+              <AppText style={styles.headerEditBtnText}>Edit</AppText>
+            </TouchableOpacity>
+          )
+        : () => null,
+    });
+  }, [isGroupOwner, navigation]);
 
   if (loadingGroup && !groupData) {
     return (
@@ -109,8 +128,6 @@ const GroupDetail: React.FC<Props> = ({ route, navigation }) => {
       </View>
     );
   }
-
-  const isGroupOwner = group.ownerId === user?.id;
 
   const handleInviteUsers = async (selectedUsers: InviteSearchUser[]) => {
     if (!isGroupOwner) {
@@ -379,16 +396,6 @@ const GroupDetail: React.FC<Props> = ({ route, navigation }) => {
   const listHeader = (
     <View>
       <View style={styles.groupHeader}>
-        {isGroupOwner ? (
-          <TouchableOpacity
-            style={styles.editGroupBtn}
-            onPress={() => setEditGroupVisible(true)}
-            activeOpacity={0.85}
-          >
-            <Icon name="Pencil" width={14} height={14} color="#4f46e5" />
-            <AppText style={styles.editGroupBtnText}>Edit</AppText>
-          </TouchableOpacity>
-        ) : null}
         {group.imageUrl ? (
           <Image source={{ uri: group.imageUrl }} style={styles.groupImage} />
         ) : (
@@ -556,25 +563,20 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderBottomWidth: 1,
     borderBottomColor: '#e2e8f0',
-    position: 'relative',
   },
-  editGroupBtn: {
-    position: 'absolute',
-    top: 16,
-    right: 16,
-    zIndex: 1,
+  headerEditBtn: {
     backgroundColor: '#eef2ff',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
     borderRadius: 999,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
   },
-  editGroupBtnText: {
+  headerEditBtnText: {
     color: '#4f46e5',
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '500',
   },
   groupIcon: {
     width: 72,

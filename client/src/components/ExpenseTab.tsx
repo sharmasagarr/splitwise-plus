@@ -9,12 +9,12 @@ import {
   Keyboard,
   StyleSheet,
   Alert,
-  Modal,
   RefreshControl,
 } from 'react-native';
 import AppText from './AppText';
 import AppTextInput from './AppTextInput';
 import Icon from './Icon';
+import AppModal from './Modal';
 import { useGetGroups, useCreateExpense, uploadExpenseAttachment } from '../services';
 import { useAppSelector } from '../store/hooks';
 import { useImagePickerWithCrop } from './ImagePickerModal';
@@ -451,36 +451,18 @@ const ExpenseTab = () => {
       {BillImagePreviewModal}
 
       {/* ── Info Modal ── */}
-      <Modal
+      <AppModal
         visible={showInfoModal}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowInfoModal(false)}
-      >
-        <TouchableWithoutFeedback onPress={() => setShowInfoModal(false)}>
-          <View style={styles.modalOverlay}>
-            <TouchableWithoutFeedback>
-              <View style={styles.modalCard}>
-                <View style={styles.modalIconWrap}>
-                  <AppText style={styles.modalIcon}>💡</AppText>
-                </View>
-                <AppText style={styles.modalTitle}>Custom Participants</AppText>
-                <AppText style={styles.modalBody}>
-                  By default, all group members share this expense equally. Enable this option when only some members were part of the expense — for example, a meal where not everyone attended.
-                  {'\n\n'}
-                  You will always be included as a participant.
-                </AppText>
-                <TouchableOpacity
-                  style={styles.modalCloseBtn}
-                  onPress={() => setShowInfoModal(false)}
-                >
-                  <AppText style={styles.modalCloseBtnText}>Got it</AppText>
-                </TouchableOpacity>
-              </View>
-            </TouchableWithoutFeedback>
-          </View>
-        </TouchableWithoutFeedback>
-      </Modal>
+        onClose={() => setShowInfoModal(false)}
+        title="Custom Participants"
+        description={
+          "By default, all group members share this expense equally. Enable this option when only some members were part of the expense, for example a meal where not everyone attended.\n\nYou will always be included as a participant."
+        }
+        primaryButton={{
+          text: 'Got it',
+          onPress: () => setShowInfoModal(false),
+        }}
+      />
     </View>
   );
 };
@@ -831,54 +813,6 @@ const styles = StyleSheet.create({
   },
 
   // ── Info Modal ──
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.45)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 32,
-  },
-  modalCard: {
-    backgroundColor: '#fff',
-    borderRadius: 20,
-    padding: 24,
-    width: '100%',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOpacity: 0.15,
-    shadowRadius: 20,
-    elevation: 10,
-  },
-  modalIconWrap: {
-    marginBottom: 12,
-  },
-  modalIcon: {
-    fontSize: 36,
-  },
-  modalTitle: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: '#1e293b',
-    marginBottom: 10,
-  },
-  modalBody: {
-    fontSize: 14,
-    color: '#475569',
-    lineHeight: 22,
-    textAlign: 'center',
-    marginBottom: 20,
-  },
-  modalCloseBtn: {
-    backgroundColor: '#4f46e5',
-    borderRadius: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 32,
-  },
-  modalCloseBtnText: {
-    color: '#fff',
-    fontWeight: '700',
-    fontSize: 15,
-  },
 });
 
 export default ExpenseTab;

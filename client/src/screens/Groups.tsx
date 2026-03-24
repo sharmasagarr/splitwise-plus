@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import {
   StyleSheet,
   View,
@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import AppText from '../components/AppText';
 import { useGetGroups, useGetMyInvites, useRespondToInvite } from '../services';
-import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigations/RootStack';
 import Icon from '../components/Icon';
@@ -28,14 +28,23 @@ const Groups = () => {
     refetch: refetchInvites,
   } = useGetMyInvites();
 
+  const refreshGroupLists = useCallback(async () => {
+    await Promise.allSettled([refetch(), refetchInvites()]);
+  }, [refetch, refetchInvites]);
+
   const [respondToInvite] = useRespondToInvite({
-    onCompleted: () => {
-      refetchInvites();
-      refetch();
+    onCompleted: async () => {
+      await refreshGroupLists();
       Alert.alert('Success', 'Invitation updated!');
     },
     onError: (err: any) => Alert.alert('Error', err.message),
   });
+
+  useFocusEffect(
+    useCallback(() => {
+      refreshGroupLists();
+    }, [refreshGroupLists]),
+  );
 
   const handleAcceptInvite = (inviteId: string) => {
     respondToInvite({ variables: { inviteId, accept: true } });
@@ -144,10 +153,7 @@ const Groups = () => {
         data={groups}
         keyExtractor={(item: any) => item.id}
         refreshing={loading || loadingInvites}
-        onRefresh={() => {
-          refetch();
-          refetchInvites();
-        }}
+        onRefresh={refreshGroupLists}
         ListHeaderComponent={listHeader}
         ListEmptyComponent={emptyState}
         contentContainerStyle={[

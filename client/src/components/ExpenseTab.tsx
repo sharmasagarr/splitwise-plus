@@ -622,7 +622,6 @@ const styles = StyleSheet.create({
   infoBtnText: {
     fontSize: 12,
     color: '#64748b',
-    fontStyle: 'italic',
     fontWeight: '700',
     lineHeight: 14,
   },

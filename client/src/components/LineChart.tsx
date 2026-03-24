@@ -42,7 +42,6 @@ const LineChartComponent = ({ data, maxValue }: { data: any[]; maxValue: number 
       isAnimated
       animationDuration={1500}
       
-      curved
       thickness={1.5}
       color="#2ED9FF"
 

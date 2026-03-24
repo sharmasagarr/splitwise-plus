@@ -371,7 +371,7 @@ const GroupDetail: React.FC<Props> = ({ route, navigation }) => {
           {item.currency === 'INR' ? '\u20B9' : item.currency || '\u20B9'}
           {parseFloat(item.totalAmount).toFixed(2)}
         </AppText>
-        <AppText style={styles.expenseChevron}>{'>'}</AppText>
+        <AppText style={styles.expenseChevron}>{'›'}</AppText>
       </View>
     </TouchableOpacity>
   );

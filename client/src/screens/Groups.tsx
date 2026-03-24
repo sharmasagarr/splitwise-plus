@@ -182,7 +182,7 @@ const Groups = () => {
                   : `${item.members.length} members`}
               </AppText>
             </View>
-            <AppText style={styles.chevron}>{'>'}</AppText>
+            <AppText style={styles.chevron}>{'›'}</AppText>
           </TouchableOpacity>
         )}
       />

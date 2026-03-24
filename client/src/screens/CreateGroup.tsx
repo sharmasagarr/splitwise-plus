@@ -274,7 +274,7 @@ const CreateGroup: React.FC<Props> = ({ navigation }) => {
                         </View>
                       </View>
                       <View style={[styles.checkbox, styles.checkboxChecked]}>
-                        <View style={styles.checkboxInner} />
+                        <View style={styles.checkboxInner}>✓</View>
                       </View>
                     </TouchableOpacity>
                   ))}

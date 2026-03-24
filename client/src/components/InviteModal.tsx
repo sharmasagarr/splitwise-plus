@@ -190,7 +190,7 @@ export default function InviteModal({
                     </View>
                   </View>
                   <View style={[styles.checkbox, styles.checkboxChecked]}>
-                    <View style={styles.checkboxInner} />
+                    <View style={styles.checkboxInner}>✓</View>
                   </View>
                 </TouchableOpacity>
               ))}

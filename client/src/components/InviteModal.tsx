@@ -425,7 +425,6 @@ const styles = StyleSheet.create({
   },
   checkboxInner: {
     fontSize: 12,
-    fontWeith: '500',
     color: '#ffffff',
     justifyContent: 'center',
     alignItems: 'center',

@@ -36,7 +36,12 @@ export const generateUniqueUsername = async (
   baseInput: string,
   excludeUserId?: string,
 ) => {
-  const base = sanitizeUsername(baseInput);
+  const sanitized = sanitizeUsername(baseInput);
+
+  // Ensure minimum 3 characters by appending "1"s
+  const base = sanitized.length < 3
+    ? sanitized + '1'.repeat(3 - sanitized.length)
+    : sanitized;
 
   const makeWhere = (candidate: string) =>
     excludeUserId

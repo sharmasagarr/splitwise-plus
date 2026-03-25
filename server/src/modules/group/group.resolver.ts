@@ -25,7 +25,7 @@ export const groupResolvers = {
     },
     searchUsers: async (_: any, { query }: any, { prisma, user }: any) => {
       if (!user) throw new Error("Unauthorized");
-      if (!query || query.trim().length < 2) return [];
+      if (!query || query.trim().length < 3) return [];
 
       return prisma.user.findMany({
         where: {
@@ -34,6 +34,13 @@ export const groupResolvers = {
             { username: { contains: query.trim(), mode: "insensitive" } },
           ],
           id: { not: user.id },
+        },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          username: true,
+          imageUrl: true,
         },
         take: 10,
       });

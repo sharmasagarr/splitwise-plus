@@ -158,7 +158,7 @@ const CreateGroup: React.FC<Props> = ({ navigation }) => {
   const toggleLabel = hasToken
     ? 'Create a new group instead'
     : 'Have an invite token instead?';
-  const canSearch = searchQuery.trim().length >= 2;
+  const canSearch = searchQuery.trim().length >= 3;
   const getUserMeta = (user: UserResult) =>
     user.username ? `@${user.username}` : user.email;
 
@@ -287,7 +287,7 @@ const CreateGroup: React.FC<Props> = ({ navigation }) => {
 
               {!canSearch ? (
                 <AppText style={styles.helperText}>
-                  Type at least 2 characters to search.
+                  Type at least 3 characters to search.
                 </AppText>
               ) : null}
 

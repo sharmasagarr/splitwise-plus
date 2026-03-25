@@ -118,7 +118,7 @@ export default function InviteSheet({
     setSelectedUsers(prev => prev.filter(user => user.id !== userId));
   };
 
-  const canSearch = query.trim().length >= 2;
+  const canSearch = query.trim().length >= 3;
   const getUserMeta = (user: InviteSearchUser) =>
     user.username ? `@${user.username}` : user.email;
 
@@ -203,7 +203,7 @@ export default function InviteSheet({
 
           {!canSearch ? (
             <AppText style={styles.helperText}>
-              Type at least 2 characters to search.
+              Type at least 3 characters to search.
             </AppText>
           ) : null}
 

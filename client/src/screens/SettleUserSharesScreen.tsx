@@ -14,7 +14,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import AppText from '../components/AppText';
 import AppTextInput from '../components/AppTextInput';
 import Icon from '../components/Icon';
-import SettleModal from '../components/SettleModal';
+import SettleSheet from '../components/SettleSheet';
 import { useGetUserUnsettledShares, useSettleSpecificShares } from '../services';
 import { RootStackParamList } from '../navigations/RootStack';
 import {
@@ -340,7 +340,7 @@ export default function SettleUserShares({ route, navigation }: Props) {
         )}
       </View>
 
-      <SettleModal
+      <SettleSheet
         visible={paymentModalVisible}
         onClose={() => setPaymentModalVisible(false)}
         amount={amount}

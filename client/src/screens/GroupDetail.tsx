@@ -10,11 +10,11 @@ import {
 } from 'react-native';
 import AppText from '../components/AppText';
 import AppModal from '../components/Modal';
-import SettleModal from '../components/SettleModal';
+import SettleSheet from '../components/SettleSheet';
 import EditGroupSheet from '../components/EditGroupSheet';
-import InviteModal, {
+import InviteSheet, {
   type InviteSearchUser,
-} from '../components/InviteModal';
+} from '../components/InviteSheet';
 import {
   useGetGroupDetails,
   useGetGroupExpenses,
@@ -54,9 +54,9 @@ const GroupDetail: React.FC<Props> = ({ route, navigation }) => {
     refetch: refetchExpenses,
   } = useGetGroupExpenses(groupId);
 
-  const [inviteModalVisible, setInviteModalVisible] = useState(false);
+  const [inviteSheetVisible, setInviteSheetVisible] = useState(false);
   const [editGroupVisible, setEditGroupVisible] = useState(false);
-  const [settleModalVisible, setSettleModalVisible] = useState(false);
+  const [settleSheetVisible, setSettleSheetVisible] = useState(false);
   const [settleAmount, setSettleAmount] = useState('');
   const [settleUserId, setSettleUserId] = useState('');
   const [selectedPaymentMode, setSelectedPaymentMode] = useState('upi');
@@ -84,7 +84,7 @@ const GroupDetail: React.FC<Props> = ({ route, navigation }) => {
   const [settleExpense, { loading: settling }] = useSettleExpense({
     refetchQueries: [{ query: GET_GROUP_EXPENSES, variables: { groupId } }],
     onCompleted: () => {
-      setSettleModalVisible(false);
+      setSettleSheetVisible(false);
       setSettleAmount('');
       setSettleUserId('');
       setSelectedPaymentMode('upi');
@@ -183,7 +183,7 @@ const GroupDetail: React.FC<Props> = ({ route, navigation }) => {
       const successCount = data?.inviteToGroup?.length || 0;
 
       if (successCount > 0) {
-        setInviteModalVisible(false);
+        setInviteSheetVisible(false);
       }
 
       if (successCount === uniqueUserIds.length) {
@@ -328,7 +328,7 @@ const GroupDetail: React.FC<Props> = ({ route, navigation }) => {
     setSettleAmount('');
     setSelectedPaymentMode('upi');
     setAlreadyPaid(false);
-    setSettleModalVisible(true);
+    setSettleSheetVisible(true);
   };
 
   const handleOpenAddExpense = () => {
@@ -474,7 +474,7 @@ const GroupDetail: React.FC<Props> = ({ route, navigation }) => {
         {isGroupOwner ? (
           <TouchableOpacity
             style={styles.inviteBtn}
-            onPress={() => setInviteModalVisible(true)}
+            onPress={() => setInviteSheetVisible(true)}
             activeOpacity={0.85}
           >
             <Icon name="PlusCircle" width={16} height={16} />
@@ -554,9 +554,9 @@ const GroupDetail: React.FC<Props> = ({ route, navigation }) => {
         contentContainerStyle={styles.listContent}
       />
 
-      <InviteModal
-        visible={inviteModalVisible}
-        onClose={() => setInviteModalVisible(false)}
+      <InviteSheet
+        visible={inviteSheetVisible}
+        onClose={() => setInviteSheetVisible(false)}
         onInviteUsers={handleInviteUsers}
         inviting={inviting}
         groupName={group.name}
@@ -603,9 +603,9 @@ const GroupDetail: React.FC<Props> = ({ route, navigation }) => {
         }}
       />
 
-      <SettleModal
-        visible={settleModalVisible}
-        onClose={() => setSettleModalVisible(false)}
+      <SettleSheet
+        visible={settleSheetVisible}
+        onClose={() => setSettleSheetVisible(false)}
         amount={settleAmount}
         setAmount={setSettleAmount}
         paymentMode={selectedPaymentMode}

@@ -10,7 +10,7 @@ import AppText from './AppText';
 import AppTextInput from './AppTextInput';
 import AppModal from './Modal';
 
-type SettleModalProps = {
+type SettleSheetProps = {
   visible: boolean;
   onClose: () => void;
   amount: string;
@@ -24,7 +24,7 @@ type SettleModalProps = {
   paymentModes?: string[];
 };
 
-export default function SettleModal({
+export default function SettleSheet({
   visible,
   onClose,
   amount,
@@ -36,7 +36,7 @@ export default function SettleModal({
   settling,
   onSettle,
   paymentModes = ['upi', 'cash'],
-}: SettleModalProps) {
+}: SettleSheetProps) {
   const bottomSheetRef = useRef<BottomSheetModal>(null);
   const snapPoints = useMemo(() => ['62%'], []);
   const [showAlreadyPaidInfo, setShowAlreadyPaidInfo] = useState(false);

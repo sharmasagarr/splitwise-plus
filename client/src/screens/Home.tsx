@@ -30,7 +30,7 @@ import {
 import LineChartComponent from '../components/LineChart';
 import Icon from '../components/Icon';
 import ActivityItem from '../components/ActivityItem';
-import SettleModal from '../components/SettleModal';
+import SettleSheet from '../components/SettleSheet';
 
 const Home: React.FC = () => {
   const { user } = useAppSelector(state => state.auth);
@@ -166,7 +166,7 @@ const Home: React.FC = () => {
     }
   };
 
-  const openSettleModal = (toUserId: string, defaultAmount: number, currentGroupId: string) => {
+  const openSettleSheet = (toUserId: string, defaultAmount: number, currentGroupId: string) => {
     setSelectedUserId(toUserId);
     setAmount(defaultAmount.toString());
     setGroupId(currentGroupId);
@@ -193,7 +193,7 @@ const Home: React.FC = () => {
     <ActivityItem
       item={item}
       currentUser={user}
-      onSettle={openSettleModal}
+      onSettle={openSettleSheet}
     />
   );
 
@@ -369,7 +369,7 @@ const Home: React.FC = () => {
         ]}
       />
 
-      <SettleModal
+      <SettleSheet
         visible={modalVisible}
         onClose={() => setModalVisible(false)}
         amount={amount}

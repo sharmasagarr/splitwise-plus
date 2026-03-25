@@ -24,7 +24,7 @@ export type InviteSearchUser = {
   imageUrl?: string | null;
 };
 
-type InviteModalProps = {
+type InviteSheetProps = {
   visible: boolean;
   onClose: () => void;
   onInviteUsers: (users: InviteSearchUser[]) => void;
@@ -33,13 +33,13 @@ type InviteModalProps = {
   excludedUserIds?: string[];
 };
 
-export default function InviteModal({
+export default function InviteSheet({
   visible,
   onClose,
   onInviteUsers,
   inviting,
   excludedUserIds = [],
-}: InviteModalProps) {
+}: InviteSheetProps) {
   const bottomSheetRef = useRef<BottomSheetModal>(null);
   const snapPoints = useMemo(() => ['76%'], []);
   const [query, setQuery] = useState('');

@@ -598,7 +598,7 @@ const GroupDetail: React.FC<Props> = ({ route, navigation }) => {
         primaryButton={{
           text: removingMember ? 'Removing...' : 'Remove',
           variant: 'danger',
-          onPress: handleRemoveMember,
+          onPress: () => handleRemoveMember(memberToRemove!),
           disabled: removingMember,
         }}
       />

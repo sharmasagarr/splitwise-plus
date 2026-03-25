@@ -14,10 +14,12 @@ import {
   BottomSheetScrollView,
 } from '@gorhom/bottom-sheet';
 import AppText from './AppText';
+import AppModal from './Modal';
 import AppTextInput from './AppTextInput';
 import Icon from './Icon';
 import { useImagePickerWithCrop } from './ImagePickerModal';
 import { uploadGroupImage } from '../services';
+
 
 type Member = {
   id: string;
@@ -25,6 +27,7 @@ type Member = {
   username: string;
   imageUrl?: string | null;
 };
+
 
 type EditGroupSheetProps = {
   visible: boolean;
@@ -42,6 +45,7 @@ type EditGroupSheetProps = {
   onRemoveMember?: (member: Member) => void;
   removingMemberId?: string | null;
 };
+
 
 export default function EditGroupSheet({
   visible,
@@ -62,12 +66,15 @@ export default function EditGroupSheet({
   const [imageUrl, setImageUrl] = useState<string | null>(initialImageUrl || null);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [removeMode, setRemoveMode] = useState(false);
+  const [pendingRemove, setPendingRemove] = useState<Member | null>(null);
+
 
   useEffect(() => {
     setName(initialName || '');
     setDescription(initialDescription || '');
     setImageUrl(initialImageUrl || null);
   }, [initialDescription, initialImageUrl, initialName, visible]);
+
 
   useEffect(() => {
     if (visible) {
@@ -77,6 +84,7 @@ export default function EditGroupSheet({
 
     bottomSheetRef.current?.dismiss();
   }, [visible]);
+
 
   const renderBackdrop = useCallback(
     (props: BottomSheetBackdropProps) => (
@@ -91,6 +99,7 @@ export default function EditGroupSheet({
     [],
   );
 
+
   const handleUploadGroupPhoto = useCallback(async (uri: string) => {
     try {
       setUploadingImage(true);
@@ -104,6 +113,7 @@ export default function EditGroupSheet({
     }
   }, []);
 
+
   const {
     handlePickImage,
     ImagePreviewModal,
@@ -111,6 +121,7 @@ export default function EditGroupSheet({
     onImageSelected: handleUploadGroupPhoto,
     cropShape: 'square',
   });
+
 
   const handleSubmit = () => {
     if (!name.trim()) {
@@ -124,6 +135,7 @@ export default function EditGroupSheet({
       imageUrl,
     });
   };
+
 
   return (
     <>
@@ -146,6 +158,31 @@ export default function EditGroupSheet({
           keyboardShouldPersistTaps="handled"
         >
           <AppText style={styles.title}>Edit Group</AppText>
+          {/* Remove Member Confirmation Modal using AppModal */}
+          {pendingRemove && (
+            <AppModal
+              visible={!!pendingRemove}
+              onClose={() => setPendingRemove(null)}
+              title="Remove Member"
+              description={`Remove ${pendingRemove.name} (@${pendingRemove.username}) from this group? They will lose access to this group and its chat.`}
+              primaryButton={{
+                text: 'Remove',
+                onPress: () => {
+                  if (onRemoveMember) onRemoveMember(pendingRemove);
+                  setPendingRemove(null);
+                },
+                variant: 'danger',
+                disabled: removingMemberId === pendingRemove.id,
+              }}
+              secondaryButton={{
+                text: 'Cancel',
+                onPress: () => setPendingRemove(null),
+                disabled: removingMemberId === pendingRemove.id,
+              }}
+              closeOnBackdropPress={removingMemberId !== pendingRemove.id}
+            />
+          )}
+
           {!removeMode ? (
             <>
               <AppText style={styles.subtitle}>
@@ -153,7 +190,7 @@ export default function EditGroupSheet({
               </AppText>
 
               <TouchableOpacity
-                style={styles.imageCard}
+                style={[styles.actionBtn, styles.removeMemberBtn]}
                 onPress={handlePickImage}
                 activeOpacity={0.88}
                 disabled={uploadingImage || saving}
@@ -208,11 +245,11 @@ export default function EditGroupSheet({
               />
 
               <TouchableOpacity
-                style={[styles.actionBtn, { backgroundColor: '#fee2e2', marginTop: 18 }]}
+                style={[styles.actionBtn, styles.removeMemberBtn]}
                 onPress={() => setRemoveMode(true)}
                 activeOpacity={0.85}
               >
-                <AppText style={{ color: '#dc2626', fontWeight: '700' }}>Remove a member</AppText>
+                <AppText style={styles.removeMemberBtnText}>Remove a member</AppText>
               </TouchableOpacity>
 
               <View style={styles.actions}>
@@ -239,28 +276,35 @@ export default function EditGroupSheet({
           ) : (
             <>
               <AppText style={styles.subtitle}>Select a member to remove from the group.</AppText>
-              <View style={{ marginTop: 10 }}>
+              <View style={styles.membersList}>
                 {members.map(member => (
-                  <View key={member.id} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 14, backgroundColor: '#f8fafc', borderRadius: 12, padding: 10, borderWidth: 1, borderColor: '#e2e8f0' }}>
+                  <View key={member.id} style={styles.memberRow}>
                     {member.imageUrl ? (
-                      <Image source={{ uri: member.imageUrl }} style={{ width: 38, height: 38, borderRadius: 19, marginRight: 12, backgroundColor: '#e2e8f0' }} />
+                      <Image source={{ uri: member.imageUrl }} style={styles.memberImage} />
                     ) : (
-                      <View style={{ width: 38, height: 38, borderRadius: 19, marginRight: 12, backgroundColor: '#e0e7ff', justifyContent: 'center', alignItems: 'center' }}>
-                        <AppText style={{ color: '#667eea', fontWeight: '700', fontSize: 15 }}>{member.name?.charAt(0).toUpperCase() || '?'}</AppText>
+                      <View style={styles.memberAvatar}>
+                        <AppText style={styles.memberAvatarText}>
+                          {member.name?.charAt(0).toUpperCase() || '?'}
+                        </AppText>
                       </View>
                     )}
-                    <View style={{ flex: 1 }}>
-                      <AppText style={{ fontWeight: '600', color: '#1e293b', fontSize: 14 }}>{member.name}</AppText>
-                      <AppText style={{ color: '#64748b', fontSize: 11 }}>@{member.username}</AppText>
+                    <View style={styles.memberInfo}>
+                      <AppText style={styles.memberName}>{member.name}</AppText>
+                      <AppText style={styles.memberUsername}>@{member.username}</AppText>
                     </View>
                     {onRemoveMember && (
                       <TouchableOpacity
-                        style={{ backgroundColor: '#fee2e2', borderRadius: 999, paddingHorizontal: 14, paddingVertical: 7, borderWidth: 1, borderColor: '#fecaca', marginLeft: 8, opacity: removingMemberId === member.id ? 0.6 : 1 }}
-                        onPress={() => onRemoveMember(member)}
+                        style={[
+                          styles.memberRemoveBtn,
+                          removingMemberId === member.id && styles.memberRemoveBtnDisabled,
+                        ]}
+                        onPress={() => setPendingRemove(member)}
                         disabled={removingMemberId === member.id}
                         activeOpacity={0.85}
                       >
-                        <AppText style={{ color: '#dc2626', fontWeight: '700', fontSize: 12 }}>{removingMemberId === member.id ? 'Removing...' : 'Remove'}</AppText>
+                        <AppText style={styles.memberRemoveBtnText}>
+                          {removingMemberId === member.id ? 'Removing...' : 'Remove'}
+                        </AppText>
                       </TouchableOpacity>
                     )}
                   </View>
@@ -284,6 +328,7 @@ export default function EditGroupSheet({
     </>
   );
 }
+
 
 const styles = StyleSheet.create({
   sheetBackground: {
@@ -402,5 +447,76 @@ const styles = StyleSheet.create({
   primaryBtnText: {
     color: '#ffffff',
     fontWeight: '700',
+  },
+  removeMemberBtn: {
+    backgroundColor: '#fee2e2',
+    marginTop: 18,
+  },
+  removeMemberBtnText: {
+    color: '#dc2626',
+    fontWeight: '700',
+  },
+  membersList: {
+    marginTop: 10,
+  },
+  memberRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 14,
+    backgroundColor: '#f8fafc',
+    borderRadius: 12,
+    padding: 10,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  memberImage: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    marginRight: 12,
+    backgroundColor: '#e2e8f0',
+  },
+  memberAvatar: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    marginRight: 12,
+    backgroundColor: '#e0e7ff',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  memberAvatarText: {
+    color: '#667eea',
+    fontWeight: '700',
+    fontSize: 15,
+  },
+  memberInfo: {
+    flex: 1,
+  },
+  memberName: {
+    fontWeight: '600',
+    color: '#1e293b',
+    fontSize: 14,
+  },
+  memberUsername: {
+    color: '#64748b',
+    fontSize: 11,
+  },
+  memberRemoveBtn: {
+    backgroundColor: '#fee2e2',
+    borderRadius: 999,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderWidth: 1,
+    borderColor: '#fecaca',
+    marginLeft: 8,
+  },
+  memberRemoveBtnDisabled: {
+    opacity: 0.6,
+  },
+  memberRemoveBtnText: {
+    color: '#dc2626',
+    fontWeight: '700',
+    fontSize: 12,
   },
 });

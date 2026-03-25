@@ -1,9 +1,10 @@
-import { useMutation, useQuery } from '@apollo/client/react';
+import { useMutation, useQuery, useLazyQuery } from '@apollo/client/react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import ReactNativeBlobUtil from 'react-native-blob-util';
 import { UPDATE_PROFILE } from '../graphql/mutations';
-import { GET_GROUPS, GET_MY_BALANCES } from '../graphql/queries';
+import { GET_GROUPS, GET_MY_BALANCES, CHECK_USERNAME_AVAILABILITY } from '../graphql/queries';
 import { API_URL } from '../apollo/client';
+import type { UsernameAvailabilityResult } from '../types/graphql';
 
 // ─── Queries ───────────────────────────────────────────────
 
@@ -16,6 +17,12 @@ export const useGetGroupsForProfile = (options?: { fetchPolicy?: any }) => {
 export const useGetBalancesForProfile = (options?: { fetchPolicy?: any }) => {
   return useQuery<any>(GET_MY_BALANCES, {
     fetchPolicy: options?.fetchPolicy ?? 'cache-and-network',
+  });
+};
+
+export const useCheckUsernameAvailability = () => {
+  return useLazyQuery<UsernameAvailabilityResult>(CHECK_USERNAME_AVAILABILITY, {
+    fetchPolicy: 'network-only',
   });
 };
 

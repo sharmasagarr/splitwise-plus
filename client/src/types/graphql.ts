@@ -336,6 +336,7 @@ export type OtpResponse = {
 export type Query = {
   __typename?: 'Query';
   _empty?: Maybe<Scalars['String']['output']>;
+  checkUsernameAvailability: UsernameAvailabilityResult;
   getConversations: Array<ChatConversation>;
   getExpenseDetail: Expense;
   getGroupDetails?: Maybe<Group>;
@@ -350,6 +351,11 @@ export type Query = {
   getUserUnsettledShares: Array<ExpenseShare>;
   me?: Maybe<User>;
   searchUsers: Array<User>;
+};
+
+
+export type QueryCheckUsernameAvailabilityArgs = {
+  username: Scalars['String']['input'];
 };
 
 
@@ -428,6 +434,12 @@ export type UserBalance = {
   upiId?: Maybe<Scalars['String']['output']>;
   userId: Scalars['String']['output'];
   username: Scalars['String']['output'];
+};
+
+export type UsernameAvailabilityResult = {
+  __typename?: 'UsernameAvailabilityResult';
+  available: Scalars['Boolean']['output'];
+  suggestion?: Maybe<Scalars['String']['output']>;
 };
 
 export type UserFragmentFragment = { __typename?: 'User', id: string, name: string, username: string, bio?: string | null, email: string, phone?: string | null, imageUrl?: string | null, upiId?: string | null, createdAt: string, updatedAt: string };

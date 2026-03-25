@@ -2,6 +2,7 @@ import {
   USERNAME_REGEX,
   isValidUsername,
   normalizeUsernameInput,
+  generateUniqueUsername,
 } from "./username.util.js";
 
 export const userResolvers = {
@@ -10,6 +11,39 @@ export const userResolvers = {
       if (!user) return null;
       return prisma.user.findUnique({ where: { id: user.id } });
     },
+    checkUsernameAvailability: async (
+      _: any,
+      { username }: { username: string },
+      { prisma, user }: any,
+    ) => {
+      if (!user) throw new Error("Unauthorized");
+
+      const normalized = normalizeUsernameInput(username);
+
+      // Return invalid immediately — no DB hit needed
+      if (!USERNAME_REGEX.test(normalized)) {
+        return { available: false, suggestion: null };
+      }
+
+      const existing = await prisma.user.findUnique({
+        where: { username: normalized },
+        select: { id: true },
+      });
+
+      // Same user's current username — treat as available
+      if (existing?.id === user.id) {
+        return { available: true, suggestion: null };
+      }
+
+      if (!existing) {
+        return { available: true, suggestion: null };
+      }
+
+      // Username taken — generate a suggestion
+      const suggestion = await generateUniqueUsername(prisma, normalized, user.id);
+      return { available: false, suggestion };
+    },
+
   },
   Mutation: {
     updateProfile: async (

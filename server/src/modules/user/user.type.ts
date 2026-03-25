@@ -12,8 +12,14 @@ export const userTypeDefs = `#graphql
     updatedAt: String!
   }
 
+  type UsernameAvailabilityResult {
+    available: Boolean!
+    suggestion: String
+  }
+
   extend type Query {
     me: User
+    checkUsernameAvailability(username: String!): UsernameAvailabilityResult!
   }
 
   extend type Mutation {

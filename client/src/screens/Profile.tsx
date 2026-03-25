@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
   View,
   Image,
@@ -17,6 +17,7 @@ import {
   useGetGroupsForProfile,
   useGetBalancesForProfile,
   uploadProfilePicture,
+  useCheckUsernameAvailability
 } from '../services';
 import AppTextInput from '../components/AppTextInput';
 import { useImagePickerWithCrop } from '../components/ImagePickerModal';
@@ -38,6 +39,12 @@ const Profile: React.FC = () => {
   const [uploadingPicture, setUploadingPicture] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [updateProfile, { loading: updating }] = useUpdateProfile();
+  const [usernameStatus, setUsernameStatus] = useState<
+    'idle' | 'checking' | 'available' | 'taken' | 'invalid'
+  >('idle');
+  const [usernameSuggestion, setUsernameSuggestion] = useState<string | null>(null);
+
+  const [checkUsernameAvailability] = useCheckUsernameAvailability();
 
   const { data: groupsData } = useGetGroupsForProfile();
   const { data: balancesData } = useGetBalancesForProfile();
@@ -64,6 +71,21 @@ const Profile: React.FC = () => {
         'Invalid Username',
         'Use 1-30 lowercase letters, numbers, periods, and underscores. Periods cannot be consecutive or at the end.',
       );
+      return;
+    }
+
+    if (usernameStatus === 'checking') {
+      Alert.alert('Please wait', 'Still checking username availability...');
+      return;
+    }
+    if (usernameStatus === 'taken') {
+      Alert.alert('Username Taken', usernameSuggestion
+        ? `That username is taken. Try "${usernameSuggestion}" instead.`
+        : 'That username is already taken. Please choose another.');
+      return;
+    }
+    if (usernameStatus === 'invalid') {
+      Alert.alert('Invalid Username', 'Username must be at least 3 characters.');
       return;
     }
 
@@ -117,6 +139,50 @@ const Profile: React.FC = () => {
     },
     [dispatch]
   );
+
+  useEffect(() => {
+    if (!isEditing) return;
+
+    const trimmed = editUsername.trim().toLowerCase();
+
+    // Reset when cleared
+    if (!trimmed) {
+      setUsernameStatus('idle');
+      setUsernameSuggestion(null);
+      return;
+    }
+
+    // Instant local validation — no DB hit
+    if (trimmed.length < 3) {
+      setUsernameStatus('invalid');
+      setUsernameSuggestion(null);
+      return;
+    }
+
+    setUsernameStatus('checking');
+    setUsernameSuggestion(null);
+
+    const timer = setTimeout(async () => {
+      try {
+        const { data } = await checkUsernameAvailability({
+          variables: { username: trimmed },
+        });
+        const result = data;
+        if (result?.available) {
+          setUsernameStatus('available');
+          setUsernameSuggestion(null);
+        } else {
+          setUsernameStatus('taken');
+          setUsernameSuggestion(result?.suggestion || null);
+        }
+      } catch {
+        setUsernameStatus('idle');
+      }
+    }, 400);
+
+    return () => clearTimeout(timer);
+  }, [editUsername, isEditing, checkUsernameAvailability]);
+
 
   const {
     handlePickImage: openProfileImagePicker,
@@ -286,14 +352,61 @@ const Profile: React.FC = () => {
 
                 <View style={styles.inputWrapper}>
                   <AppText style={styles.inputLabel}>@username</AppText>
-                  <AppTextInput
-                    placeholder="johndoe"
-                    value={editUsername}
-                    onChangeText={text => setEditUsername(text.toLowerCase())}
-                    style={styles.input}
-                    autoCapitalize="none"
-                  />
+                  <View style={styles.usernameInputRow}>
+                    <AppTextInput
+                      placeholder="johndoe"
+                      value={editUsername}
+                      onChangeText={text => setEditUsername(text.toLowerCase())}
+                      style={[
+                        styles.input,
+                        styles.usernameInput,
+                        usernameStatus === 'available' && styles.inputBorderGreen,
+                        usernameStatus === 'taken' && styles.inputBorderRed,
+                        usernameStatus === 'invalid' && styles.inputBorderRed,
+                      ]}
+                      autoCapitalize="none"
+                    />
+                    <View style={styles.usernameStatusIcon}>
+                      {usernameStatus === 'checking' && (
+                        <ActivityIndicator size="small" color="#667eea" />
+                      )}
+                      {usernameStatus === 'available' && (
+                        <Icon name="CheckCircle" width={18} height={18} color="#16a34a" />
+                      )}
+                      {(usernameStatus === 'taken' || usernameStatus === 'invalid') && (
+                        <Icon name="CrossCircle" width={18} height={18} color="#dc2626" />
+                      )}
+                    </View>
+                  </View>
+
+                  {/* Status text below input */}
+                  {usernameStatus === 'invalid' && (
+                    <AppText style={styles.usernameHintRed}>
+                      Minimum 3 characters required
+                    </AppText>
+                  )}
+                  {usernameStatus === 'available' && (
+                    <AppText style={styles.usernameHintGreen}>
+                      ✓ Username is available
+                    </AppText>
+                  )}
+                  {usernameStatus === 'taken' && (
+                    <AppText style={styles.usernameHintRed}>
+                      ✗ Username is taken
+                      {usernameSuggestion ? (
+                        <AppText
+                          style={styles.usernameSuggestion}
+                          onPress={() => {
+                            setEditUsername(usernameSuggestion);
+                          }}
+                        >
+                          {`  Try "${usernameSuggestion}"`}
+                        </AppText>
+                      ) : null}
+                    </AppText>
+                  )}
                 </View>
+
 
                 <View style={styles.inputWrapper}>
                   <AppText style={styles.inputLabel}>Bio</AppText>
@@ -346,6 +459,8 @@ const Profile: React.FC = () => {
                       setEditBio(user?.bio || '');
                       setEditPhone(user?.phone || '');
                       setEditUpiId(user?.upiId || '');
+                      setUsernameStatus('idle');
+                      setUsernameSuggestion(null);
                     }}
                   >
                     <AppText style={styles.secondaryButtonText}>Cancel</AppText>
@@ -617,6 +732,43 @@ const styles = StyleSheet.create({
   bioInput: {
     minHeight: 90,
     textAlignVertical: 'top',
+  },
+  usernameInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  usernameInput: {
+    flex: 1,
+  },
+  usernameStatusIcon: {
+    position: 'absolute',
+    right: 14,
+  },
+  inputBorderGreen: {
+    borderColor: '#16a34a',
+  },
+  inputBorderRed: {
+    borderColor: '#dc2626',
+  },
+  usernameHintGreen: {
+    fontSize: 11,
+    color: '#16a34a',
+    fontWeight: '600',
+    marginTop: 5,
+    marginLeft: 4,
+  },
+  usernameHintRed: {
+    fontSize: 10,
+    color: '#dc2626',
+    fontWeight: '400',
+    marginTop: 5,
+    marginLeft: 4,
+  },
+  usernameSuggestion: {
+    fontSize: 10,
+    color: '#667eea',
+    fontWeight: '400',
+    textDecorationLine: 'underline',
   },
   editButton: {
     alignSelf: 'center',

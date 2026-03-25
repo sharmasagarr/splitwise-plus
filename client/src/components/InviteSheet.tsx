@@ -97,7 +97,7 @@ export default function InviteSheet({
     }
 
     const trimmed = query.trim();
-    if (trimmed.length < 2) {
+    if (trimmed.length < 3) {
       return;
     }
 

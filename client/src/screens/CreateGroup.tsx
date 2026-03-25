@@ -94,7 +94,7 @@ const CreateGroup: React.FC<Props> = ({ navigation }) => {
     }
 
     const trimmed = searchQuery.trim();
-    if (trimmed.length < 2) {
+    if (trimmed.length < 3) {
       return;
     }
 

@@ -144,10 +144,17 @@ const Profile: React.FC = () => {
     if (!isEditing) return;
 
     const trimmed = editUsername.trim().toLowerCase();
+    const currentUsername = user?.username?.trim().toLowerCase() || '';
 
     // Reset when cleared
     if (!trimmed) {
       setUsernameStatus('idle');
+      setUsernameSuggestion(null);
+      return;
+    }
+
+    if (trimmed === currentUsername) {
+      setUsernameStatus('available');
       setUsernameSuggestion(null);
       return;
     }
@@ -167,7 +174,7 @@ const Profile: React.FC = () => {
         const { data } = await checkUsernameAvailability({
           variables: { username: trimmed },
         });
-        const result = data;
+        const result = data?.checkUsernameAvailability;
         if (result?.available) {
           setUsernameStatus('available');
           setUsernameSuggestion(null);
@@ -175,13 +182,14 @@ const Profile: React.FC = () => {
           setUsernameStatus('taken');
           setUsernameSuggestion(result?.suggestion || null);
         }
-      } catch {
+      } catch (err) {
+        console.error('❌ Username check failed:', err);
         setUsernameStatus('idle');
       }
     }, 400);
 
     return () => clearTimeout(timer);
-  }, [editUsername, isEditing, checkUsernameAvailability]);
+  }, [editUsername, isEditing, checkUsernameAvailability, user?.username]);
 
 
   const {
@@ -299,7 +307,11 @@ const Profile: React.FC = () => {
       >
         <View style={styles.card}>
           {/* Cover Section */}
-          <View style={styles.coverImage} />
+          <Image 
+            source={require('../../assets/images/cover-image.png')}
+            style={styles.coverImage}
+            // resizeMode="cover"
+          />
 
           {/* Profile Image with Fallback + Edit Button */}
           <TouchableOpacity 
@@ -621,6 +633,8 @@ const styles = StyleSheet.create({
     width: '100%',
     backgroundColor: '#667eea',
     borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
   },
   profileImageContainer: {
     alignSelf: 'center',
@@ -753,7 +767,7 @@ const styles = StyleSheet.create({
   usernameHintGreen: {
     fontSize: 11,
     color: '#16a34a',
-    fontWeight: '600',
+    fontWeight: '400',
     marginTop: 5,
     marginLeft: 4,
   },

@@ -4,7 +4,12 @@ import ReactNativeBlobUtil from 'react-native-blob-util';
 import { UPDATE_PROFILE } from '../graphql/mutations';
 import { GET_GROUPS, GET_MY_BALANCES, CHECK_USERNAME_AVAILABILITY } from '../graphql/queries';
 import { API_URL } from '../apollo/client';
-import type { UsernameAvailabilityResult } from '../types/graphql';
+type CheckUsernameAvailabilityQuery = {
+  checkUsernameAvailability: {
+    available: boolean;
+    suggestion?: string | null;
+  };
+};
 
 // ─── Queries ───────────────────────────────────────────────
 
@@ -21,7 +26,7 @@ export const useGetBalancesForProfile = (options?: { fetchPolicy?: any }) => {
 };
 
 export const useCheckUsernameAvailability = () => {
-  return useLazyQuery<UsernameAvailabilityResult>(CHECK_USERNAME_AVAILABILITY, {
+  return useLazyQuery<CheckUsernameAvailabilityQuery>(CHECK_USERNAME_AVAILABILITY, {
     fetchPolicy: 'network-only',
   });
 };

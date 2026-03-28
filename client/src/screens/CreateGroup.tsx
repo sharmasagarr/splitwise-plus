@@ -14,8 +14,8 @@ import {
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import AppText from '../components/AppText';
 import AppTextInput from '../components/AppTextInput';
-import Icon from '../components/Icon';
 import { useImagePickerWithCrop } from '../components/ImagePickerModal';
+import UploadMediaCard from '../components/UploadMediaCard';
 import type { RootStackParamList } from '../navigations/RootStack';
 import {
   uploadGroupImage,
@@ -174,39 +174,15 @@ const CreateGroup: React.FC<Props> = ({ navigation }) => {
         {!hasToken ? (
           <>
             <AppText style={styles.label}>Group Image</AppText>
-            <TouchableOpacity
-              style={styles.imageCard}
+            <UploadMediaCard
+              imageUri={groupImageUrl}
               onPress={handlePickImage}
-              activeOpacity={0.88}
               disabled={uploadingImage || creating}
-            >
-              {groupImageUrl ? (
-                <Image source={{ uri: groupImageUrl }} style={styles.imagePreview} />
-              ) : (
-                <View style={styles.imagePlaceholder}>
-                  <Icon name="Photo" width={24} height={24} color="#4f46e5" />
-                  <AppText style={styles.imagePlaceholderText}>
-                    Add group image
-                  </AppText>
-                </View>
-              )}
-
-              <View style={styles.imageAction}>
-                {uploadingImage ? (
-                  <View style={styles.imageActionLoading}>
-                    <ActivityIndicator size="small" color="#4f46e5" />
-                    <AppText style={styles.imageActionText}>Uploading...</AppText>
-                  </View>
-                ) : (
-                  <>
-                    <Icon name="Pencil" width={14} height={14} color="#4f46e5" />
-                    <AppText style={styles.imageActionText}>
-                      {groupImageUrl ? 'Change image' : 'Upload image'}
-                    </AppText>
-                  </>
-                )}
-              </View>
-            </TouchableOpacity>
+              loading={uploadingImage}
+              placeholderTitle="Click to add group image"
+              placeholderHint="Use a square photo so it looks great in the group header."
+              actionText={groupImageUrl ? 'Change image' : 'Upload image'}
+            />
 
             <AppText style={styles.label}>Group Name</AppText>
             <AppTextInput

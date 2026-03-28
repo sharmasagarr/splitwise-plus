@@ -1,25 +1,21 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  Image,
-  StyleSheet,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { Alert, Image, StyleSheet, TouchableOpacity, View } from 'react-native';
 import {
   BottomSheetBackdrop,
   BottomSheetBackdropProps,
+  BottomSheetFooter,
+  type BottomSheetFooterProps,
   BottomSheetModal,
   BottomSheetScrollView,
+  BottomSheetView,
 } from '@gorhom/bottom-sheet';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AppText from './AppText';
 import AppModal from './Modal';
 import AppTextInput from './AppTextInput';
-import Icon from './Icon';
 import { useImagePickerWithCrop } from './ImagePickerModal';
 import { uploadGroupImage } from '../services';
-
+import UploadMediaCard from './UploadMediaCard';
 
 type Member = {
   id: string;
@@ -27,7 +23,6 @@ type Member = {
   username: string;
   imageUrl?: string | null;
 };
-
 
 type EditGroupSheetProps = {
   visible: boolean;
@@ -46,7 +41,6 @@ type EditGroupSheetProps = {
   removingMemberId?: string | null;
 };
 
-
 export default function EditGroupSheet({
   visible,
   onClose,
@@ -60,6 +54,7 @@ export default function EditGroupSheet({
   removingMemberId,
 }: EditGroupSheetProps) {
   const bottomSheetRef = useRef<BottomSheetModal>(null);
+  const insets = useSafeAreaInsets();
   const snapPoints = useMemo(() => ['82%'], []);
   const [name, setName] = useState(initialName || '');
   const [description, setDescription] = useState(initialDescription || '');
@@ -68,13 +63,11 @@ export default function EditGroupSheet({
   const [removeMode, setRemoveMode] = useState(false);
   const [pendingRemove, setPendingRemove] = useState<Member | null>(null);
 
-
   useEffect(() => {
     setName(initialName || '');
     setDescription(initialDescription || '');
     setImageUrl(initialImageUrl || null);
   }, [initialDescription, initialImageUrl, initialName, visible]);
-
 
   useEffect(() => {
     if (visible) {
@@ -84,7 +77,6 @@ export default function EditGroupSheet({
 
     bottomSheetRef.current?.dismiss();
   }, [visible]);
-
 
   const renderBackdrop = useCallback(
     (props: BottomSheetBackdropProps) => (
@@ -99,7 +91,6 @@ export default function EditGroupSheet({
     [],
   );
 
-
   const handleUploadGroupPhoto = useCallback(async (uri: string) => {
     try {
       setUploadingImage(true);
@@ -113,17 +104,12 @@ export default function EditGroupSheet({
     }
   }, []);
 
-
-  const {
-    handlePickImage,
-    ImagePreviewModal,
-  } = useImagePickerWithCrop({
+  const { handlePickImage, ImagePreviewModal } = useImagePickerWithCrop({
     onImageSelected: handleUploadGroupPhoto,
     cropShape: 'square',
   });
 
-
-  const handleSubmit = () => {
+  const handleSubmit = useCallback(() => {
     if (!name.trim()) {
       Alert.alert('Validation Error', 'Group name cannot be empty');
       return;
@@ -134,8 +120,52 @@ export default function EditGroupSheet({
       description,
       imageUrl,
     });
-  };
+  }, [description, imageUrl, name, onSave]);
 
+  const renderFooter = useCallback(
+    (props: BottomSheetFooterProps) => (
+      <BottomSheetFooter
+        {...props}
+        bottomInset={0}
+        style={{ ...styles.footer, paddingBottom: insets.bottom + 16 }}
+      >
+        <View style={styles.actions}>
+          {!removeMode ? (
+            <>
+              <TouchableOpacity
+                style={[styles.actionBtn, styles.secondaryBtn]}
+                onPress={onClose}
+                disabled={saving || uploadingImage}
+                activeOpacity={0.85}
+              >
+                <AppText style={styles.secondaryBtnText}>Cancel</AppText>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.actionBtn, styles.primaryBtn]}
+                onPress={handleSubmit}
+                disabled={saving || uploadingImage}
+                activeOpacity={0.9}
+              >
+                <AppText style={styles.primaryBtnText}>
+                  {saving ? 'Saving...' : 'Save Changes'}
+                </AppText>
+              </TouchableOpacity>
+            </>
+          ) : (
+            <TouchableOpacity
+              style={[styles.actionBtn, styles.secondaryBtn]}
+              onPress={() => setRemoveMode(false)}
+              disabled={removingMemberId != null}
+              activeOpacity={0.85}
+            >
+              <AppText style={styles.secondaryBtnText}>Back</AppText>
+            </TouchableOpacity>
+          )}
+        </View>
+      </BottomSheetFooter>
+    ),
+    [handleSubmit, insets.bottom, onClose, removeMode, removingMemberId, saving, uploadingImage],
+  );
 
   return (
     <>
@@ -145,6 +175,9 @@ export default function EditGroupSheet({
         snapPoints={snapPoints}
         animateOnMount
         enablePanDownToClose
+        enableOverDrag={false}
+        topInset={insets.top + 8}
+        footerComponent={renderFooter}
         backdropComponent={renderBackdrop}
         backgroundStyle={styles.sheetBackground}
         handleIndicatorStyle={styles.sheetHandle}
@@ -153,182 +186,132 @@ export default function EditGroupSheet({
         android_keyboardInputMode="adjustResize"
         onDismiss={onClose}
       >
-        <BottomSheetScrollView
-          contentContainerStyle={styles.content}
-          keyboardShouldPersistTaps="handled"
-        >
-          <AppText style={styles.title}>Edit Group</AppText>
-          {/* Remove Member Confirmation Modal using AppModal */}
-          {pendingRemove && (
-            <AppModal
-              visible={!!pendingRemove}
-              onClose={() => setPendingRemove(null)}
-              title="Remove Member"
-              description={`Remove ${pendingRemove.name} (@${pendingRemove.username}) from this group? They will lose access to this group and its chat.`}
-              primaryButton={{
-                text: 'Remove',
-                onPress: () => {
-                  if (onRemoveMember) onRemoveMember(pendingRemove);
-                  setPendingRemove(null);
-                },
-                variant: 'danger',
-                disabled: removingMemberId === pendingRemove.id,
-              }}
-              secondaryButton={{
-                text: 'Cancel',
-                onPress: () => setPendingRemove(null),
-                disabled: removingMemberId === pendingRemove.id,
-              }}
-              closeOnBackdropPress={removingMemberId !== pendingRemove.id}
-            />
-          )}
+        <BottomSheetView style={styles.sheetContainer}>
+          <BottomSheetScrollView
+            style={styles.scrollArea}
+            contentContainerStyle={styles.content}
+            keyboardShouldPersistTaps="handled"
+            bounces={false}
+          >
+            <AppText style={styles.title}>Edit Group</AppText>
 
-          {!removeMode ? (
-            <>
-              <AppText style={styles.subtitle}>
-                Update the group name, description, and image.
-              </AppText>
-
-              <TouchableOpacity
-                style={[styles.actionBtn, styles.removeMemberBtn]}
-                onPress={handlePickImage}
-                activeOpacity={0.88}
-                disabled={uploadingImage || saving}
-              >
-                {imageUrl ? (
-                  <Image source={{ uri: imageUrl }} style={styles.imagePreview} />
-                ) : (
-                  <View style={styles.imagePlaceholder}>
-                    <Icon name="Photo" width={24} height={24} color="#4f46e5" />
-                    <AppText style={styles.imagePlaceholderText}>
-                      Add group image
-                    </AppText>
-                  </View>
-                )}
-
-                <View style={styles.imageAction}>
-                  {uploadingImage ? (
-                    <View style={styles.imageActionLoading}>
-                      <ActivityIndicator size="small" color="#4f46e5" />
-                      <AppText style={styles.imageActionText}>Uploading...</AppText>
-                    </View>
-                  ) : (
-                    <>
-                      <Icon name="Pencil" width={14} height={14} color="#4f46e5" />
-                      <AppText style={styles.imageActionText}>
-                        {imageUrl ? 'Change image' : 'Upload image'}
-                      </AppText>
-                    </>
-                  )}
-                </View>
-              </TouchableOpacity>
-
-              <AppText style={styles.label}>Group Name</AppText>
-              <AppTextInput
-                style={styles.input}
-                value={name}
-                onChangeText={setName}
-                placeholder="Enter group name"
-                placeholderTextColor="#94a3b8"
+            {pendingRemove ? (
+              <AppModal
+                visible={Boolean(pendingRemove)}
+                onClose={() => setPendingRemove(null)}
+                title="Remove Member"
+                description={`Remove ${pendingRemove.name} (@${pendingRemove.username}) from this group? They will lose access to this group and its chat.`}
+                primaryButton={{
+                  text: 'Remove',
+                  onPress: () => {
+                    if (onRemoveMember) onRemoveMember(pendingRemove);
+                    setPendingRemove(null);
+                  },
+                  variant: 'danger',
+                  disabled: removingMemberId === pendingRemove.id,
+                }}
+                secondaryButton={{
+                  text: 'Cancel',
+                  onPress: () => setPendingRemove(null),
+                  disabled: removingMemberId === pendingRemove.id,
+                }}
+                closeOnBackdropPress={removingMemberId !== pendingRemove.id}
               />
+            ) : null}
 
-              <AppText style={styles.label}>Description</AppText>
-              <AppTextInput
-                style={[styles.input, styles.multilineInput]}
-                value={description}
-                onChangeText={setDescription}
-                placeholder="Say what this group is for"
-                placeholderTextColor="#94a3b8"
-                multiline
-                textAlignVertical="top"
-                maxLength={180}
-              />
+            {!removeMode ? (
+              <>
+                <AppText style={styles.subtitle}>
+                  Update the group name, description, and image.
+                </AppText>
 
-              <TouchableOpacity
-                style={[styles.actionBtn, styles.removeMemberBtn]}
-                onPress={() => setRemoveMode(true)}
-                activeOpacity={0.85}
-              >
-                <AppText style={styles.removeMemberBtnText}>Remove a member</AppText>
-              </TouchableOpacity>
+                <UploadMediaCard
+                  imageUri={imageUrl}
+                  onPress={handlePickImage}
+                  disabled={uploadingImage || saving}
+                  loading={uploadingImage}
+                  placeholderTitle="Click to add group image"
+                  placeholderHint="Use a square photo so it looks great in the group header."
+                  actionText={imageUrl ? 'Change image' : 'Upload image'}
+                />
 
-              <View style={styles.actions}>
+                <AppText style={styles.label}>Group Name</AppText>
+                <AppTextInput
+                  style={styles.input}
+                  value={name}
+                  onChangeText={setName}
+                  placeholder="Enter group name"
+                  placeholderTextColor="#94a3b8"
+                />
+
+                <AppText style={styles.label}>Description</AppText>
+                <AppTextInput
+                  style={[styles.input, styles.multilineInput]}
+                  value={description}
+                  onChangeText={setDescription}
+                  placeholder="Say what this group is for"
+                  placeholderTextColor="#94a3b8"
+                  multiline
+                  textAlignVertical="top"
+                  maxLength={180}
+                />
+
                 <TouchableOpacity
-                  style={[styles.actionBtn, styles.secondaryBtn]}
-                  onPress={onClose}
-                  disabled={saving || uploadingImage}
+                  style={[styles.actionBtn, styles.removeMemberBtn]}
+                  onPress={() => setRemoveMode(true)}
                   activeOpacity={0.85}
                 >
-                  <AppText style={styles.secondaryBtnText}>Cancel</AppText>
+                  <AppText style={styles.removeMemberBtnText}>Remove a member</AppText>
                 </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.actionBtn, styles.primaryBtn]}
-                  onPress={handleSubmit}
-                  disabled={saving || uploadingImage}
-                  activeOpacity={0.9}
-                >
-                  <AppText style={styles.primaryBtnText}>
-                    {saving ? 'Saving...' : 'Save Changes'}
-                  </AppText>
-                </TouchableOpacity>
-              </View>
-            </>
-          ) : (
-            <>
-              <AppText style={styles.subtitle}>Select a member to remove from the group.</AppText>
-              <View style={styles.membersList}>
-                {members.map(member => (
-                  <View key={member.id} style={styles.memberRow}>
-                    {member.imageUrl ? (
-                      <Image source={{ uri: member.imageUrl }} style={styles.memberImage} />
-                    ) : (
-                      <View style={styles.memberAvatar}>
-                        <AppText style={styles.memberAvatarText}>
-                          {member.name?.charAt(0).toUpperCase() || '?'}
-                        </AppText>
+              </>
+            ) : (
+              <>
+                <AppText style={styles.subtitle}>
+                  Select a member to remove from the group.
+                </AppText>
+                <View style={styles.membersList}>
+                  {members.map(member => (
+                    <View key={member.id} style={styles.memberRow}>
+                      {member.imageUrl ? (
+                        <Image source={{ uri: member.imageUrl }} style={styles.memberImage} />
+                      ) : (
+                        <View style={styles.memberAvatar}>
+                          <AppText style={styles.memberAvatarText}>
+                            {member.name?.charAt(0).toUpperCase() || '?'}
+                          </AppText>
+                        </View>
+                      )}
+                      <View style={styles.memberInfo}>
+                        <AppText style={styles.memberName}>{member.name}</AppText>
+                        <AppText style={styles.memberUsername}>@{member.username}</AppText>
                       </View>
-                    )}
-                    <View style={styles.memberInfo}>
-                      <AppText style={styles.memberName}>{member.name}</AppText>
-                      <AppText style={styles.memberUsername}>@{member.username}</AppText>
+                      {onRemoveMember ? (
+                        <TouchableOpacity
+                          style={[
+                            styles.memberRemoveBtn,
+                            removingMemberId === member.id && styles.memberRemoveBtnDisabled,
+                          ]}
+                          onPress={() => setPendingRemove(member)}
+                          disabled={removingMemberId === member.id}
+                          activeOpacity={0.85}
+                        >
+                          <AppText style={styles.memberRemoveBtnText}>
+                            {removingMemberId === member.id ? 'Removing...' : 'Remove'}
+                          </AppText>
+                        </TouchableOpacity>
+                      ) : null}
                     </View>
-                    {onRemoveMember && (
-                      <TouchableOpacity
-                        style={[
-                          styles.memberRemoveBtn,
-                          removingMemberId === member.id && styles.memberRemoveBtnDisabled,
-                        ]}
-                        onPress={() => setPendingRemove(member)}
-                        disabled={removingMemberId === member.id}
-                        activeOpacity={0.85}
-                      >
-                        <AppText style={styles.memberRemoveBtnText}>
-                          {removingMemberId === member.id ? 'Removing...' : 'Remove'}
-                        </AppText>
-                      </TouchableOpacity>
-                    )}
-                  </View>
-                ))}
-              </View>
-              <View style={styles.actions}>
-                <TouchableOpacity
-                  style={[styles.actionBtn, styles.secondaryBtn]}
-                  onPress={() => setRemoveMode(false)}
-                  disabled={removingMemberId != null}
-                  activeOpacity={0.85}
-                >
-                  <AppText style={styles.secondaryBtnText}>Back</AppText>
-                </TouchableOpacity>
-              </View>
-            </>
-          )}
-        </BottomSheetScrollView>
+                  ))}
+                </View>
+              </>
+            )}
+          </BottomSheetScrollView>
+        </BottomSheetView>
       </BottomSheetModal>
       {ImagePreviewModal}
     </>
   );
 }
-
 
 const styles = StyleSheet.create({
   sheetBackground: {
@@ -343,10 +326,16 @@ const styles = StyleSheet.create({
     width: 44,
     height: 5,
   },
+  sheetContainer: {
+    flex: 1,
+  },
+  scrollArea: {
+    flex: 1,
+  },
   content: {
     paddingHorizontal: 20,
     paddingTop: 6,
-    paddingBottom: 28,
+    paddingBottom: 120,
   },
   title: {
     color: '#0f172a',
@@ -359,49 +348,6 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     marginTop: 6,
     marginBottom: 18,
-  },
-  imageCard: {
-    backgroundColor: '#f8fafc',
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: '#dbeafe',
-    overflow: 'hidden',
-  },
-  imagePreview: {
-    width: '100%',
-    height: 180,
-    backgroundColor: '#e2e8f0',
-  },
-  imagePlaceholder: {
-    height: 180,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 10,
-    backgroundColor: '#eef2ff',
-  },
-  imagePlaceholderText: {
-    color: '#4f46e5',
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  imageAction: {
-    minHeight: 46,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    paddingHorizontal: 16,
-    backgroundColor: '#ffffff',
-  },
-  imageActionLoading: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  imageActionText: {
-    color: '#4f46e5',
-    fontSize: 13,
-    fontWeight: '700',
   },
   label: {
     fontSize: 12,
@@ -421,11 +367,18 @@ const styles = StyleSheet.create({
   multilineInput: {
     minHeight: 110,
   },
+  footer: {
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#e2e8f0',
+    backgroundColor: '#ffffff',
+  },
   actions: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
     gap: 10,
-    marginTop: 24,
   },
   actionBtn: {
     minWidth: 120,

@@ -5,7 +5,6 @@ import {
   TouchableWithoutFeedback,
   TouchableOpacity,
   ActivityIndicator,
-  Image,
   Keyboard,
   StyleSheet,
   Alert,
@@ -15,6 +14,7 @@ import AppText from './AppText';
 import AppTextInput from './AppTextInput';
 import Icon from './Icon';
 import AppModal from './Modal';
+import UploadMediaCard from './UploadMediaCard';
 import { useGetGroups, useCreateExpense, uploadExpenseAttachment } from '../services';
 import { useAppSelector } from '../store/hooks';
 import { useImagePickerWithCrop } from './ImagePickerModal';
@@ -402,25 +402,29 @@ const ExpenseTab = () => {
             </View>
 
             {billUri ? (
-              <View style={styles.attachmentCard}>
-                <TouchableOpacity onPress={() => openBillPicker()}>
-                  <Image source={{ uri: billUri }} style={styles.attachmentImage} />
-                </TouchableOpacity>
-              </View>
-            ) : (
-              <TouchableOpacity
-                style={[styles.attachmentCard, styles.attachmentPlaceholder]}
+              <UploadMediaCard
+                imageUri={billUri}
                 onPress={openBillPicker}
                 disabled={creating || uploadingBill}
-              >
-                <View style={styles.attachmentPlaceholderIcon}>
-                  <Icon name="Bill" width={32} height={32} color="#94a3b8" />
-                </View>
-                <AppText style={styles.attachmentFilename} numberOfLines={1}>
-                  Upload Bill
-                </AppText>
-                </TouchableOpacity>
-              )}
+                loading={uploadingBill}
+                placeholderTitle="Click to add bill / receipt"
+                placeholderHint="Upload a photo, scan, or screenshot for this expense."
+                actionText="Change bill"
+                placeholderIconName="Bill"
+                previewHeight={180}
+              />
+            ) : (
+              <UploadMediaCard
+                onPress={openBillPicker}
+                disabled={creating || uploadingBill}
+                loading={uploadingBill}
+                placeholderTitle="Click to add bill / receipt"
+                placeholderHint="Upload a photo, scan, or screenshot for this expense."
+                actionText="Upload bill"
+                placeholderIconName="Bill"
+                previewHeight={180}
+              />
+            )}
 
             </View>
           </TouchableWithoutFeedback>

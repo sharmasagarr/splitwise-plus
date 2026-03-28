@@ -11,6 +11,7 @@ import {
   ScrollView,
 } from 'react-native';
 import AppText from '../components/AppText';
+import UploadMediaCard from '../components/UploadMediaCard';
 import { useGetExpenseDetail, uploadExpenseAttachment } from '../services';
 import { useAppSelector } from '../store/hooks';
 import { useImagePickerWithCrop } from '../components/ImagePickerModal';
@@ -236,30 +237,25 @@ const ExpenseDetail: React.FC<Props> = ({ route }) => {
               );
             })}
           </ScrollView>
-        ) : (
-          <View style={styles.emptyAttachments}>
-            <Icon name="Bill" width={35} height={35} color="#94a3b8" style={styles.emptyAttachmentsIcon} />
-            <AppText style={styles.emptyAttachmentsText}>
-              No bills uploaded yet
-            </AppText>
-          </View>
-        )}
+        ) : null}
 
-        {/* Upload Button */}
-        <TouchableOpacity
-          style={[styles.uploadBtn, uploading && styles.uploadBtnDisabled]}
+        <UploadMediaCard
           onPress={openExpenseImagePicker}
           disabled={uploading}
-        >
-          {uploading ? (
-            <ActivityIndicator size="small" color="#fff" />
-          ) : (
-            <>
-              <Icon name="Bill" width={25} height={25} color="#fff" />
-              <AppText style={styles.uploadBtnText}>Add Bill / Receipt</AppText>
-            </>
-          )}
-        </TouchableOpacity>
+          loading={uploading}
+          placeholderTitle={
+            attachments.length > 0
+              ? 'Click to add another bill'
+              : 'Click to add bill / receipt'
+          }
+          placeholderHint="Upload a photo or scan so everyone can reference the receipt."
+          actionText={
+            attachments.length > 0 ? 'Upload another bill' : 'Upload bill / receipt'
+          }
+          placeholderIconName="Bill"
+          previewHeight={176}
+          style={styles.uploadCard}
+        />
       </View>
     </ScrollView>
     {ExpenseImagePreviewModal}
@@ -452,6 +448,9 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#94a3b8',
     fontStyle: 'italic',
+  },
+  uploadCard: {
+    marginTop: 16,
   },
 
   // Upload button

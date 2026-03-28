@@ -1,4 +1,4 @@
-import React, { useLayoutEffect, useState } from 'react';
+import React, { createContext, useContext, useLayoutEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -8,8 +8,9 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { createMaterialTopTabNavigator } from '@react-navigation/material-top-tabs';
+import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import AppText from '../components/AppText';
-import AppModal from '../components/Modal';
 import SettleSheet from '../components/SettleSheet';
 import EditGroupSheet from '../components/EditGroupSheet';
 import InviteSheet, {
@@ -30,13 +31,276 @@ import {
   openUpiPayment,
   promptForUpiId,
 } from '../utility/upiHelper';
-import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigations/RootStack';
 import Icon from '../components/Icon';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'GroupDetail'>;
 
+type GroupDetailTopTabParamList = {
+  Members: undefined;
+  Expenses: undefined;
+};
+
+type MembersTabContentProps = {
+  currentUserId?: string;
+  members: any[];
+  ownerId: string;
+  onRefresh: () => void;
+  onSettleMember: (memberId: string) => void;
+  refreshing: boolean;
+  computeMemberBalance: (memberId: string) => { owes: number; owed: number };
+};
+
+type ExpensesTabContentProps = {
+  expenses: any[];
+  loading: boolean;
+  onAddExpense: () => void;
+  onOpenExpense: (expenseId: string) => void;
+  onRefresh: () => void;
+  refreshing: boolean;
+  currentUserId?: string;
+};
+
+type TabLabelProps = {
+  color: string;
+  focused: boolean;
+};
+
+type TabBarLabelRenderProps = {
+  focused: boolean;
+  color: string;
+  children: string;
+};
+
+type GroupDetailTabCountsContextValue = {
+  membersCount: number;
+  expensesCount: number;
+};
+
 const settlePaymentModes = ['upi', 'cash', 'bank', 'card'];
+const DetailTab = createMaterialTopTabNavigator<GroupDetailTopTabParamList>();
+const GroupDetailTabCountsContext =
+  createContext<GroupDetailTabCountsContextValue>({
+    membersCount: 0,
+    expensesCount: 0,
+  });
+
+const MembersTabLabel = ({ color, focused }: TabLabelProps) => {
+  const { membersCount } = useContext(GroupDetailTabCountsContext);
+
+  return (
+    <View style={styles.tabLabelRow}>
+      <Icon name="Groups" width={15} height={15} color={color} />
+      <AppText style={[styles.tabLabelText, { color }]}>Members</AppText>
+      <View style={[styles.tabCountPill, focused && styles.tabCountPillActive]}>
+        <AppText
+          style={[
+            styles.tabCountText,
+            { color },
+            focused && styles.tabCountTextActive,
+          ]}
+        >
+          {membersCount}
+        </AppText>
+      </View>
+    </View>
+  );
+};
+
+const ExpensesTabLabel = ({ color, focused }: TabLabelProps) => {
+  const { expensesCount } = useContext(GroupDetailTabCountsContext);
+
+  return (
+    <View style={styles.tabLabelRow}>
+      <Icon name="MoneyWallet" width={15} height={15} color={color} />
+      <AppText style={[styles.tabLabelText, { color }]}>Expenses</AppText>
+      <View style={[styles.tabCountPill, focused && styles.tabCountPillActive]}>
+        <AppText
+          style={[
+            styles.tabCountText,
+            { color },
+            focused && styles.tabCountTextActive,
+          ]}
+        >
+          {expensesCount}
+        </AppText>
+      </View>
+    </View>
+  );
+};
+
+const renderMembersTabLabel = ({ color, focused }: TabBarLabelRenderProps) => (
+  <MembersTabLabel color={color} focused={focused} />
+);
+
+const renderExpensesTabLabel = ({ color, focused }: TabBarLabelRenderProps) => (
+  <ExpensesTabLabel color={color} focused={focused} />
+);
+
+const MembersTabContent = ({
+  currentUserId,
+  members,
+  ownerId,
+  onRefresh,
+  onSettleMember,
+  refreshing,
+  computeMemberBalance,
+}: MembersTabContentProps) => {
+  const renderMember = ({ item }: any) => {
+    const isMe = item.user.id === currentUserId;
+    const isOwnerMember = item.user.id === ownerId;
+    const { owes, owed } = isMe
+      ? { owes: 0, owed: 0 }
+      : computeMemberBalance(item.user.id);
+    const net = owes - owed;
+    const canSettleMember = !isMe && net < 0;
+
+    return (
+      <View style={styles.memberItem}>
+        <TouchableOpacity
+          style={styles.memberMainPressable}
+          disabled={!canSettleMember}
+          onPress={() => onSettleMember(item.user.id)}
+          activeOpacity={canSettleMember ? 0.85 : 1}
+        >
+          <View style={styles.memberAvatarWrap}>
+            <View
+              style={[
+                styles.memberAvatarFrame,
+                isOwnerMember && styles.memberAvatarFrameOwner,
+              ]}
+            >
+              {item.user.imageUrl ? (
+                <Image
+                  source={{ uri: item.user.imageUrl }}
+                  style={styles.memberAvatarImage}
+                />
+              ) : (
+                <View style={styles.memberAvatar}>
+                  <AppText style={styles.memberAvatarText}>
+                    {item.user.name?.charAt(0).toUpperCase() || '?'}
+                  </AppText>
+                </View>
+              )}
+            </View>
+            {isOwnerMember ? (
+              <View style={styles.memberOwnerBadge}>
+                <AppText
+                  style={styles.memberOwnerBadgeText}
+                  numberOfLines={1}
+                  ellipsizeMode="clip"
+                >
+                  OWNER
+                </AppText>
+              </View>
+            ) : null}
+          </View>
+
+          <View style={styles.memberInfo}>
+            <AppText style={styles.memberName}>
+              {item.user.name}
+              {isMe ? ' (You)' : ''}
+            </AppText>
+            <View style={styles.memberMetaRow}>
+              <AppText style={styles.memberUsername}>
+                @{item.user.username || 'user'}
+              </AppText>
+            </View>
+          </View>
+        </TouchableOpacity>
+      </View>
+    );
+  };
+
+  return (
+    <FlatList
+      data={members}
+      keyExtractor={(item: any) => item.id}
+      renderItem={renderMember}
+      refreshing={refreshing}
+      onRefresh={onRefresh}
+      showsVerticalScrollIndicator={false}
+      contentContainerStyle={styles.tabListContent}
+    />
+  );
+};
+
+const ExpensesTabContent = ({
+  expenses,
+  loading,
+  onAddExpense,
+  onOpenExpense,
+  onRefresh,
+  refreshing,
+  currentUserId,
+}: ExpensesTabContentProps) => {
+  const renderExpense = ({ item }: any) => (
+    <TouchableOpacity
+      style={styles.expenseCard}
+      onPress={() => onOpenExpense(item.id)}
+      activeOpacity={0.85}
+    >
+      <View style={styles.expenseInfo}>
+        <AppText style={styles.expenseDesc}>{item.note || 'Expense'}</AppText>
+        <AppText style={styles.expenseBy}>
+          by{' '}
+          {item.createdBy?.id === currentUserId
+            ? 'You'
+            : item.createdBy?.name || 'Unknown'}
+        </AppText>
+      </View>
+      <View style={styles.expenseRight}>
+        <AppText style={styles.expenseAmount}>
+          {item.currency === 'INR' ? '\u20B9' : item.currency || '\u20B9'}
+          {parseFloat(item.totalAmount).toFixed(2)}
+        </AppText>
+        <AppText style={styles.expenseChevron}>{'›'}</AppText>
+      </View>
+    </TouchableOpacity>
+  );
+
+  return (
+    <FlatList
+      data={expenses}
+      keyExtractor={(item: any) => item.id}
+      renderItem={renderExpense}
+      refreshing={refreshing}
+      onRefresh={onRefresh}
+      showsVerticalScrollIndicator={false}
+      contentContainerStyle={styles.tabListContent}
+      ListEmptyComponent={
+        loading ? (
+          <ActivityIndicator
+            size="small"
+            color="#667eea"
+            style={styles.expenseLoader}
+          />
+        ) : (
+          <View style={styles.emptyExpensesCard}>
+            <View style={styles.emptyExpensesIconWrap}>
+              <Icon name="Bill" width={30} height={30} color="#4f46e5" />
+            </View>
+            <AppText style={styles.emptyExpensesTitle}>No expenses yet</AppText>
+            <AppText style={styles.emptyExpensesSubtitle}>
+              Start this group off with the first shared expense so balances and
+              repayments show up here.
+            </AppText>
+            <TouchableOpacity
+              style={styles.emptyExpensesBtn}
+              onPress={onAddExpense}
+              activeOpacity={0.9}
+            >
+              <Icon name="PlusSquare" width={16} height={16} color="#ffffff" />
+              <AppText style={styles.emptyExpensesBtnText}>
+                Add first expense
+              </AppText>
+            </TouchableOpacity>
+          </View>
+        )
+      }
+    />
+  );
+};
 
 const GroupDetail: React.FC<Props> = ({ route, navigation }) => {
   const { groupId } = route.params;
@@ -61,14 +325,13 @@ const GroupDetail: React.FC<Props> = ({ route, navigation }) => {
   const [settleUserId, setSettleUserId] = useState('');
   const [selectedPaymentMode, setSelectedPaymentMode] = useState('upi');
   const [alreadyPaid, setAlreadyPaid] = useState(false);
-  const [memberToRemove, setMemberToRemove] = useState<null | { id: string; name: string; username: string; imageUrl?: string | null }>(null);
   const [removingMemberId, setRemovingMemberId] = useState<string | null>(null);
 
   const [inviteToGroup, { loading: inviting }] = useInviteToGroup({
     onError: () => {},
   });
 
-  const [removeGroupMember, { loading: removingMember }] = useRemoveGroupMember();
+  const [removeGroupMember] = useRemoveGroupMember();
 
   const [updateGroup, { loading: updatingGroup }] = useUpdateGroup({
     onCompleted: async () => {
@@ -100,13 +363,7 @@ const GroupDetail: React.FC<Props> = ({ route, navigation }) => {
   const group = groupData?.getGroupDetails;
   const expenses = expensesData?.getGroupExpenses || [];
   const isGroupOwner = group?.ownerId === user?.id;
-  const ownerMember = group?.members?.find(
-    (member: any) => member.user.id === group.ownerId,
-  );
-  const ownerDisplayName =
-    ownerMember?.user?.id === user?.id
-      ? 'You'
-      : ownerMember?.user?.name || 'Unknown';
+  
   const sortedMembers = [...(group?.members || [])].sort((a: any, b: any) => {
     const aIsOwner = a.user.id === group?.ownerId;
     const bIsOwner = b.user.id === group?.ownerId;
@@ -116,14 +373,13 @@ const GroupDetail: React.FC<Props> = ({ route, navigation }) => {
     return (a.user.name || '').localeCompare(b.user.name || '');
   });
 
-  // For EditGroupSheet
   const editSheetMembers = sortedMembers
-    .filter((m: any) => m.user.id !== group.ownerId) // Don't allow removing owner
-    .map((m: any) => ({
-      id: m.user.id,
-      name: m.user.name,
-      username: m.user.username,
-      imageUrl: m.user.imageUrl,
+    .filter((member: any) => member.user.id !== group.ownerId)
+    .map((member: any) => ({
+      id: member.user.id,
+      name: member.user.name,
+      username: member.user.username,
+      imageUrl: member.user.imageUrl,
     }));
 
   useLayoutEffect(() => {
@@ -159,6 +415,10 @@ const GroupDetail: React.FC<Props> = ({ route, navigation }) => {
       </View>
     );
   }
+
+  const handleRefresh = () => {
+    Promise.allSettled([refetchGroup(), refetchExpenses()]);
+  };
 
   const handleInviteUsers = async (selectedUsers: InviteSearchUser[]) => {
     if (!isGroupOwner) {
@@ -228,7 +488,12 @@ const GroupDetail: React.FC<Props> = ({ route, navigation }) => {
     });
   };
 
-  const handleRemoveMember = async (member: { id: string; name: string; username: string; imageUrl?: string | null }) => {
+  const handleRemoveMember = async (member: {
+    id: string;
+    name: string;
+    username: string;
+    imageUrl?: string | null;
+  }) => {
     setRemovingMemberId(member.id);
     try {
       await removeGroupMember({
@@ -365,85 +630,8 @@ const GroupDetail: React.FC<Props> = ({ route, navigation }) => {
     return { owes, owed };
   };
 
-  // Remove open Remove button from member list
-  const renderMember = ({ item }: any) => {
-    const isMe = item.user.id === user?.id;
-    const isOwnerMember = item.user.id === group.ownerId;
-    const { owes, owed } = isMe
-      ? { owes: 0, owed: 0 }
-      : computeMemberBalance(item.user.id);
-    const net = owes - owed;
-    const canSettleMember = !isMe && net < 0;
-
-    return (
-      <View style={styles.memberItem}>
-        <TouchableOpacity
-          style={styles.memberMainPressable}
-          disabled={!canSettleMember}
-          onPress={() => openSettleForUser(item.user.id)}
-          activeOpacity={canSettleMember ? 0.85 : 1}
-        >
-          {item.user.imageUrl ? (
-            <Image
-              source={{ uri: item.user.imageUrl }}
-              style={styles.memberAvatarImage}
-            />
-          ) : (
-            <View style={styles.memberAvatar}>
-              <AppText style={styles.memberAvatarText}>
-                {item.user.name?.charAt(0).toUpperCase() || '?'}
-              </AppText>
-            </View>
-          )}
-          <View style={styles.memberInfo}>
-            <AppText style={styles.memberName}>
-              {item.user.name}
-              {isMe ? ' (You)' : ''}
-            </AppText>
-            <View style={styles.memberMetaRow}>
-              <AppText style={styles.memberUsername}>
-                @{item.user.username || 'user'}
-              </AppText>
-              {isOwnerMember ? (
-                <View style={styles.ownerBadge}>
-                  <AppText style={styles.ownerBadgeText}>Owner</AppText>
-                </View>
-              ) : null}
-            </View>
-          </View>
-        </TouchableOpacity>
-        {/* Remove button is now only in EditGroupSheet */}
-      </View>
-    );
-  };
-
-  const renderExpense = ({ item }: any) => (
-    <TouchableOpacity
-      style={styles.expenseCard}
-      onPress={() => navigation.navigate('ExpenseDetail', { expenseId: item.id })}
-      activeOpacity={0.85}
-    >
-      <View style={styles.expenseInfo}>
-        <AppText style={styles.expenseDesc}>{item.note || 'Expense'}</AppText>
-        <AppText style={styles.expenseBy}>
-          by{' '}
-          {item.createdBy?.id === user?.id
-            ? 'You'
-            : item.createdBy?.name || 'Unknown'}
-        </AppText>
-      </View>
-      <View style={styles.expenseRight}>
-        <AppText style={styles.expenseAmount}>
-          {item.currency === 'INR' ? '\u20B9' : item.currency || '\u20B9'}
-          {parseFloat(item.totalAmount).toFixed(2)}
-        </AppText>
-        <AppText style={styles.expenseChevron}>{'›'}</AppText>
-      </View>
-    </TouchableOpacity>
-  );
-
-  const listHeader = (
-    <View>
+  return (
+    <View style={styles.container}>
       <View style={styles.groupHeader}>
         {group.imageUrl ? (
           <Image source={{ uri: group.imageUrl }} style={styles.groupImage} />
@@ -454,105 +642,96 @@ const GroupDetail: React.FC<Props> = ({ route, navigation }) => {
             </AppText>
           </View>
         )}
+
         <AppText style={styles.groupName}>{group.name}</AppText>
+
         {group.description ? (
           <AppText style={styles.groupDescription}>{group.description}</AppText>
         ) : null}
-        <View style={styles.ownerInfoPill}>
-          <Icon name="UserCheck" width={14} height={14} color="#4f46e5" />
-          <AppText style={styles.ownerInfoText}>Owner: {ownerDisplayName}</AppText>
-        </View>
-      </View>
 
-      <View style={styles.sectionHeader}>
-        <View style={styles.sectionHeaderLeft}>
-          <Icon name="Groups" width={20} height={20} color="#1e293b" />
-          <AppText style={styles.sectionTitle}>
-            Members ({group.members.length})
-          </AppText>
-        </View>
-        {isGroupOwner ? (
+        <View style={styles.groupActionsRow}>
+          {isGroupOwner ? (
+            <TouchableOpacity
+              style={[styles.groupActionBtn, styles.inviteBtn]}
+              onPress={() => setInviteSheetVisible(true)}
+              activeOpacity={0.88}
+            >
+              <Icon name="PlusCircle" width={16} height={16} color="#ffffff" />
+              <AppText style={styles.groupActionBtnText}>Invite</AppText>
+            </TouchableOpacity>
+          ) : null}
+
           <TouchableOpacity
-            style={styles.inviteBtn}
-            onPress={() => setInviteSheetVisible(true)}
-            activeOpacity={0.85}
-          >
-            <Icon name="PlusCircle" width={16} height={16} />
-            <AppText style={styles.inviteBtnText}>Invite</AppText>
-          </TouchableOpacity>
-        ) : null}
-      </View>
-
-      <FlatList
-        data={sortedMembers}
-        keyExtractor={(item: any) => item.id}
-        renderItem={renderMember}
-        scrollEnabled={false}
-        style={styles.membersList}
-      />
-
-      <View style={styles.sectionHeader}>
-        <View style={styles.sectionHeaderLeft}>
-          <Icon name="MoneyWallet" width={20} height={20} color="#1e293b" />
-          <AppText style={styles.sectionTitle}>Expenses ({expenses.length})</AppText>
-        </View>
-        <TouchableOpacity
-          style={styles.addExpenseBtn}
-          onPress={handleOpenAddExpense}
-          activeOpacity={0.85}
-        >
-          <Icon name="PlusSquare" width={15} height={15} color="#ffffff" />
-          <AppText style={styles.addExpenseBtnText}>Add Expense</AppText>
-        </TouchableOpacity>
-      </View>
-
-      {loadingExpenses ? (
-        <ActivityIndicator
-          size="small"
-          color="#667eea"
-          style={styles.expenseLoader}
-        />
-      ) : null}
-
-      {!loadingExpenses && expenses.length === 0 ? (
-        <View style={styles.emptyExpensesCard}>
-          <View style={styles.emptyExpensesIconWrap}>
-            <Icon name="Bill" width={30} height={30} color="#4f46e5" />
-          </View>
-          <AppText style={styles.emptyExpensesTitle}>No expenses yet</AppText>
-          <AppText style={styles.emptyExpensesSubtitle}>
-            Start this group off with the first shared expense so balances and
-            repayments show up here.
-          </AppText>
-          <TouchableOpacity
-            style={styles.emptyExpensesBtn}
+            style={[styles.groupActionBtn, styles.addExpenseBtn]}
             onPress={handleOpenAddExpense}
-            activeOpacity={0.9}
+            activeOpacity={0.88}
           >
-            <Icon name="PlusSquare" width={16} height={16} color="#ffffff" />
-            <AppText style={styles.emptyExpensesBtnText}>
-              Add first expense
-            </AppText>
+            <Icon name="PlusSquare" width={15} height={15} color="#ffffff" />
+            <AppText style={styles.groupActionBtnText}>Add Expense</AppText>
           </TouchableOpacity>
         </View>
-      ) : null}
-    </View>
-  );
+      </View>
 
-  return (
-    <View style={styles.container}>
-      <FlatList
-        data={expenses}
-        keyExtractor={(item: any) => item.id}
-        renderItem={renderExpense}
-        ListHeaderComponent={listHeader}
-        refreshing={loadingGroup || loadingExpenses}
-        onRefresh={() => {
-          refetchGroup();
-          refetchExpenses();
+      <GroupDetailTabCountsContext.Provider
+        value={{
+          membersCount: sortedMembers.length,
+          expensesCount: expenses.length,
         }}
-        contentContainerStyle={styles.listContent}
-      />
+      >
+        <View style={styles.tabsContainer}>
+          <DetailTab.Navigator
+            screenOptions={{
+              tabBarActiveTintColor: '#4f46e5',
+              tabBarInactiveTintColor: '#64748b',
+              tabBarIndicatorStyle: styles.tabBarIndicator,
+              tabBarItemStyle: styles.tabBarItem,
+              tabBarStyle: styles.tabBar,
+              tabBarPressColor: 'transparent',
+              lazy: true,
+            }}
+          >
+            <DetailTab.Screen
+              name="Members"
+              options={{
+                tabBarLabel: renderMembersTabLabel,
+              }}
+            >
+              {() => (
+                <MembersTabContent
+                  currentUserId={user?.id}
+                  members={sortedMembers}
+                  ownerId={group.ownerId}
+                  onRefresh={handleRefresh}
+                  onSettleMember={openSettleForUser}
+                  refreshing={loadingGroup || loadingExpenses}
+                  computeMemberBalance={computeMemberBalance}
+                />
+              )}
+            </DetailTab.Screen>
+
+            <DetailTab.Screen
+              name="Expenses"
+              options={{
+                tabBarLabel: renderExpensesTabLabel,
+              }}
+            >
+              {() => (
+                <ExpensesTabContent
+                  expenses={expenses}
+                  loading={loadingExpenses}
+                  onAddExpense={handleOpenAddExpense}
+                  onOpenExpense={expenseId =>
+                    navigation.navigate('ExpenseDetail', { expenseId })
+                  }
+                  onRefresh={handleRefresh}
+                  refreshing={loadingGroup || loadingExpenses}
+                  currentUserId={user?.id}
+                />
+              )}
+            </DetailTab.Screen>
+          </DetailTab.Navigator>
+        </View>
+      </GroupDetailTabCountsContext.Provider>
 
       <InviteSheet
         visible={inviteSheetVisible}
@@ -574,33 +753,6 @@ const GroupDetail: React.FC<Props> = ({ route, navigation }) => {
         members={editSheetMembers}
         onRemoveMember={handleRemoveMember}
         removingMemberId={removingMemberId}
-      />
-
-      <AppModal
-        visible={Boolean(memberToRemove)}
-        onClose={() => {
-          if (!removingMember) {
-            setMemberToRemove(null);
-          }
-        }}
-        closeOnBackdropPress={!removingMember}
-        title="Remove Member"
-        description={
-          memberToRemove
-            ? `Remove ${memberToRemove.name} from this group? They will lose access to this group and its chat.`
-            : ''
-        }
-        secondaryButton={{
-          text: 'Cancel',
-          onPress: () => setMemberToRemove(null),
-          disabled: removingMember,
-        }}
-        primaryButton={{
-          text: removingMember ? 'Removing...' : 'Remove',
-          variant: 'danger',
-          onPress: () => handleRemoveMember(memberToRemove!),
-          disabled: removingMember,
-        }}
       />
 
       <SettleSheet
@@ -636,14 +788,12 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#ef4444',
   },
-  listContent: {
-    paddingBottom: 40,
-  },
   groupHeader: {
     alignItems: 'center',
-    paddingVertical: 28,
+    paddingTop: 24,
+    paddingBottom: 20,
     paddingHorizontal: 20,
-    backgroundColor: '#fff',
+    backgroundColor: '#ffffff',
     borderBottomWidth: 1,
     borderBottomColor: '#e2e8f0',
   },
@@ -686,12 +836,15 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: '800',
     color: '#1e293b',
+    textAlign: 'center',
   },
   groupDescription: {
     fontSize: 14,
+    lineHeight: 21,
     color: '#64748b',
-    marginTop: 4,
+    marginTop: 6,
     textAlign: 'center',
+    maxWidth: 320,
   },
   ownerInfoPill: {
     marginTop: 14,
@@ -710,12 +863,93 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
   },
-  sectionHeader: {
+  groupActionsRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: 10,
+    marginTop: 16,
+  },
+  groupActionBtn: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 999,
+    flexDirection: 'row',
     alignItems: 'center',
+    gap: 8,
+  },
+  groupActionBtnText: {
+    color: '#ffffff',
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  inviteBtn: {
+    backgroundColor: '#667eea',
+  },
+  addExpenseBtn: {
+    backgroundColor: '#10b981',
+  },
+  tabsContainer: {
+    flex: 1,
+  },
+  tabBar: {
+    backgroundColor: '#ffffff',
+    minHeight: 48,
+    elevation: 0,
+    shadowOpacity: 0,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e2e8f0',
+  },
+  tabBarItem: {
+    padding: 0,
+    minHeight: 48,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  tabBarIndicator: {
+    backgroundColor: '#4f46e5',
+    height: 3,
+    borderRadius: 999,
+  },
+  tabLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  tabLabelText: {
+    fontSize: 13,
+    fontWeight: '600',
+    lineHeight: 14,
+  },
+  tabCountPill: {
+    minWidth: 22,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 999,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#f1f5f9',
+  },
+  tabCountPillActive: {
+    backgroundColor: '#eef2ff',
+  },
+  tabCountText: {
+    fontSize: 11,
+    fontWeight: '700',
+    lineHeight: 12,
+  },
+  tabCountTextActive: {
+    color: '#4f46e5',
+  },
+  tabListContent: {
+    paddingBottom: 28,
+    paddingTop: 14,
+  },
+  tabSectionHeader: {
     paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingTop: 12,
+    paddingBottom: 14,
   },
   sectionHeaderLeft: {
     flexDirection: 'row',
@@ -724,82 +958,83 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '700',
     color: '#1e293b',
   },
-  inviteBtn: {
-    backgroundColor: '#667eea',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 50,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  inviteBtnText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  addExpenseBtn: {
-    backgroundColor: '#10b981',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 50,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  addExpenseBtnText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  membersList: {
-    marginHorizontal: 16,
-  },
   memberItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    marginHorizontal: 16,
+    marginBottom: 10,
     backgroundColor: '#fff',
-    padding: 14,
-    borderRadius: 12,
-    marginBottom: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+    borderRadius: 14,
     borderWidth: 1,
     borderColor: '#f1f5f9',
   },
   memberMainPressable: {
-    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
   },
-  memberAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+  memberAvatarWrap: {
+    width: 78,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 14,
+  },
+  memberAvatarFrame: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    overflow: 'hidden',
     backgroundColor: '#e0e7ff',
+  },
+  memberAvatarFrameOwner: {
+    borderWidth: 2,
+    borderColor: '#bfdbfe',
+  },
+  memberAvatar: {
+    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+    backgroundColor: '#e0e7ff',
   },
   memberAvatarImage: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    marginRight: 12,
+    width: '100%',
+    height: '100%',
     backgroundColor: '#e2e8f0',
   },
   memberAvatarText: {
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: 15,
+    fontWeight: '500',
     color: '#667eea',
+  },
+  memberOwnerBadge: {
+    position: 'absolute',
+    bottom: -8,
+    alignSelf: 'center',
+    minWidth: 65,
+    height: 22,
+    borderRadius: 999,
+    backgroundColor: '#eff6ff',
+    borderWidth: 1.5,
+    borderColor: '#60a5fa',
+    paddingHorizontal: 5,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  memberOwnerBadgeText: {
+    color: '#2563eb',
+    fontSize: 7,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+    textAlign: 'center',
   },
   memberInfo: {
     flex: 1,
   },
   memberName: {
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: 15,
+    fontWeight: '500',
     color: '#1e293b',
   },
   memberMetaRow: {
@@ -807,69 +1042,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flexWrap: 'wrap',
     gap: 8,
-    marginTop: 3,
   },
   memberUsername: {
-    fontSize: 11,
+    fontSize: 12,
     color: '#64748b',
-  },
-  ownerBadge: {
-    backgroundColor: '#eef2ff',
-    borderWidth: 1,
-    borderColor: '#c7d2fe',
-    borderRadius: 999,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-  },
-  ownerBadgeText: {
-    color: '#4338ca',
-    fontSize: 10,
-    fontWeight: '700',
-  },
-  memberActions: {
-    marginLeft: 12,
-    alignItems: 'flex-end',
-    gap: 8,
-  },
-  balanceBadge: {
-    paddingVertical: 4,
-    borderRadius: 6,
-  },
-  balanceOwes: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: '#16a34a',
-    backgroundColor: '#dcffe7',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 6,
-    overflow: 'hidden',
-  },
-  balanceOwed: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: '#dc2626',
-    backgroundColor: '#fef2f2',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 6,
-    overflow: 'hidden',
-  },
-  removeMemberBtn: {
-    backgroundColor: '#fef2f2',
-    borderWidth: 1,
-    borderColor: '#fecaca',
-    borderRadius: 999,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-  },
-  removeMemberBtnDisabled: {
-    opacity: 0.6,
-  },
-  removeMemberBtnText: {
-    color: '#dc2626',
-    fontSize: 11,
-    fontWeight: '700',
   },
   expenseCard: {
     flexDirection: 'row',
@@ -908,7 +1084,6 @@ const styles = StyleSheet.create({
   expenseChevron: {
     fontSize: 18,
     color: '#94a3b8',
-    fontWeight: '700',
   },
   expenseLoader: {
     padding: 20,

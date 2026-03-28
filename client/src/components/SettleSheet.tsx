@@ -3,9 +3,12 @@ import { StyleSheet, TouchableOpacity, View } from 'react-native';
 import {
   BottomSheetBackdrop,
   BottomSheetBackdropProps,
+  BottomSheetFooter,
+  type BottomSheetFooterProps,
   BottomSheetModal,
   BottomSheetView,
 } from '@gorhom/bottom-sheet';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AppText from './AppText';
 import AppTextInput from './AppTextInput';
 import AppModal from './Modal';
@@ -38,6 +41,7 @@ export default function SettleSheet({
   paymentModes = ['upi', 'cash'],
 }: SettleSheetProps) {
   const bottomSheetRef = useRef<BottomSheetModal>(null);
+  const insets = useSafeAreaInsets();
   const snapPoints = useMemo(() => ['62%'], []);
   const [showAlreadyPaidInfo, setShowAlreadyPaidInfo] = useState(false);
 
@@ -52,6 +56,28 @@ export default function SettleSheet({
       />
     ),
     [],
+  );
+
+  const renderFooter = useCallback(
+    (props: BottomSheetFooterProps) => (
+      <BottomSheetFooter
+        {...props}
+        bottomInset={0}
+        style={{ ...styles.footer, paddingBottom: insets.bottom + 16 }}
+      >
+        <TouchableOpacity
+          style={[styles.settleBtn, settling && styles.settleBtnDisabled]}
+          onPress={onSettle}
+          disabled={settling}
+          activeOpacity={0.9}
+        >
+          <AppText style={styles.settleBtnText}>
+            {settling ? 'Settling...' : 'Settle Shares'}
+          </AppText>
+        </TouchableOpacity>
+      </BottomSheetFooter>
+    ),
+    [insets.bottom, onSettle, settling],
   );
 
   useEffect(() => {
@@ -72,6 +98,9 @@ export default function SettleSheet({
         snapPoints={snapPoints}
         animateOnMount
         enablePanDownToClose
+        enableOverDrag={false}
+        topInset={insets.top + 8}
+        footerComponent={renderFooter}
         backdropComponent={renderBackdrop}
         backgroundStyle={styles.bottomSheetBackground}
         handleIndicatorStyle={styles.bottomSheetHandle}
@@ -81,85 +110,74 @@ export default function SettleSheet({
         onDismiss={onClose}
       >
         <BottomSheetView style={styles.bottomSheetContent}>
-          <AppText style={styles.modalTitle}>Complete Settlement</AppText>
-          <AppText style={styles.modalSubtitle}>
-            Choose amount and payment mode.
-          </AppText>
+            <AppText style={styles.modalTitle}>Complete Settlement</AppText>
+            <AppText style={styles.modalSubtitle}>
+              Choose amount and payment mode.
+            </AppText>
 
-          <AppText style={styles.label}>Amount to pay</AppText>
-          <AppTextInput
-            style={styles.input}
-            value={amount}
-            onChangeText={setAmount}
-            placeholder="0.00"
-            keyboardType="numeric"
-            placeholderTextColor="#94a3b8"
-          />
+            <AppText style={styles.label}>Amount to pay</AppText>
+            <AppTextInput
+              style={styles.input}
+              value={amount}
+              onChangeText={setAmount}
+              placeholder="0.00"
+              keyboardType="numeric"
+              placeholderTextColor="#94a3b8"
+            />
 
-          <AppText style={styles.label}>Payment mode</AppText>
-          <View style={styles.paymentModes}>
-            {paymentModes.map(mode => (
+            <AppText style={styles.label}>Payment mode</AppText>
+            <View style={styles.paymentModes}>
+              {paymentModes.map(mode => (
+                <TouchableOpacity
+                  key={mode}
+                  style={[
+                    styles.modeBtn,
+                    paymentMode === mode && styles.modeBtnSelected,
+                  ]}
+                  onPress={() => setPaymentMode(mode)}
+                  activeOpacity={0.85}
+                >
+                  <AppText
+                    style={[
+                      styles.modeBtnText,
+                      paymentMode === mode && styles.modeBtnTextSelected,
+                    ]}
+                  >
+                    {mode.toUpperCase()}
+                  </AppText>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <View style={styles.alreadyPaidRow}>
               <TouchableOpacity
-                key={mode}
-                style={[
-                  styles.modeBtn,
-                  paymentMode === mode && styles.modeBtnSelected,
-                ]}
-                onPress={() => setPaymentMode(mode)}
+                style={styles.alreadyPaidToggle}
+                onPress={() => setAlreadyPaid(prev => !prev)}
                 activeOpacity={0.85}
               >
-                <AppText
+                <View
                   style={[
-                    styles.modeBtnText,
-                    paymentMode === mode && styles.modeBtnTextSelected,
+                    styles.alreadyPaidCheckbox,
+                    alreadyPaid && styles.alreadyPaidCheckboxSelected,
                   ]}
                 >
-                  {mode.toUpperCase()}
-                </AppText>
+                  {alreadyPaid ? (
+                    <AppText style={styles.alreadyPaidCheckboxTick}>
+                      {'\u2713'}
+                    </AppText>
+                  ) : null}
+                </View>
+                <AppText style={styles.alreadyPaidText}>Already paid</AppText>
               </TouchableOpacity>
-            ))}
-          </View>
 
-          <View style={styles.alreadyPaidRow}>
-            <TouchableOpacity
-              style={styles.alreadyPaidToggle}
-              onPress={() => setAlreadyPaid(prev => !prev)}
-              activeOpacity={0.85}
-            >
-              <View
-                style={[
-                  styles.alreadyPaidCheckbox,
-                  alreadyPaid && styles.alreadyPaidCheckboxSelected,
-                ]}
+              <TouchableOpacity
+                style={styles.infoBtn}
+                onPress={() => setShowAlreadyPaidInfo(true)}
+                activeOpacity={0.85}
               >
-                {alreadyPaid ? (
-                  <AppText style={styles.alreadyPaidCheckboxTick}>
-                    {'\u2713'}
-                  </AppText>
-                ) : null}
-              </View>
-              <AppText style={styles.alreadyPaidText}>Already paid</AppText>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.infoBtn}
-              onPress={() => setShowAlreadyPaidInfo(true)}
-              activeOpacity={0.85}
-            >
-              <AppText style={styles.infoBtnText}>i</AppText>
-            </TouchableOpacity>
-          </View>
-
-          <TouchableOpacity
-            style={[styles.settleBtn, settling && styles.settleBtnDisabled]}
-            onPress={onSettle}
-            disabled={settling}
-            activeOpacity={0.9}
-          >
-            <AppText style={styles.settleBtnText}>
-              {settling ? 'Settling...' : 'Settle Shares'}
-            </AppText>
-          </TouchableOpacity>
+                <AppText style={styles.infoBtnText}>i</AppText>
+              </TouchableOpacity>
+            </View>
         </BottomSheetView>
       </BottomSheetModal>
 
@@ -193,7 +211,15 @@ const styles = StyleSheet.create({
   bottomSheetContent: {
     paddingHorizontal: 18,
     paddingTop: 6,
-    paddingBottom: 26,
+    paddingBottom: 96,
+  },
+  footer: {
+    paddingHorizontal: 18,
+    paddingTop: 12,
+    paddingBottom: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#e2e8f0',
+    backgroundColor: '#ffffff',
   },
   modalTitle: {
     color: '#0f172a',
@@ -294,7 +320,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   settleBtn: {
-    marginTop: 22,
     backgroundColor: '#4f46e5',
     borderRadius: 14,
     paddingVertical: 15,

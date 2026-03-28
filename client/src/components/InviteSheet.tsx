@@ -9,9 +9,13 @@ import {
 import {
   BottomSheetBackdrop,
   BottomSheetBackdropProps,
+  BottomSheetFooter,
+  type BottomSheetFooterProps,
   BottomSheetModal,
   BottomSheetScrollView,
+  BottomSheetView,
 } from '@gorhom/bottom-sheet';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AppText from './AppText';
 import AppTextInput from './AppTextInput';
 import { useSearchUsers } from '../services';
@@ -41,6 +45,7 @@ export default function InviteSheet({
   excludedUserIds = [],
 }: InviteSheetProps) {
   const bottomSheetRef = useRef<BottomSheetModal>(null);
+  const insets = useSafeAreaInsets();
   const snapPoints = useMemo(() => ['76%'], []);
   const [query, setQuery] = useState('');
   const [selectedUsers, setSelectedUsers] = useState<InviteSearchUser[]>([]);
@@ -73,6 +78,46 @@ export default function InviteSheet({
       />
     ),
     [],
+  );
+
+  const renderFooter = useCallback(
+    (props: BottomSheetFooterProps) => (
+      <BottomSheetFooter
+        {...props}
+        bottomInset={0}
+        style={{ ...styles.footer, paddingBottom: insets.bottom + 16 }}
+      >
+        <View style={styles.actions}>
+          <TouchableOpacity
+            style={[styles.actionBtn, styles.secondaryBtn]}
+            onPress={onClose}
+            disabled={inviting}
+            activeOpacity={0.85}
+          >
+            <AppText style={styles.secondaryBtnText}>Cancel</AppText>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[
+              styles.actionBtn,
+              styles.primaryBtn,
+              selectedUsers.length === 0 && styles.primaryBtnDisabled,
+            ]}
+            onPress={() => onInviteUsers(selectedUsers)}
+            disabled={inviting || selectedUsers.length === 0}
+            activeOpacity={0.9}
+          >
+            <AppText style={styles.primaryBtnText}>
+              {inviting
+                ? 'Sending...'
+                : selectedUsers.length > 1
+                ? `Invite ${selectedUsers.length} users`
+                : 'Send Invite'}
+            </AppText>
+          </TouchableOpacity>
+        </View>
+      </BottomSheetFooter>
+    ),
+    [insets.bottom, inviting, onClose, onInviteUsers, selectedUsers],
   );
 
   useEffect(() => {
@@ -129,6 +174,9 @@ export default function InviteSheet({
       snapPoints={snapPoints}
       animateOnMount
       enablePanDownToClose
+      enableOverDrag={false}
+      topInset={insets.top + 8}
+      footerComponent={renderFooter}
       backdropComponent={renderBackdrop}
       backgroundStyle={styles.sheetBackground}
       handleIndicatorStyle={styles.sheetHandle}
@@ -137,154 +185,129 @@ export default function InviteSheet({
       android_keyboardInputMode="adjustResize"
       onDismiss={onClose}
     >
-      <BottomSheetScrollView
-        contentContainerStyle={styles.content}
-        keyboardShouldPersistTaps="handled"
-      >
-        <AppText style={styles.title}>Invite Members</AppText>
-        <AppText style={styles.subtitle}>
-          Search by username or email
-        </AppText>
+      <BottomSheetView style={styles.sheetContainer}>
+        <BottomSheetScrollView
+          style={styles.scrollArea}
+          contentContainerStyle={styles.content}
+          keyboardShouldPersistTaps="handled"
+          bounces={false}
+        >
+          <AppText style={styles.title}>Invite Members</AppText>
+          <AppText style={styles.subtitle}>
+            Search by username or email
+          </AppText>
 
-        <AppTextInput
-          style={styles.input}
-          placeholder="Enter username or email"
-          value={query}
-          onChangeText={setQuery}
-          autoCapitalize="none"
-          autoCorrect={false}
-          placeholderTextColor="#94a3b8"
-        />
+          <AppTextInput
+            style={styles.input}
+            placeholder="Enter username or email"
+            value={query}
+            onChangeText={setQuery}
+            autoCapitalize="none"
+            autoCorrect={false}
+            placeholderTextColor="#94a3b8"
+          />
 
-        {selectedUsers.length > 0 ? (
+          {selectedUsers.length > 0 ? (
+            <View style={styles.section}>
+              <AppText style={styles.sectionTitle}>
+                Selected ({selectedUsers.length})
+              </AppText>
+              <View style={styles.selectedList}>
+                {selectedUsers.map(user => (
+                  <TouchableOpacity
+                    key={user.id}
+                    style={[styles.resultCard, styles.selectedCard]}
+                    onPress={() => handleRemoveUser(user.id)}
+                    activeOpacity={0.85}
+                  >
+                    <View style={styles.userInfoRow}>
+                      {user.imageUrl ? (
+                        <Image
+                          source={{ uri: user.imageUrl }}
+                          style={styles.avatarImage}
+                        />
+                      ) : (
+                        <View style={styles.avatarFallback}>
+                          <AppText style={styles.avatarText}>
+                            {user.name.charAt(0).toUpperCase()}
+                          </AppText>
+                        </View>
+                      )}
+                      <View style={styles.userTextWrap}>
+                        <AppText style={styles.name}>{user.name}</AppText>
+                        <AppText style={styles.username}>
+                          {getUserMeta(user)}
+                        </AppText>
+                      </View>
+                    </View>
+                    <View style={[styles.checkbox, styles.checkboxChecked]}>
+                      <AppText style={styles.checkboxInner}>{'\u2713'}</AppText>
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+          ) : null}
+
           <View style={styles.section}>
-            <AppText style={styles.sectionTitle}>
-              Selected ({selectedUsers.length})
-            </AppText>
-            <View style={styles.selectedList}>
-              {selectedUsers.map(user => (
-                <TouchableOpacity
-                  key={user.id}
-                  style={[styles.resultCard, styles.selectedCard]}
-                  onPress={() => handleRemoveUser(user.id)}
-                  activeOpacity={0.85}
-                >
-                  <View style={styles.userInfoRow}>
-                    {user.imageUrl ? (
-                      <Image
-                        source={{ uri: user.imageUrl }}
-                        style={styles.avatarImage}
-                      />
-                    ) : (
-                      <View style={styles.avatarFallback}>
-                        <AppText style={styles.avatarText}>
-                          {user.name.charAt(0).toUpperCase()}
+            <AppText style={styles.sectionTitle}>Found users</AppText>
+
+            {!canSearch ? (
+              <AppText style={styles.helperText}>
+                Type at least 3 characters to search.
+              </AppText>
+            ) : null}
+
+            {canSearch && searching ? (
+              <View style={styles.searchState}>
+                <ActivityIndicator size="small" color="#4f46e5" />
+                <AppText style={styles.searchStateText}>Searching...</AppText>
+              </View>
+            ) : null}
+
+            {canSearch && !searching && searchResults.length === 0 ? (
+              <AppText style={styles.helperText}>
+                No additional users found for this search.
+              </AppText>
+            ) : null}
+
+            {canSearch && !searching && searchResults.length > 0 ? (
+              <View style={styles.resultsList}>
+                {searchResults.map(user => (
+                  <TouchableOpacity
+                    key={user.id}
+                    style={styles.resultCard}
+                    onPress={() => handleSelectUser(user)}
+                    activeOpacity={0.85}
+                  >
+                    <View style={styles.userInfoRow}>
+                      {user.imageUrl ? (
+                        <Image
+                          source={{ uri: user.imageUrl }}
+                          style={styles.avatarImage}
+                        />
+                      ) : (
+                        <View style={styles.avatarFallback}>
+                          <AppText style={styles.avatarText}>
+                            {user.name.charAt(0).toUpperCase()}
+                          </AppText>
+                        </View>
+                      )}
+                      <View style={styles.userTextWrap}>
+                        <AppText style={styles.name}>{user.name}</AppText>
+                        <AppText style={styles.username}>
+                          {getUserMeta(user)}
                         </AppText>
                       </View>
-                    )}
-                    <View style={styles.userTextWrap}>
-                      <AppText style={styles.name}>{user.name}</AppText>
-                      <AppText style={styles.username}>
-                        {getUserMeta(user)}
-                      </AppText>
                     </View>
-                  </View>
-                  <View style={[styles.checkbox, styles.checkboxChecked]}>
-                    <AppText style={styles.checkboxInner}>✓</AppText>
-                  </View>
-                </TouchableOpacity>
-              ))}
-            </View>
+                    <View style={styles.checkbox} />
+                  </TouchableOpacity>
+                ))}
+              </View>
+            ) : null}
           </View>
-        ) : null}
-
-        <View style={styles.section}>
-          <AppText style={styles.sectionTitle}>Found users</AppText>
-
-          {!canSearch ? (
-            <AppText style={styles.helperText}>
-              Type at least 3 characters to search.
-            </AppText>
-          ) : null}
-
-          {canSearch && searching ? (
-            <View style={styles.searchState}>
-              <ActivityIndicator size="small" color="#4f46e5" />
-              <AppText style={styles.searchStateText}>Searching...</AppText>
-            </View>
-          ) : null}
-
-          {canSearch && !searching && searchResults.length === 0 ? (
-            <AppText style={styles.helperText}>
-              No additional users found for this search.
-            </AppText>
-          ) : null}
-
-          {canSearch && !searching && searchResults.length > 0 ? (
-            <View style={styles.resultsList}>
-              {searchResults.map(user => (
-                <TouchableOpacity
-                  key={user.id}
-                  style={styles.resultCard}
-                  onPress={() => handleSelectUser(user)}
-                  activeOpacity={0.85}
-                >
-                  <View style={styles.userInfoRow}>
-                    {user.imageUrl ? (
-                      <Image
-                        source={{ uri: user.imageUrl }}
-                        style={styles.avatarImage}
-                      />
-                    ) : (
-                      <View style={styles.avatarFallback}>
-                        <AppText style={styles.avatarText}>
-                          {user.name.charAt(0).toUpperCase()}
-                        </AppText>
-                      </View>
-                    )}
-                    <View style={styles.userTextWrap}>
-                      <AppText style={styles.name}>{user.name}</AppText>
-                      <AppText style={styles.username}>
-                        {getUserMeta(user)}
-                      </AppText>
-                    </View>
-                  </View>
-                  <View style={styles.checkbox} />
-                </TouchableOpacity>
-              ))}
-            </View>
-          ) : null}
-        </View>
-
-        <View style={styles.actions}>
-          <TouchableOpacity
-            style={[styles.actionBtn, styles.secondaryBtn]}
-            onPress={onClose}
-            disabled={inviting}
-            activeOpacity={0.85}
-          >
-            <AppText style={styles.secondaryBtnText}>Cancel</AppText>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[
-              styles.actionBtn,
-              styles.primaryBtn,
-              selectedUsers.length === 0 && styles.primaryBtnDisabled,
-            ]}
-            onPress={() => onInviteUsers(selectedUsers)}
-            disabled={inviting || selectedUsers.length === 0}
-            activeOpacity={0.9}
-          >
-            <AppText style={styles.primaryBtnText}>
-              {inviting
-                ? 'Sending...'
-                : selectedUsers.length > 1
-                ? `Invite ${selectedUsers.length} users`
-                : 'Send Invite'}
-            </AppText>
-          </TouchableOpacity>
-        </View>
-      </BottomSheetScrollView>
+        </BottomSheetScrollView>
+      </BottomSheetView>
     </BottomSheetModal>
   );
 }
@@ -302,10 +325,16 @@ const styles = StyleSheet.create({
     width: 44,
     height: 5,
   },
+  sheetContainer: {
+    flex: 1,
+  },
+  scrollArea: {
+    flex: 1,
+  },
   content: {
     paddingHorizontal: 20,
     paddingTop: 6,
-    paddingBottom: 28,
+    paddingBottom: 120,
   },
   title: {
     color: '#0f172a',
@@ -429,11 +458,18 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  footer: {
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#e2e8f0',
+    backgroundColor: '#ffffff',
+  },
   actions: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
     gap: 10,
-    marginTop: 24,
   },
   actionBtn: {
     minWidth: 110,

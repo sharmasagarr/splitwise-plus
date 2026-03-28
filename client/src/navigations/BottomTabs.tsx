@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
 import {
   View,
   StyleSheet,
@@ -6,6 +6,8 @@ import {
   Platform,
   TouchableOpacity,
   Text as RNText,
+  Animated,
+  Easing,
 } from 'react-native';
 import {
   NavigatorScreenParams,
@@ -40,6 +42,7 @@ export type RootTabParamList = {
 };
 
 const Tab = createBottomTabNavigator<RootTabParamList>();
+const ACTIVE_TAB_CHIP_OPACITY = '20';
 
 const TabIcon = ({
   name,
@@ -51,19 +54,55 @@ const TabIcon = ({
   color: string;
   focused: boolean;
   theme: any;
-}) => (
-  <View
-    key={`${name}-${focused}`}
-    style={[
-      styles.iconContainer,
-      focused
-        ? { backgroundColor: theme.primary + '20' }
-        : styles.iconTransparent,
-    ]}
-  >
-    <Icon name={name} width={22} height={22} color={color} />
-  </View>
-);
+}) => {
+  const chipAnimation = useRef(new Animated.Value(focused ? 1 : 0)).current;
+
+  useEffect(() => {
+    Animated.timing(chipAnimation, {
+      toValue: focused ? 1 : 0,
+      duration: focused ? 240 : 180,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
+  }, [chipAnimation, focused]);
+
+  const chipStyle = {
+    opacity: chipAnimation.interpolate({
+      inputRange: [0, 1],
+      outputRange: [0, 1],
+    }),
+    transform: [
+      {
+        scaleX: chipAnimation.interpolate({
+          inputRange: [0, 1],
+          outputRange: [0.35, 1],
+        }),
+      },
+      {
+        scaleY: chipAnimation.interpolate({
+          inputRange: [0, 1],
+          outputRange: [0.82, 1],
+        }),
+      },
+    ],
+  };
+
+  return (
+    <View style={styles.iconShell}>
+      <Animated.View
+        pointerEvents="none"
+        style={[
+          styles.iconBackground,
+          { backgroundColor: `${theme.primary}${ACTIVE_TAB_CHIP_OPACITY}` },
+          chipStyle,
+        ]}
+      />
+      <View style={styles.iconForeground}>
+        <Icon name={name} width={22} height={22} color={color} />
+      </View>
+    </View>
+  );
+};
 
 const HomeTabIcon = ({ color, focused }: any) => (
   <TabIcon name="Home" color={color} focused={focused} theme={lightTheme} />
@@ -303,6 +342,21 @@ const styles = StyleSheet.create({
     fontFamily: 'GoogleSans-Regular',
   },
   iconContainer: {
+    paddingHorizontal: 15,
+    paddingVertical: 5,
+    borderRadius: 100,
+  },
+  iconShell: {
+    position: 'relative',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 2,
+  },
+  iconBackground: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: 100,
+  },
+  iconForeground: {
     paddingHorizontal: 15,
     paddingVertical: 5,
     borderRadius: 100,

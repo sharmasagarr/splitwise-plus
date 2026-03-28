@@ -130,8 +130,9 @@ const styles = StyleSheet.create({
   },
   imagePlaceholderText: {
     color: '#4f46e5',
-    fontSize: 16,
-    fontWeight: '700',
+    fontSize: 14,
+    fontWeight: '600'
+    ,
     textAlign: 'center',
   },
   imagePlaceholderHint: {

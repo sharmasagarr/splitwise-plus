@@ -493,6 +493,7 @@ const Profile: React.FC = () => {
                   onPress={() => setIsEditing(true)}
                   style={styles.editButton}
                 >
+                  <Icon name="Pencil" width={14} height={14} color="#667eea" />
                   <AppText style={styles.editButtonText}>Edit Profile</AppText>
                 </TouchableOpacity>
               </>
@@ -785,7 +786,10 @@ const styles = StyleSheet.create({
     textDecorationLine: 'underline',
   },
   editButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
     alignSelf: 'center',
+    gap: 6,
     paddingHorizontal: 20,
     paddingVertical: 8,
     borderRadius: 20,

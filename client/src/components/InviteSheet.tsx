@@ -13,12 +13,12 @@ import {
   type BottomSheetFooterProps,
   BottomSheetModal,
   BottomSheetScrollView,
-  BottomSheetView,
 } from '@gorhom/bottom-sheet';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AppText from './AppText';
 import AppTextInput from './AppTextInput';
 import { useSearchUsers } from '../services';
+
 
 export type InviteSearchUser = {
   id: string;
@@ -28,6 +28,7 @@ export type InviteSearchUser = {
   imageUrl?: string | null;
 };
 
+
 type InviteSheetProps = {
   visible: boolean;
   onClose: () => void;
@@ -36,6 +37,7 @@ type InviteSheetProps = {
   groupName?: string | null;
   excludedUserIds?: string[];
 };
+
 
 export default function InviteSheet({
   visible,
@@ -137,14 +139,10 @@ export default function InviteSheet({
   }, [visible]);
 
   useEffect(() => {
-    if (!visible) {
-      return;
-    }
+    if (!visible) return;
 
     const trimmed = query.trim();
-    if (trimmed.length < 3) {
-      return;
-    }
+    if (trimmed.length < 3) return;
 
     const timer = setTimeout(() => {
       searchUsers({ variables: { query: trimmed } });
@@ -172,6 +170,7 @@ export default function InviteSheet({
       ref={bottomSheetRef}
       index={0}
       snapPoints={snapPoints}
+      enableDynamicSizing={false}
       animateOnMount
       enablePanDownToClose
       enableOverDrag={false}
@@ -185,7 +184,7 @@ export default function InviteSheet({
       android_keyboardInputMode="adjustResize"
       onDismiss={onClose}
     >
-      <BottomSheetView style={styles.sheetContainer}>
+      <View style={styles.container}>
         <BottomSheetScrollView
           style={styles.scrollArea}
           contentContainerStyle={styles.content}
@@ -307,10 +306,11 @@ export default function InviteSheet({
             ) : null}
           </View>
         </BottomSheetScrollView>
-      </BottomSheetView>
+      </View>
     </BottomSheetModal>
   );
 }
+
 
 const styles = StyleSheet.create({
   sheetBackground: {
@@ -325,7 +325,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 5,
   },
-  sheetContainer: {
+  container: {
     flex: 1,
   },
   scrollArea: {

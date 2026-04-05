@@ -6,12 +6,14 @@ export const CREATE_EXPENSE = gql`
     $description: String!
     $amount: Float!
     $participants: [String!]!
+    $shareAmounts: [Float!]
   ) {
     createExpense(
       groupId: $groupId
       description: $description
       amount: $amount
       participants: $participants
+      shareAmounts: $shareAmounts
     ) {
       id
       totalAmount

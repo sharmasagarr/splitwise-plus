@@ -239,7 +239,7 @@ export const expenseResolvers = {
   Mutation: {
     createExpense: async (
       _: any,
-      { groupId, description, amount, participants }: any,
+      { groupId, description, amount, participants, shareAmounts }: any,
       { prisma, user }: any,
     ) => {
       if (!user) throw new Error("Unauthorized");
@@ -253,19 +253,64 @@ export const expenseResolvers = {
       const uniqueParticipants: string[] = Array.from(
         new Set((participants as string[]).filter(Boolean)),
       );
-      if (!uniqueParticipants.includes(user.id)) {
+
+      const hasCustomShares = Array.isArray(shareAmounts) && shareAmounts.length > 0;
+
+      if (hasCustomShares && !uniqueParticipants.includes(user.id)) {
+        throw new Error("Current user must be included in participants");
+      }
+
+      if (!hasCustomShares && !uniqueParticipants.includes(user.id)) {
         uniqueParticipants.push(user.id);
       }
 
-      const splits = splitAmount(amount, uniqueParticipants.length);
+      const toPaise = (value: number) => Math.round(Number(value) * 100);
       const settlerId = user.id;
-      const settlerShare = splits[0];
-      const otherShares = splits.slice(1);
+
+      const resolvedShareAmounts = hasCustomShares
+        ? (shareAmounts as number[]).map(value => Number(value))
+        : null;
+
+      if (resolvedShareAmounts) {
+        if (resolvedShareAmounts.length !== uniqueParticipants.length) {
+          throw new Error("Custom share amounts must match the participant count");
+        }
+
+        const invalidShare = resolvedShareAmounts.some(
+          value => !Number.isFinite(value) || value < 0,
+        );
+        if (invalidShare) {
+          throw new Error("Custom share amounts must be valid non-negative numbers");
+        }
+
+        const totalSharePaise = resolvedShareAmounts.reduce(
+          (sum, value) => sum + toPaise(value),
+          0,
+        );
+        if (totalSharePaise !== toPaise(amount)) {
+          throw new Error("Custom share amounts must add up to the expense amount");
+        }
+      }
+
+      const splits = resolvedShareAmounts ?? splitAmount(amount, uniqueParticipants.length);
+      const settlerShare = resolvedShareAmounts
+        ? resolvedShareAmounts[uniqueParticipants.indexOf(settlerId)] ?? 0
+        : splits[0];
+      const otherShares = resolvedShareAmounts
+        ? uniqueParticipants
+            .map((participantId, index) =>
+              participantId === settlerId ? null : splits[index],
+            )
+            .filter((value): value is number => value !== null)
+        : splits.slice(1);
       let otherIndex = 0;
 
-      const shareInputs = uniqueParticipants.map((userId: string) => {
-        const shareAmount =
-          userId === settlerId ? settlerShare : (otherShares[otherIndex++] ?? settlerShare);
+      const shareInputs = uniqueParticipants.map((userId: string, index: number) => {
+        const shareAmount = resolvedShareAmounts
+          ? splits[index] ?? 0
+          : userId === settlerId
+          ? settlerShare
+          : (otherShares[otherIndex++] ?? settlerShare);
 
         return {
           userId,

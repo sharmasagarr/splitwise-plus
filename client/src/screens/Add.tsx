@@ -46,11 +46,11 @@ export default Add;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8fafc',
+    backgroundColor: '#ffffff',
   },
   tabBar: {
     backgroundColor: '#e0e7ff',
-    borderRadius: 12,
+    borderRadius: 50,
     marginHorizontal: 14,
     marginTop: 10,
     marginBottom: 8,
@@ -66,7 +66,7 @@ const styles = StyleSheet.create({
   },
   tabBarIndicator: {
     backgroundColor: 'rgba(79, 70, 229, 0.15)',
-    borderRadius: 12,
+    borderRadius: 50,
     height: '100%',
   },
   tabBarLabel: {

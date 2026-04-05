@@ -15,6 +15,7 @@ export const GET_GROUPS = gql`
         user {
           id
           name
+          username
           email
           imageUrl
         }

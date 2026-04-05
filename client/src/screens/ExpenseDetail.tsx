@@ -326,7 +326,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row', 
     alignItems: 'center', 
     gap: 8,
-    marginBottom: 12,
   },
   sectionTitle: {
     fontSize: 16,
@@ -352,6 +351,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
     borderRadius: 12,
     marginBottom: 8,
+    marginTop: 12,
     borderWidth: 1,
     borderColor: '#f1f5f9',
     overflow: 'hidden',

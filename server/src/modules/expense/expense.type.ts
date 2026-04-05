@@ -90,7 +90,13 @@ export const expenseTypeDefs = `#graphql
   }
 
   extend type Mutation {
-    createExpense(groupId: String!, description: String!, amount: Float!, participants: [String!]!): Expense!
+    createExpense(
+      groupId: String!
+      description: String!
+      amount: Float!
+      participants: [String!]!
+      shareAmounts: [Float!]
+    ): Expense!
     settleExpense(toUserId: String!, amount: Float!, paymentMode: String!, groupId: String): Settlement!
     settleSpecificShares(shareIds: [String!]!, amount: Float!, paymentMode: String!, groupId: String): Settlement!
   }

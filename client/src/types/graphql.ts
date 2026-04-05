@@ -197,6 +197,7 @@ export type MutationCreateExpenseArgs = {
   description: Scalars['String']['input'];
   groupId: Scalars['String']['input'];
   participants: Array<Scalars['String']['input']>;
+  shareAmounts?: InputMaybe<Array<Scalars['Float']['input']>>;
 };
 
 
@@ -481,6 +482,7 @@ export type CreateExpenseMutationVariables = Exact<{
   description: Scalars['String']['input'];
   amount: Scalars['Float']['input'];
   participants: Array<Scalars['String']['input']> | Scalars['String']['input'];
+  shareAmounts?: InputMaybe<Array<Scalars['Float']['input']> | Scalars['Float']['input']>;
 }>;
 
 
@@ -666,7 +668,7 @@ export type GetMyTransactionsQuery = { __typename?: 'Query', getMyTransactions: 
 export type GetGroupsQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type GetGroupsQuery = { __typename?: 'Query', getGroups: Array<{ __typename?: 'Group', id: string, name?: string | null, description?: string | null, imageUrl?: string | null, ownerId: string, createdAt: string, members: Array<{ __typename?: 'GroupMember', id: string, role: string, user: { __typename?: 'User', id: string, name: string, email: string, imageUrl?: string | null } }> }> };
+export type GetGroupsQuery = { __typename?: 'Query', getGroups: Array<{ __typename?: 'Group', id: string, name?: string | null, description?: string | null, imageUrl?: string | null, ownerId: string, createdAt: string, members: Array<{ __typename?: 'GroupMember', id: string, role: string, user: { __typename?: 'User', id: string, name: string, username: string, email: string, imageUrl?: string | null } }> }> };
 
 export type GetGroupDetailsQueryVariables = Exact<{
   id: Scalars['ID']['input'];

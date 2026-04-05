@@ -1,40 +1,48 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
-  ScrollView,
-  View,
-  TouchableWithoutFeedback,
-  TouchableOpacity,
   ActivityIndicator,
-  Keyboard,
-  StyleSheet,
   Alert,
+  Keyboard,
   RefreshControl,
+  ScrollView,
+  StyleSheet,
+  TouchableOpacity,
+  TouchableWithoutFeedback,
+  View,
 } from 'react-native';
 import AppText from './AppText';
 import AppTextInput from './AppTextInput';
 import Icon from './Icon';
 import AppModal from './Modal';
 import UploadMediaCard from './UploadMediaCard';
-import { useGetGroups, useCreateExpense, uploadExpenseAttachment } from '../services';
+import ExpenseSplitSheet, {
+  type ExpenseSplitParticipant,
+} from './ExpenseSplitSheet';
+import {
+  uploadExpenseAttachment,
+  useCreateExpense,
+  useGetGroups,
+} from '../services';
 import { useAppSelector } from '../store/hooks';
 import { useImagePickerWithCrop } from './ImagePickerModal';
+
+type GroupMemberUser = {
+  id: string;
+  imageUrl?: string | null;
+  name?: string | null;
+  username?: string | null;
+};
+
+const toPaise = (value: number) => Math.round(value * 100);
 
 const ExpenseTab = () => {
   const { user } = useAppSelector(state => state.auth);
 
-  // ============ HOOKS ============
-  const { data: groupsData, loading: loadingGroups, refetch: refetchGroups } = useGetGroups();
+  const { data: groupsData, loading: loadingGroups, refetch: refetchGroups } =
+    useGetGroups();
   const [createExpense, { loading: creating }] = useCreateExpense();
 
   const [refreshing, setRefreshing] = useState(false);
-
-  const onRefresh = useCallback(async () => {
-    setRefreshing(true);
-    await refetchGroups().catch(() => {});
-    setRefreshing(false);
-  }, [refetchGroups]);
-
-  // ============ STATE ============
   const [selectedGroupId, setSelectedGroupId] = useState('');
   const [groupQuery, setGroupQuery] = useState('');
   const [showGroupDropdown, setShowGroupDropdown] = useState(false);
@@ -42,31 +50,57 @@ const ExpenseTab = () => {
   const [amount, setAmount] = useState('');
   const [billUri, setBillUri] = useState<string | null>(null);
   const [uploadingBill, setUploadingBill] = useState(false);
-
-  // Participant selection
   const [customParticipants, setCustomParticipants] = useState(false);
-  const [selectedParticipantIds, setSelectedParticipantIds] = useState<string[]>([]);
+  const [selectedParticipantIds, setSelectedParticipantIds] = useState<
+    string[]
+  >([]);
   const [showInfoModal, setShowInfoModal] = useState(false);
+  const [showSplitSheet, setShowSplitSheet] = useState(false);
+  const [splitParticipants, setSplitParticipants] = useState<
+    ExpenseSplitParticipant[]
+  >([]);
 
   const groups = groupsData?.getGroups || [];
+  const selectedGroup = groups.find((group: any) => group.id === selectedGroupId);
+  const groupMembers: GroupMemberUser[] = useMemo(
+    () => selectedGroup?.members?.map((member: any) => member.user) || [],
+    [selectedGroup?.members],
+  );
+  const isBusy = creating || uploadingBill;
 
-  const filteredGroups = groups.filter((g: any) =>
-    g.name.toLowerCase().includes(groupQuery.trim().toLowerCase()),
+  const filteredGroups = groups.filter((group: any) =>
+    group.name.toLowerCase().includes(groupQuery.trim().toLowerCase()),
   );
 
-  const selectedGroup = groups.find((g: any) => g.id === selectedGroupId);
-  const groupMembers: any[] = selectedGroup?.members?.map((m: any) => m.user) || [];
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await refetchGroups().catch(() => {});
+    setRefreshing(false);
+  }, [refetchGroups]);
 
-  // ============ HANDLERS ============
+  const resetForm = useCallback(() => {
+    setDescription('');
+    setAmount('');
+    setSelectedGroupId('');
+    setGroupQuery('');
+    setBillUri(null);
+    setCustomParticipants(false);
+    setSelectedParticipantIds([]);
+    setShowSplitSheet(false);
+    setSplitParticipants([]);
+  }, []);
+
   const handleGroupQueryChange = (text: string) => {
     setGroupQuery(text);
     setShowGroupDropdown(true);
 
-    const currentGroup = groups.find((g: any) => g.id === selectedGroupId);
+    const currentGroup = groups.find((group: any) => group.id === selectedGroupId);
     if (currentGroup && currentGroup.name !== text) {
       setSelectedGroupId('');
       setCustomParticipants(false);
       setSelectedParticipantIds([]);
+      setShowSplitSheet(false);
+      setSplitParticipants([]);
     }
   };
 
@@ -76,24 +110,35 @@ const ExpenseTab = () => {
     setShowGroupDropdown(false);
     setCustomParticipants(false);
     setSelectedParticipantIds([]);
+    setShowSplitSheet(false);
+    setSplitParticipants([]);
   };
 
   const toggleCustomParticipants = () => {
     const next = !customParticipants;
     setCustomParticipants(next);
+    setShowSplitSheet(false);
+    setSplitParticipants([]);
+
     if (!next) {
       setSelectedParticipantIds([]);
-    } else {
-      // Pre-select current user
-      if (user?.id) setSelectedParticipantIds([user.id]);
+      return;
+    }
+
+    if (user?.id) {
+      setSelectedParticipantIds([user.id]);
     }
   };
 
   const toggleParticipant = (memberId: string) => {
-    // Current user is always included — prevent deselection
-    if (memberId === user?.id) return;
-    setSelectedParticipantIds(prev =>
-      prev.includes(memberId) ? prev.filter(id => id !== memberId) : [...prev, memberId],
+    if (memberId === user?.id) {
+      return;
+    }
+
+    setSelectedParticipantIds(previous =>
+      previous.includes(memberId)
+        ? previous.filter(id => id !== memberId)
+        : [...previous, memberId],
     );
   };
 
@@ -109,74 +154,187 @@ const ExpenseTab = () => {
     cropShape: 'square',
   });
 
-  const handleCreate = async () => {
-    const numericAmount = parseFloat(amount);
+  const buildExpenseParticipants = useCallback(() => {
+    const selectedIds = new Set(selectedParticipantIds);
+    const baseMembers = customParticipants
+      ? groupMembers.filter(
+          member => selectedIds.has(member.id) || member.id === user?.id,
+        )
+      : groupMembers;
+
+    const participants = [...baseMembers];
+
+    if (user?.id && !participants.some(member => member.id === user.id)) {
+      participants.push({
+        id: user.id,
+        imageUrl: user.imageUrl,
+        name: user.name,
+        username: user.username,
+      });
+    }
+
+    const seenIds = new Set<string>();
+
+    return participants.reduce<ExpenseSplitParticipant[]>((list, member) => {
+      if (!member?.id || seenIds.has(member.id)) {
+        return list;
+      }
+
+      seenIds.add(member.id);
+      list.push({
+        id: member.id,
+        imageUrl: member.imageUrl,
+        isCurrentUser: member.id === user?.id,
+        name:
+          member.id === user?.id
+            ? user?.name || member.name || 'You'
+            : member.name || member.username || 'Member',
+        username: member.username,
+      });
+
+      return list;
+    }, []);
+  }, [
+    customParticipants,
+    groupMembers,
+    selectedParticipantIds,
+    user?.id,
+    user?.imageUrl,
+    user?.name,
+    user?.username,
+  ]);
+
+  const validateExpenseForm = () => {
+    const numericAmount = Number.parseFloat(amount);
+
     if (!description.trim()) {
       Alert.alert('Validation Error', 'Description is required');
-      return;
+      return false;
     }
-    if (isNaN(numericAmount) || numericAmount <= 0) {
+
+    if (Number.isNaN(numericAmount) || numericAmount <= 0) {
       Alert.alert('Validation Error', 'Amount must be greater than zero');
-      return;
+      return false;
     }
+
     if (!selectedGroupId) {
       Alert.alert('Validation Error', 'Please select a group');
+      return false;
+    }
+
+    if (customParticipants && selectedParticipantIds.length === 0) {
+      Alert.alert('Validation Error', 'Please select at least one participant');
+      return false;
+    }
+
+    const participants = buildExpenseParticipants();
+    if (participants.length === 0) {
+      Alert.alert('Validation Error', 'Please select at least one participant');
+      return false;
+    }
+
+    return true;
+  };
+
+  const handleProceed = () => {
+    if (!validateExpenseForm()) {
       return;
     }
-    if (customParticipants && selectedParticipantIds.length === 0) {
+
+    const participants = buildExpenseParticipants();
+    if (participants.length === 0) {
       Alert.alert('Validation Error', 'Please select at least one participant');
       return;
     }
 
-    const group = groups.find((g: any) => g.id === selectedGroupId);
-    if (!group) return;
+    Keyboard.dismiss();
+    setShowGroupDropdown(false);
+    setSplitParticipants(participants);
+    setShowSplitSheet(true);
+  };
 
-    let participants: string[];
-    if (customParticipants) {
-      participants = [...selectedParticipantIds];
-      if (user?.id && !participants.includes(user.id)) {
-        participants.push(user.id);
+  const handleCloseSplitSheet = () => {
+    if (isBusy) {
+      return;
+    }
+
+    setShowSplitSheet(false);
+  };
+
+  const handleCreate = async (shareAmounts?: number[]) => {
+    const numericAmount = Number.parseFloat(amount);
+    if (!validateExpenseForm()) {
+      return;
+    }
+
+    const participants = splitParticipants.length
+      ? splitParticipants
+      : buildExpenseParticipants();
+
+    if (participants.length === 0) {
+      Alert.alert('Validation Error', 'Please select at least one participant');
+      return;
+    }
+
+    if (shareAmounts) {
+      if (shareAmounts.length !== participants.length) {
+        Alert.alert(
+          'Validation Error',
+          'Each participant must have a split amount.',
+        );
+        return;
       }
-    } else {
-      participants = group.members.map((m: any) => m.user.id);
-      if (user?.id && !participants.includes(user.id)) {
-        participants.push(user.id);
+
+      const invalidShareAmount = shareAmounts.some(
+        value => !Number.isFinite(value) || value < 0,
+      );
+      if (invalidShareAmount) {
+        Alert.alert(
+          'Validation Error',
+          'Split amounts must be valid non-negative numbers.',
+        );
+        return;
+      }
+
+      const totalShareAmount = shareAmounts.reduce((sum, value) => sum + value, 0);
+      if (toPaise(totalShareAmount) !== toPaise(numericAmount)) {
+        Alert.alert(
+          'Validation Error',
+          'Split amounts must add up to the expense total.',
+        );
+        return;
       }
     }
 
     try {
       const result = await createExpense({
         variables: {
-          groupId: selectedGroupId,
-          description: description.trim(),
           amount: numericAmount,
-          participants,
+          description: description.trim(),
+          groupId: selectedGroupId,
+          participants: participants.map(participant => participant.id),
+          ...(shareAmounts ? { shareAmounts } : {}),
         },
       });
 
       const createdExpenseId = result?.data?.createExpense?.id;
+      const hadBill = Boolean(billUri);
 
       if (billUri && createdExpenseId) {
         setUploadingBill(true);
         await uploadExpenseAttachment(billUri, createdExpenseId);
       }
 
-      setDescription('');
-      setAmount('');
-      setSelectedGroupId('');
-      setGroupQuery('');
-      setBillUri(null);
-      setCustomParticipants(false);
-      setSelectedParticipantIds([]);
+      resetForm();
 
       Alert.alert(
         'Success',
-        billUri
+        hadBill
           ? 'Expense added and bill uploaded successfully!'
           : 'Expense added successfully!',
       );
-    } catch (err: any) {
-      Alert.alert('Error', err.message || 'Failed to add expense');
+    } catch (error: any) {
+      Alert.alert('Error', error.message || 'Failed to add expense');
     } finally {
       setUploadingBill(false);
     }
@@ -185,10 +343,14 @@ const ExpenseTab = () => {
   const isFormValid =
     selectedGroupId !== '' &&
     description.trim().length > 0 &&
-    parseFloat(amount) > 0 &&
+    Number.parseFloat(amount) > 0 &&
     (!customParticipants || selectedParticipantIds.length > 0);
+  const sheetParticipants = showSplitSheet
+    ? splitParticipants.length > 0
+      ? splitParticipants
+      : buildExpenseParticipants()
+    : splitParticipants;
 
-  // ============ RENDER ============
   return (
     <View style={styles.container}>
       <ScrollView
@@ -203,19 +365,20 @@ const ExpenseTab = () => {
           Keyboard.dismiss();
         }}
       >
-        <TouchableWithoutFeedback onPress={() => {
-          setShowGroupDropdown(false);
-          Keyboard.dismiss();
-        }}>
+        <TouchableWithoutFeedback
+          onPress={() => {
+            setShowGroupDropdown(false);
+            Keyboard.dismiss();
+          }}
+        >
           <View style={styles.tabContentWrapper}>
-
             <AppText style={styles.label}>Select Group</AppText>
 
-            {showGroupDropdown && (
+            {showGroupDropdown ? (
               <TouchableWithoutFeedback onPress={() => setShowGroupDropdown(false)}>
                 <View style={styles.dropdownBackdrop} />
               </TouchableWithoutFeedback>
-            )}
+            ) : null}
 
             <View style={styles.dropdownInputWrapper}>
               <AppTextInput
@@ -244,11 +407,16 @@ const ExpenseTab = () => {
                 </View>
               ) : (
                 <View style={styles.dropdownRightIcon}>
-                  <Icon name="DownArrow" width={16} height={16} color="#64748b" />
+                  <Icon
+                    name="DownArrow"
+                    width={16}
+                    height={16}
+                    color="#64748b"
+                  />
                 </View>
               )}
 
-              {!loadingGroups && showGroupDropdown && groups.length > 0 && (
+              {!loadingGroups && showGroupDropdown && groups.length > 0 ? (
                 <View style={styles.groupDropdownList}>
                   {filteredGroups.length > 0 ? (
                     <ScrollView
@@ -258,6 +426,7 @@ const ExpenseTab = () => {
                     >
                       {filteredGroups.map((group: any) => {
                         const isSelected = selectedGroupId === group.id;
+
                         return (
                           <TouchableOpacity
                             key={group.id}
@@ -283,16 +452,15 @@ const ExpenseTab = () => {
                     <AppText style={styles.noGroupFoundText}>No group found</AppText>
                   )}
                 </View>
-              )}
+              ) : null}
             </View>
 
-            {!loadingGroups && groups.length === 0 && (
+            {!loadingGroups && groups.length === 0 ? (
               <AppText style={styles.errorText}>
                 You need to join a group first.
               </AppText>
-            )}
+            ) : null}
 
-            {/* ── Custom Participants Toggle ── */}
             {selectedGroupId ? (
               <View style={styles.participantToggleRow}>
                 <TouchableOpacity
@@ -300,8 +468,15 @@ const ExpenseTab = () => {
                   onPress={toggleCustomParticipants}
                   activeOpacity={0.7}
                 >
-                  <View style={[styles.checkbox, customParticipants && styles.checkboxChecked]}>
-                    {customParticipants && <AppText style={styles.checkboxTick}>✓</AppText>}
+                  <View
+                    style={[
+                      styles.checkbox,
+                      customParticipants && styles.checkboxChecked,
+                    ]}
+                  >
+                    {customParticipants ? (
+                      <AppText style={styles.checkboxTick}>{'\u2713'}</AppText>
+                    ) : null}
                   </View>
                   <AppText style={styles.checkLabel}>
                     Not everyone is included in this expense
@@ -317,16 +492,16 @@ const ExpenseTab = () => {
               </View>
             ) : null}
 
-            {/* ── Member Chips ── */}
-            {customParticipants && groupMembers.length > 0 && (
+            {customParticipants && groupMembers.length > 0 ? (
               <View style={styles.participantsContainer}>
                 <AppText style={styles.participantsHint}>
-                  Tap to select participants (you're always included)
+                  Tap to select participants (you&apos;re always included)
                 </AppText>
                 <View style={styles.chipsWrap}>
-                  {groupMembers.map((member: any) => {
+                  {groupMembers.map(member => {
                     const isCurrentUser = member.id === user?.id;
                     const isSelected = selectedParticipantIds.includes(member.id);
+
                     return (
                       <TouchableOpacity
                         key={member.id}
@@ -339,28 +514,47 @@ const ExpenseTab = () => {
                         activeOpacity={isCurrentUser ? 1 : 0.7}
                       >
                         <View style={styles.chipAvatarWrap}>
-                          <View style={[styles.chipAvatar, isSelected && styles.chipAvatarSelected]}>
-                            {!isSelected && (
-                              <AppText style={[styles.chipAvatarText, isSelected && styles.chipAvatarTextSelected]}>
-                                {(member.name || member.username)?.charAt(0).toUpperCase() || '?'}
+                          <View
+                            style={[
+                              styles.chipAvatar,
+                              isSelected && styles.chipAvatarSelected,
+                            ]}
+                          >
+                            {!isSelected ? (
+                              <AppText
+                                style={[
+                                  styles.chipAvatarText,
+                                  isSelected && styles.chipAvatarTextSelected,
+                                ]}
+                              >
+                                {(member.name || member.username)
+                                  ?.charAt(0)
+                                  .toUpperCase() || '?'}
                               </AppText>
-                            )}
+                            ) : null}
                           </View>
-                          {isSelected && (
+                          {isSelected ? (
                             <View style={styles.chipAvatarCheck}>
-                              <AppText style={styles.chipAvatarCheckText}>✓</AppText>
+                              <AppText style={styles.chipAvatarCheckText}>
+                                {'\u2713'}
+                              </AppText>
                             </View>
-                          )}
+                          ) : null}
                         </View>
-                        <AppText style={[styles.chipName, isSelected && styles.chipNameSelected]}>
-                          {isCurrentUser ? 'You' : (member.name || member.username)}
+                        <AppText
+                          style={[
+                            styles.chipName,
+                            isSelected && styles.chipNameSelected,
+                          ]}
+                        >
+                          {isCurrentUser ? 'You' : member.name || member.username}
                         </AppText>
                       </TouchableOpacity>
                     );
                   })}
                 </View>
               </View>
-            )}
+            ) : null}
 
             <AppText style={styles.label}>Description</AppText>
             <AppTextInput
@@ -374,12 +568,16 @@ const ExpenseTab = () => {
 
             <AppText style={styles.label}>Amount</AppText>
             <View style={styles.amountInputWrap}>
-              <AppText style={styles.amountPrefix}>₹</AppText>
+              <AppText style={styles.amountPrefix}>{'\u20b9'}</AppText>
               <AppTextInput
                 style={styles.amountInput}
                 placeholder="0"
                 value={amount}
-                onChangeText={(text) => setAmount(text.replace(/[^0-9]/g, ''))}
+                onChangeText={text => {
+                  setAmount(text.replace(/[^0-9]/g, ''));
+                  setShowSplitSheet(false);
+                  setSplitParticipants([]);
+                }}
                 onFocus={() => setShowGroupDropdown(false)}
                 keyboardType="number-pad"
                 placeholderTextColor="#999"
@@ -390,22 +588,22 @@ const ExpenseTab = () => {
               <AppText style={[styles.label, styles.labelNoMargin]}>
                 Bill Attachment (Optional)
               </AppText>
-              {billUri && (
+              {billUri ? (
                 <TouchableOpacity
                   style={styles.billRemoveBtnInline}
                   onPress={() => setBillUri(null)}
-                  disabled={creating || uploadingBill}
+                  disabled={isBusy}
                 >
                   <AppText style={styles.billRemoveText}>Remove</AppText>
                 </TouchableOpacity>
-              )}
+              ) : null}
             </View>
 
             {billUri ? (
               <UploadMediaCard
                 imageUri={billUri}
                 onPress={openBillPicker}
-                disabled={creating || uploadingBill}
+                disabled={isBusy}
                 loading={uploadingBill}
                 placeholderTitle="Click to add bill / receipt"
                 placeholderHint="Upload a photo, scan, or screenshot for this expense."
@@ -416,7 +614,7 @@ const ExpenseTab = () => {
             ) : (
               <UploadMediaCard
                 onPress={openBillPicker}
-                disabled={creating || uploadingBill}
+                disabled={isBusy}
                 loading={uploadingBill}
                 placeholderTitle="Click to add bill / receipt"
                 placeholderHint="Upload a photo, scan, or screenshot for this expense."
@@ -425,21 +623,20 @@ const ExpenseTab = () => {
                 previewHeight={180}
               />
             )}
-
-            </View>
-          </TouchableWithoutFeedback>
-        </ScrollView>
+          </View>
+        </TouchableWithoutFeedback>
+      </ScrollView>
 
       <View style={styles.stickyFooter}>
         <TouchableOpacity
           style={[
             styles.submitBtn,
-            (!isFormValid || creating || uploadingBill) && styles.submitBtnDisabled,
+            (!isFormValid || isBusy) && styles.submitBtnDisabled,
           ]}
-          onPress={handleCreate}
-          disabled={!isFormValid || creating || uploadingBill}
+          onPress={handleProceed}
+          disabled={!isFormValid || isBusy}
         >
-          {creating || uploadingBill ? (
+          {isBusy ? (
             <View style={styles.submitLoadingRow}>
               <ActivityIndicator size="small" color="#fff" />
               <AppText style={styles.submitBtnText}>
@@ -447,14 +644,22 @@ const ExpenseTab = () => {
               </AppText>
             </View>
           ) : (
-            <AppText style={styles.submitBtnText}>Save Expense</AppText>
+            <AppText style={styles.submitBtnText}>Proceed</AppText>
           )}
         </TouchableOpacity>
       </View>
 
       {BillImagePreviewModal}
 
-      {/* ── Info Modal ── */}
+      <ExpenseSplitSheet
+        visible={showSplitSheet}
+        onClose={handleCloseSplitSheet}
+        onConfirm={handleCreate}
+        participants={sheetParticipants}
+        saving={isBusy}
+        totalAmount={Number.parseFloat(amount) || 0}
+      />
+
       <AppModal
         visible={showInfoModal}
         onClose={() => setShowInfoModal(false)}
@@ -487,15 +692,24 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: '#f1f5f9',
   },
-  scroll: { paddingHorizontal: 24, paddingBottom: 40 },
-  tabContentWrapper: { flex: 1 },
+  scroll: {
+    paddingHorizontal: 24,
+    paddingBottom: 40,
+  },
+  tabContentWrapper: {
+    flex: 1,
+  },
   label: {
     fontSize: 13,
     color: '#475569',
     marginBottom: 8,
     marginTop: 16,
   },
-  errorText: { color: '#ef4444', fontSize: 12, marginTop: 4 },
+  errorText: {
+    color: '#ef4444',
+    fontSize: 12,
+    marginTop: 4,
+  },
   dropdownBackdrop: {
     position: 'absolute',
     top: -1000,
@@ -526,10 +740,6 @@ const styles = StyleSheet.create({
     marginTop: -8,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  dropdownChevron: {
-    fontSize: 16,
-    color: '#64748b',
   },
   groupDropdownList: {
     position: 'absolute',
@@ -575,8 +785,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 12,
   },
-
-  // ── Participant toggle ──
   participantToggleRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -629,8 +837,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     lineHeight: 14,
   },
-
-  // ── Member chips ──
   participantsContainer: {
     marginTop: 12,
     backgroundColor: '#f8fafc',
@@ -669,6 +875,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#eef2ff',
     opacity: 0.8,
   },
+  chipAvatarWrap: {
+    position: 'relative',
+  },
   chipAvatar: {
     width: 26,
     height: 26,
@@ -688,18 +897,6 @@ const styles = StyleSheet.create({
   chipAvatarTextSelected: {
     color: '#4f46e5',
   },
-  chipName: {
-    fontSize: 12,
-    color: '#475569',
-    fontWeight: '400',
-  },
-  chipNameSelected: {
-    color: '#4f46e5',
-    fontWeight: '500',
-  },
-  chipAvatarWrap: {
-    position: 'relative',
-  },
   chipAvatarCheck: {
     position: 'absolute',
     top: 0,
@@ -716,8 +913,15 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
   },
-
-  // ── Form ──
+  chipName: {
+    fontSize: 12,
+    color: '#475569',
+    fontWeight: '400',
+  },
+  chipNameSelected: {
+    color: '#4f46e5',
+    fontWeight: '500',
+  },
   input: {
     borderWidth: 1,
     borderColor: '#cbd5e1',
@@ -747,34 +951,6 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     fontSize: 13,
     color: '#1e293b',
-  },
-  attachmentCard: {
-    width: '100%',
-    marginBottom: 12,
-  },
-  attachmentPlaceholder: {
-    height: 120,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderStyle: 'dashed',
-    borderColor: '#94a3b8',
-    borderRadius: 12,
-    backgroundColor: '#f8fafc',
-  },
-  attachmentPlaceholderIcon: {
-    marginBottom: 6,
-  },
-  attachmentImage: {
-    width: '100%',
-    height: 180,
-    borderRadius: 12,
-    backgroundColor: '#e2e8f0',
-  },
-  attachmentFilename: {
-    fontSize: 13,
-    color: '#94a3b8',
-    fontStyle: 'italic',
   },
   attachmentHeaderRow: {
     flexDirection: 'row',
@@ -807,15 +983,19 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 4,
   },
-  submitBtnDisabled: { backgroundColor: '#94a3b8', shadowOpacity: 0 },
-  submitBtnText: { color: '#fff', fontSize: 15 },
+  submitBtnDisabled: {
+    backgroundColor: '#94a3b8',
+    shadowOpacity: 0,
+  },
+  submitBtnText: {
+    color: '#fff',
+    fontSize: 15,
+  },
   submitLoadingRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
   },
-
-  // ── Info Modal ──
 });
 
 export default ExpenseTab;

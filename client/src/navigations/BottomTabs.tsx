@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect, useRef } from 'react';
+import React, { useMemo, useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   StyleSheet,
@@ -8,6 +8,7 @@ import {
   Text as RNText,
   Animated,
   Easing,
+  Image,
 } from 'react-native';
 import {
   NavigatorScreenParams,
@@ -116,9 +117,70 @@ const AddTabIcon = ({ color, focused }: any) => (
 const MessagesTabIcon = ({ color, focused }: any) => (
   <TabIcon name="Message" color={color} focused={focused} theme={lightTheme} />
 );
-const ProfileTabIcon = ({ color, focused }: any) => (
-  <TabIcon name="Profile" color={color} focused={focused} theme={lightTheme} />
-);
+
+const ProfileAvatarTabIcon = ({
+  focused,
+  imageUrl,
+  theme,
+}: {
+  focused: boolean;
+  imageUrl: string;
+  theme: any;
+}) => {
+  const chipAnimation = useRef(new Animated.Value(focused ? 1 : 0)).current;
+
+  useEffect(() => {
+    Animated.timing(chipAnimation, {
+      toValue: focused ? 1 : 0,
+      duration: focused ? 240 : 180,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
+  }, [chipAnimation, focused]);
+
+  const chipStyle = {
+    opacity: chipAnimation.interpolate({
+      inputRange: [0, 1],
+      outputRange: [0, 1],
+    }),
+    transform: [
+      {
+        scaleX: chipAnimation.interpolate({
+          inputRange: [0, 1],
+          outputRange: [0.35, 1],
+        }),
+      },
+      {
+        scaleY: chipAnimation.interpolate({
+          inputRange: [0, 1],
+          outputRange: [0.82, 1],
+        }),
+      },
+    ],
+  };
+
+  return (
+    <View style={styles.iconShell}>
+      <Animated.View
+        pointerEvents="none"
+        style={[
+          styles.iconBackground,
+          { backgroundColor: `${theme.primary}${ACTIVE_TAB_CHIP_OPACITY}` },
+          chipStyle,
+        ]}
+      />
+      <View style={styles.iconForeground}>
+        <Image
+          source={{ uri: imageUrl }}
+          style={[
+            styles.profileTabAvatar,
+            focused && styles.profileTabAvatarFocused,
+          ]}
+        />
+      </View>
+    </View>
+  );
+};
 
 function MyTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   const theme = lightTheme;
@@ -219,6 +281,26 @@ function CustomTabBar(props: any) {
 
 export default function BottomTabs() {
   const token = useAppSelector(state => state.auth.token);
+  const user = useAppSelector(state => state.auth.user);
+
+  const ProfileTabIcon = useCallback(
+    ({ color, focused }: any) =>
+      user?.imageUrl ? (
+        <ProfileAvatarTabIcon
+          focused={focused}
+          imageUrl={user.imageUrl}
+          theme={lightTheme}
+        />
+      ) : (
+        <TabIcon
+          name="Profile"
+          color={color}
+          focused={focused}
+          theme={lightTheme}
+        />
+      ),
+    [user?.imageUrl],
+  );
 
   const screenOptions = useMemo(
     () => ({
@@ -253,7 +335,7 @@ export default function BottomTabs() {
         tabBarIcon: ProfileTabIcon,
       },
     }),
-    [],
+    [ProfileTabIcon],
   );
 
   const navigation = useNavigation<any>();
@@ -360,6 +442,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: 15,
     paddingVertical: 5,
     borderRadius: 100,
+  },
+  profileTabAvatar: {
+    width: 23,
+    height: 23,
+    borderRadius: 11,
+    backgroundColor: '#e2e8f0',
+    borderWidth: 1,
+    borderColor: 'rgba(15,23,42,0.06)',
+  },
+  profileTabAvatarFocused: {
+    borderColor: '#bfdbfe',
   },
   iconTransparent: {
     backgroundColor: 'transparent',

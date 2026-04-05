@@ -7,7 +7,6 @@ import {
   type BottomSheetFooterProps,
   BottomSheetModal,
   BottomSheetScrollView,
-  BottomSheetView,
 } from '@gorhom/bottom-sheet';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AppText from './AppText';
@@ -17,12 +16,14 @@ import { useImagePickerWithCrop } from './ImagePickerModal';
 import { uploadGroupImage } from '../services';
 import UploadMediaCard from './UploadMediaCard';
 
+
 type Member = {
   id: string;
   name: string;
   username: string;
   imageUrl?: string | null;
 };
+
 
 type EditGroupSheetProps = {
   visible: boolean;
@@ -40,6 +41,7 @@ type EditGroupSheetProps = {
   onRemoveMember?: (member: Member) => void;
   removingMemberId?: string | null;
 };
+
 
 export default function EditGroupSheet({
   visible,
@@ -173,6 +175,7 @@ export default function EditGroupSheet({
         ref={bottomSheetRef}
         index={0}
         snapPoints={snapPoints}
+        enableDynamicSizing={false} 
         animateOnMount
         enablePanDownToClose
         enableOverDrag={false}
@@ -186,7 +189,7 @@ export default function EditGroupSheet({
         android_keyboardInputMode="adjustResize"
         onDismiss={onClose}
       >
-        <BottomSheetView style={styles.sheetContainer}>
+        <View style={styles.container}>
           <BottomSheetScrollView
             style={styles.scrollArea}
             contentContainerStyle={styles.content}
@@ -261,7 +264,9 @@ export default function EditGroupSheet({
                   onPress={() => setRemoveMode(true)}
                   activeOpacity={0.85}
                 >
-                  <AppText style={styles.removeMemberBtnText}>Remove a member</AppText>
+                  <AppText style={styles.removeMemberBtnText}>
+                    Remove a member
+                  </AppText>
                 </TouchableOpacity>
               </>
             ) : (
@@ -273,7 +278,10 @@ export default function EditGroupSheet({
                   {members.map(member => (
                     <View key={member.id} style={styles.memberRow}>
                       {member.imageUrl ? (
-                        <Image source={{ uri: member.imageUrl }} style={styles.memberImage} />
+                        <Image
+                          source={{ uri: member.imageUrl }}
+                          style={styles.memberImage}
+                        />
                       ) : (
                         <View style={styles.memberAvatar}>
                           <AppText style={styles.memberAvatarText}>
@@ -283,20 +291,25 @@ export default function EditGroupSheet({
                       )}
                       <View style={styles.memberInfo}>
                         <AppText style={styles.memberName}>{member.name}</AppText>
-                        <AppText style={styles.memberUsername}>@{member.username}</AppText>
+                        <AppText style={styles.memberUsername}>
+                          @{member.username}
+                        </AppText>
                       </View>
                       {onRemoveMember ? (
                         <TouchableOpacity
                           style={[
                             styles.memberRemoveBtn,
-                            removingMemberId === member.id && styles.memberRemoveBtnDisabled,
+                            removingMemberId === member.id &&
+                              styles.memberRemoveBtnDisabled,
                           ]}
                           onPress={() => setPendingRemove(member)}
                           disabled={removingMemberId === member.id}
                           activeOpacity={0.85}
                         >
                           <AppText style={styles.memberRemoveBtnText}>
-                            {removingMemberId === member.id ? 'Removing...' : 'Remove'}
+                            {removingMemberId === member.id
+                              ? 'Removing...'
+                              : 'Remove'}
                           </AppText>
                         </TouchableOpacity>
                       ) : null}
@@ -306,12 +319,14 @@ export default function EditGroupSheet({
               </>
             )}
           </BottomSheetScrollView>
-        </BottomSheetView>
+        </View>
       </BottomSheetModal>
+
       {ImagePreviewModal}
     </>
   );
 }
+
 
 const styles = StyleSheet.create({
   sheetBackground: {
@@ -326,7 +341,8 @@ const styles = StyleSheet.create({
     width: 44,
     height: 5,
   },
-  sheetContainer: {
+  // ✅ Replaces sheetContainer — plain View with flex:1
+  container: {
     flex: 1,
   },
   scrollArea: {

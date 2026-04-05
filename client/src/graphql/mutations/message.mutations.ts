@@ -6,12 +6,14 @@ export const SEND_MESSAGE = gql`
     $body: String!
     $type: String
     $metadata: String
+    $replyToSeq: Int
   ) {
     sendMessage(
       conversationId: $conversationId
       body: $body
       type: $type
       metadata: $metadata
+      replyToSeq: $replyToSeq
     ) {
       id
       conversationId
@@ -20,10 +22,24 @@ export const SEND_MESSAGE = gql`
       type
       body
       metadata
+      replyToSeq
+      replyToMessage {
+        id
+        seq
+        senderId
+        type
+        body
+        sender {
+          id
+          name
+          imageUrl
+        }
+      }
       createdAt
       sender {
         id
         name
+        imageUrl
       }
       reactions {
         id

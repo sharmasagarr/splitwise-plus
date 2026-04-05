@@ -13,18 +13,28 @@ import {
 
 export const useGetMessages = (
   conversationId: string,
-  options?: { limit?: number; pollInterval?: number },
+  options?: { limit?: number; pollInterval?: number; skip?: boolean },
 ) => {
   return useQuery<any>(GET_MESSAGES, {
     variables: { conversationId, limit: options?.limit ?? 50 },
+    skip: options?.skip,
     fetchPolicy: 'cache-and-network',
-    pollInterval: options?.pollInterval ?? 3000,
+    nextFetchPolicy: 'cache-first',
+    notifyOnNetworkStatusChange: false,
+    returnPartialData: true,
+    pollInterval: options?.pollInterval ?? 2000,
   });
 };
 
-export const useGetConversations = (options?: { fetchPolicy?: any }) => {
+export const useGetConversations = (options?: {
+  fetchPolicy?: any;
+  pollInterval?: number;
+}) => {
   return useQuery<any>(GET_CONVERSATIONS, {
     fetchPolicy: options?.fetchPolicy ?? 'cache-and-network',
+    pollInterval: options?.pollInterval,
+    notifyOnNetworkStatusChange: true,
+    returnPartialData: true,
   });
 };
 

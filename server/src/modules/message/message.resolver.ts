@@ -1,3 +1,24 @@
+const serializeReplyMessage = (message: any) => {
+  if (!message) return null;
+
+  return {
+    id: message.id,
+    seq: Number(message.seq),
+    senderId: message.senderId,
+    sender: message.sender,
+    type: message.type,
+    body: message.body,
+  };
+};
+
+const serializeChatMessage = (message: any, replyMessage?: any) => ({
+  ...message,
+  seq: Number(message.seq),
+  metadata: message.metadata ? JSON.stringify(message.metadata) : null,
+  replyToSeq: message.replyToSeq ? Number(message.replyToSeq) : null,
+  replyToMessage: serializeReplyMessage(replyMessage),
+});
+
 export const messageResolvers = {
   Query: {
     getConversations: async (_: any, __: any, { prisma, user }: any) => {
@@ -8,6 +29,11 @@ export const messageResolvers = {
           participants: { some: { userId: user.id, leftAt: null } },
         },
         include: {
+          group: {
+            select: {
+              imageUrl: true,
+            },
+          },
           participants: { include: { user: true } },
           messages: {
             orderBy: { seq: "desc" },
@@ -20,15 +46,8 @@ export const messageResolvers = {
 
       return conversations.map((c: any) => ({
         ...c,
-        lastMessage: c.messages[0]
-          ? {
-              ...c.messages[0],
-              seq: Number(c.messages[0].seq),
-              metadata: c.messages[0].metadata
-                ? JSON.stringify(c.messages[0].metadata)
-                : null,
-            }
-          : null,
+        imageUrl: c.group?.imageUrl ?? null,
+        lastMessage: c.messages[0] ? serializeChatMessage(c.messages[0]) : null,
       }));
     },
 
@@ -62,18 +81,45 @@ export const messageResolvers = {
         take: Math.min(limit, 100),
       });
 
-      return messages.reverse().map((m: any) => ({
-        ...m,
-        seq: Number(m.seq),
-        metadata: m.metadata ? JSON.stringify(m.metadata) : null,
-      }));
+      const replySeqs = Array.from(
+        new Set(
+          messages
+            .map((message: any) => message.replyToSeq)
+            .filter((seq: bigint | null): seq is bigint => Boolean(seq)),
+        ),
+      );
+
+      const replyMessages = replySeqs.length
+        ? await prisma.message.findMany({
+            where: {
+              conversationId,
+              seq: { in: replySeqs },
+            },
+            include: {
+              sender: true,
+            },
+          })
+        : [];
+
+      const replyMessageMap = new Map(
+        replyMessages.map((message: any) => [String(message.seq), message]),
+      );
+
+      return messages.reverse().map((message: any) =>
+        serializeChatMessage(
+          message,
+          message.replyToSeq
+            ? replyMessageMap.get(String(message.replyToSeq))
+            : null,
+        ),
+      );
     },
   },
 
   Mutation: {
     sendMessage: async (
       _: any,
-      { conversationId, body, type = "text", metadata }: any,
+      { conversationId, body, type = "text", metadata, replyToSeq }: any,
       { prisma, user }: any,
     ) => {
       if (!user) throw new Error("Unauthorized");
@@ -85,6 +131,23 @@ export const messageResolvers = {
         },
       });
       if (!participant) throw new Error("Not a participant");
+
+      let replyMessage = null;
+      if (typeof replyToSeq === "number") {
+        replyMessage = await prisma.message.findFirst({
+          where: {
+            conversationId,
+            seq: BigInt(replyToSeq),
+          },
+          include: {
+            sender: true,
+          },
+        });
+
+        if (!replyMessage) {
+          throw new Error("Reply target not found");
+        }
+      }
 
       // Increment seq atomically
       const conversation = await prisma.conversation.update({
@@ -100,6 +163,8 @@ export const messageResolvers = {
           type,
           body,
           metadata: metadata ? JSON.parse(metadata) : undefined,
+          replyToSeq:
+            typeof replyToSeq === "number" ? BigInt(replyToSeq) : undefined,
         },
         include: {
           sender: true,
@@ -107,11 +172,7 @@ export const messageResolvers = {
         },
       });
 
-      return {
-        ...message,
-        seq: Number(message.seq),
-        metadata: message.metadata ? JSON.stringify(message.metadata) : null,
-      };
+      return serializeChatMessage(message, replyMessage);
     },
 
     startDirectConversation: async (
@@ -151,15 +212,7 @@ export const messageResolvers = {
         const c = existing.conversation;
         return {
           ...c,
-          lastMessage: c.messages[0]
-            ? {
-                ...c.messages[0],
-                seq: Number(c.messages[0].seq),
-                metadata: c.messages[0].metadata
-                  ? JSON.stringify(c.messages[0].metadata)
-                  : null,
-              }
-            : null,
+          lastMessage: c.messages[0] ? serializeChatMessage(c.messages[0]) : null,
         };
       }
 

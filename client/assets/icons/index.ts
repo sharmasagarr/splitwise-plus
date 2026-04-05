@@ -24,6 +24,7 @@ import Attacment from './attachment.svg';
 import MoneyWallet from './money-wallet.svg';
 import CheckCircle from './check-circle.svg';
 import CrossCircle from './cross-circle.svg';
+import Send from './send.svg';
 
 export const Icons = {
   Home,
@@ -52,6 +53,7 @@ export const Icons = {
   MoneyWallet,
   CheckCircle,
   CrossCircle,
+  Send,
 };
 
 export type IconName = keyof typeof Icons;

@@ -1,8 +1,18 @@
 export const messageTypeDefs = `#graphql
+  type ChatReplyMessage {
+    id: ID!
+    seq: Int!
+    senderId: String!
+    sender: User!
+    type: String!
+    body: String
+  }
+
   type ChatConversation {
     id: ID!
     type: String!
     title: String
+    imageUrl: String
     updatedAt: String!
     participants: [ChatParticipant!]!
     lastMessage: ChatMessage
@@ -24,6 +34,8 @@ export const messageTypeDefs = `#graphql
     type: String!
     body: String
     metadata: String
+    replyToSeq: Int
+    replyToMessage: ChatReplyMessage
     reactions: [ChatReaction!]!
     createdAt: String!
   }
@@ -42,7 +54,13 @@ export const messageTypeDefs = `#graphql
   }
 
   extend type Mutation {
-    sendMessage(conversationId: String!, body: String!, type: String, metadata: String): ChatMessage!
+    sendMessage(
+      conversationId: String!
+      body: String!
+      type: String
+      metadata: String
+      replyToSeq: Int
+    ): ChatMessage!
     startDirectConversation(userId: String!): ChatConversation!
     addReaction(messageId: String!, reaction: String!): Boolean!
     removeReaction(messageId: String!, reaction: String!): Boolean!

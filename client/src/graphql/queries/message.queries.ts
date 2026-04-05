@@ -6,6 +6,7 @@ export const GET_CONVERSATIONS = gql`
       id
       type
       title
+      imageUrl
       updatedAt
       participants {
         id
@@ -48,6 +49,19 @@ export const GET_MESSAGES = gql`
       type
       body
       metadata
+      replyToSeq
+      replyToMessage {
+        id
+        seq
+        senderId
+        type
+        body
+        sender {
+          id
+          name
+          imageUrl
+        }
+      }
       createdAt
       sender {
         id

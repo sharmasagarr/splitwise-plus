@@ -7,6 +7,7 @@ import {
   Platform,
   StyleSheet,
   StatusBar,
+  View,
 } from 'react-native';
 import BootSplash from 'react-native-bootsplash';
 import { ApolloProvider, useMutation } from '@apollo/client/react';
@@ -22,11 +23,13 @@ import {
   getInitialNotification,
 } from '@react-native-firebase/messaging';
 import { getApp } from '@react-native-firebase/app';
-import Toast, { BaseToast, ToastConfig } from 'react-native-toast-message';
+import Toast, { ToastConfig, ToastConfigParams } from 'react-native-toast-message';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 
 import RootStack from './src/navigations/RootStack';
 import AuthScreen from './src/screens/Auth';
+import AppText from './src/components/AppText';
+import Icon from './src/components/Icon';
 
 import { client } from './src/apollo';
 import { store } from './src/store';
@@ -37,6 +40,61 @@ import {
 } from './src/store/authSlice';
 import { useAppDispatch, useAppSelector } from './src/store/hooks';
 import { REGISTER_FCM_TOKEN } from './src/graphql';
+
+type ToastNotificationProps = {
+  notificationType?: string;
+};
+
+function getToastNotificationIcon(type?: string) {
+  switch (type) {
+    case 'expense_added':
+    case 'expense_created':
+    case 'expense_share_owed':
+    case 'expense_share_receivable':
+      return <Icon name="Rupee" width={22} height={22} color="#047faf" style={styles.toastIcon} />;
+    case 'settlement_received':
+    case 'settlement_paid':
+      return (
+        <Icon
+          name="CheckBadge"
+          width={24}
+          height={24}
+          color="#20af04"
+          style={styles.toastIcon}
+        />
+      );
+    case 'user_joined_group':
+      return <Icon name="UserCheck" width={22} height={22} color="#047faf" style={styles.toastIcon} />;
+    case 'group_invitation':
+      return <Icon name="Invitation" width={22} height={22} color="#047faf" style={styles.toastIcon} />;
+    case 'payment_reminder':
+      return <Icon name="MoneyWallet" width={22} height={22} color="#ca8a04" style={styles.toastIcon} />;
+    default:
+      return <Icon name="Bell" width={22} height={22} color="#534f4e" style={styles.toastIcon} />;
+  }
+}
+
+function NotificationToast({
+  text1,
+  text2,
+  props,
+}: ToastConfigParams<ToastNotificationProps>) {
+  return (
+    <View style={styles.toastCard}>
+      <View style={styles.toastIconWrap}>
+        {getToastNotificationIcon(props?.notificationType)}
+      </View>
+      <View style={styles.toastContent}>
+        {text1 ? <AppText style={styles.toastTitle}>{text1}</AppText> : null}
+        {text2 ? (
+          <AppText numberOfLines={3} style={styles.toastBody}>
+            {text2}
+          </AppText>
+        ) : null}
+      </View>
+    </View>
+  );
+}
 
 const Root = () => {
   const dispatch = useAppDispatch();
@@ -90,6 +148,9 @@ const Root = () => {
         text2: body,
         position: 'top',
         topOffset: 50,
+        props: {
+          notificationType: remoteMessage.data?.type,
+        },
       });
     });
 
@@ -193,22 +254,54 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#fff',
   },
-  toastStyle: {
-    borderLeftColor: '#34d399',
-    backgroundColor: '#faf6f6ff',
-    borderRadius: 12,
+  toastCard: {
+    width: '93%',
+    alignSelf: 'center',
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    marginTop: 10,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: '#d9e4f3',
+    backgroundColor: '#ffffff',
+    shadowColor: '#16335b',
+    shadowOffset: {
+      width: 0,
+      height: 10,
+    },
+    shadowOpacity: 0.12,
+    shadowRadius: 18,
+    elevation: 10,
   },
-  toastContentContainerStyle: {
-    paddingHorizontal: 15,
+  toastIconWrap: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#f2f7ff',
+    marginRight: 12,
   },
-  toastText1Style: {
+  toastIcon: {
+    marginTop: 0,
+    marginRight: 0,
+  },
+  toastContent: {
+    flex: 1,
+  },
+  toastTitle: {
     fontSize: 16,
-    fontWeight: 'bold',
-    color: '#06213bff',
+    lineHeight: 21,
+    color: '#111827',
+    fontWeight: '700',
   },
-  toastText2Style: {
+  toastBody: {
     fontSize: 14,
-    color: '#06213bff',
+    lineHeight: 19,
+    color: '#4b5563',
+    marginTop: 4,
   },
   toastSafeArea: {
     position: 'absolute',
@@ -219,16 +312,7 @@ const styles = StyleSheet.create({
 });
 
 const toastConfig: ToastConfig = {
-  // You can customize default toasters here, e.g., mapping type 'info' to a better look.
-  info: props => (
-    <BaseToast
-      {...props}
-      style={styles.toastStyle}
-      contentContainerStyle={styles.toastContentContainerStyle}
-      text1Style={styles.toastText1Style}
-      text2Style={styles.toastText2Style}
-    />
-  ),
+  info: props => <NotificationToast {...props} />,
 };
 
 export default function App() {

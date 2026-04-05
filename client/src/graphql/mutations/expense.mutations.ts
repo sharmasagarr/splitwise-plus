@@ -60,3 +60,9 @@ export const SETTLE_SPECIFIC_SHARES = gql`
     }
   }
 `;
+
+export const SEND_PAYMENT_REMINDER = gql`
+  mutation SendPaymentReminder($toUserId: String!) {
+    sendPaymentReminder(toUserId: $toUserId)
+  }
+`;

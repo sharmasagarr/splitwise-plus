@@ -46,11 +46,21 @@ export default function Transactions() {
     [data?.getMyTransactions],
   );
 
+  const visibleTransactions = useMemo(
+    () =>
+      transactions.filter(
+        row =>
+          row.type !== 'expense_share_receivable' &&
+          row.type !== 'expense_share_owed',
+      ),
+    [transactions],
+  );
+
   const totals = useMemo(() => {
     let credit = 0;
     let debit = 0;
 
-    for (const row of transactions) {
+    for (const row of visibleTransactions) {
       const amount = Number(row.amount) || 0;
       if (row.direction === 'credit') {
         credit += amount;
@@ -60,7 +70,7 @@ export default function Transactions() {
     }
 
     return { credit, debit };
-  }, [transactions]);
+  }, [visibleTransactions]);
 
   const renderItem = ({ item }: { item: TransactionItem }) => {
     const isCredit = item.direction === 'credit';
@@ -98,7 +108,6 @@ export default function Transactions() {
     <SafeAreaView style={styles.container} edges={['bottom']}>
       <View style={styles.headerCard}>
         <AppText style={styles.title}>All Transactions</AppText>
-        <AppText style={styles.subtitle}>Personal ledger of your expenses and settlements</AppText>
 
         <View style={styles.totalsRow}>
           <View style={styles.totalPill}>
@@ -123,7 +132,7 @@ export default function Transactions() {
         </View>
       ) : (
         <FlatList
-          data={transactions}
+          data={visibleTransactions}
           keyExtractor={item => item.id}
           renderItem={renderItem}
           refreshControl={
@@ -164,11 +173,6 @@ const styles = StyleSheet.create({
     color: '#e2e8f0',
     fontSize: 20,
     fontWeight: '800',
-  },
-  subtitle: {
-    marginTop: 4,
-    color: '#94a3b8',
-    fontSize: 12,
   },
   totalsRow: {
     marginTop: 14,

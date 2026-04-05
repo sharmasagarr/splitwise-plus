@@ -86,6 +86,7 @@ export const expenseTypeDefs = `#graphql
     getMyBalances: BalanceSummary!
     getExpenseDetail(expenseId: String!): Expense!
     getUserUnsettledShares(toUserId: String!, groupId: String): [ExpenseShare!]!
+    getSharesOwedToMe(fromUserId: String!, groupId: String): [ExpenseShare!]!
     getMyTransactions(relatedUserId: String, type: String, limit: Int, offset: Int): [LedgerTransaction!]!
   }
 
@@ -99,5 +100,6 @@ export const expenseTypeDefs = `#graphql
     ): Expense!
     settleExpense(toUserId: String!, amount: Float!, paymentMode: String!, groupId: String): Settlement!
     settleSpecificShares(shareIds: [String!]!, amount: Float!, paymentMode: String!, groupId: String): Settlement!
+    sendPaymentReminder(toUserId: String!): Boolean!
   }
 `;

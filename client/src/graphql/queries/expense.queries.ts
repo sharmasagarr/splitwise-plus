@@ -155,6 +155,35 @@ export const GET_USER_UNSETTLED_SHARES = gql`
   }
 `;
 
+export const GET_SHARES_OWED_TO_ME = gql`
+  query GetSharesOwedToMe($fromUserId: String!, $groupId: String) {
+    getSharesOwedToMe(fromUserId: $fromUserId, groupId: $groupId) {
+      id
+      expenseId
+      userId
+      shareAmount
+      paidAmount
+      status
+      user {
+        id
+        name
+        username
+        imageUrl
+      }
+      expense {
+        id
+        note
+        createdAt
+        groupId
+        group {
+          id
+          name
+        }
+      }
+    }
+  }
+`;
+
 export const GET_MY_TRANSACTIONS = gql`
   query GetMyTransactions(
     $relatedUserId: String

@@ -6,7 +6,9 @@ import {
   GET_MY_BALANCES,
   GET_MY_TRANSACTIONS,
   GET_RECENT_ACTIVITIES,
+  GET_SHARES_OWED_TO_ME,
   GET_USER_UNSETTLED_SHARES,
+  SEND_PAYMENT_REMINDER,
   SETTLE_EXPENSE,
   SETTLE_SPECIFIC_SHARES,
 } from '../graphql';
@@ -39,6 +41,18 @@ export const useGetUserUnsettledShares = (
 ) => {
   return useQuery<any>(GET_USER_UNSETTLED_SHARES, {
     variables: { toUserId, groupId },
+    skip: options?.skip,
+    fetchPolicy: options?.fetchPolicy ?? 'cache-and-network',
+  });
+};
+
+export const useGetSharesOwedToMe = (
+  fromUserId: string,
+  groupId?: string,
+  options?: { skip?: boolean; fetchPolicy?: any },
+) => {
+  return useQuery<any>(GET_SHARES_OWED_TO_ME, {
+    variables: { fromUserId, groupId },
     skip: options?.skip,
     fetchPolicy: options?.fetchPolicy ?? 'cache-and-network',
   });
@@ -103,6 +117,16 @@ export const useSettleSpecificShares = (callbacks?: {
       { query: GET_MY_BALANCES },
       { query: GET_RECENT_ACTIVITIES },
     ],
+    onCompleted: callbacks?.onCompleted,
+    onError: callbacks?.onError ?? ((err: any) => Alert.alert('Error', err.message)),
+  });
+};
+
+export const useSendPaymentReminder = (callbacks?: {
+  onCompleted?: () => void;
+  onError?: (err: any) => void;
+}) => {
+  return useMutation<any>(SEND_PAYMENT_REMINDER, {
     onCompleted: callbacks?.onCompleted,
     onError: callbacks?.onError ?? ((err: any) => Alert.alert('Error', err.message)),
   });

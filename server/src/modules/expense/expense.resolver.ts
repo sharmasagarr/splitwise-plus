@@ -1,4 +1,5 @@
 import { sendNotification } from "../notification/notification.service.js";
+import { sendPaymentReminderEmail } from "../notification/payment-reminder-email.service.js";
 import { splitAmount, getUserCurrency } from "../../utils/index.js";
 
 export const expenseResolvers = {
@@ -180,6 +181,36 @@ export const expenseResolvers = {
           status: "owed",
           expense: {
             createdById: toUserId,
+            ...(groupId ? { groupId } : {}),
+          },
+        },
+        include: {
+          user: true,
+          expense: {
+            include: {
+              createdBy: true,
+              group: true,
+            },
+          },
+        },
+        orderBy: {
+          createdAt: "asc",
+        },
+      });
+    },
+    getSharesOwedToMe: async (
+      _: any,
+      { fromUserId, groupId }: any,
+      { prisma, user }: any,
+    ) => {
+      if (!user) throw new Error("Unauthorized");
+
+      return prisma.expenseShare.findMany({
+        where: {
+          userId: fromUserId,
+          status: "owed",
+          expense: {
+            createdById: user.id,
             ...(groupId ? { groupId } : {}),
           },
         },
@@ -688,6 +719,108 @@ export const expenseResolvers = {
       }).catch((err: any) => console.error("Notification error:", err));
 
       return settlement;
+    },
+    sendPaymentReminder: async (
+      _: any,
+      { toUserId }: { toUserId: string },
+      { prisma, user }: any,
+    ) => {
+      if (!user) throw new Error("Unauthorized");
+      if (!toUserId || toUserId === user.id) {
+        throw new Error("Invalid reminder target");
+      }
+
+      const [sender, recipient, owedShares] = await Promise.all([
+        prisma.user.findUnique({
+          where: { id: user.id },
+          select: {
+            id: true,
+            name: true,
+            username: true,
+          },
+        }),
+        prisma.user.findUnique({
+          where: { id: toUserId },
+          select: {
+            id: true,
+            name: true,
+            username: true,
+            email: true,
+          },
+        }),
+        prisma.expenseShare.findMany({
+          where: {
+            userId: toUserId,
+            status: "owed",
+            expense: {
+              createdById: user.id,
+            },
+          },
+          include: {
+            expense: {
+              include: {
+                group: true,
+              },
+            },
+          },
+        }),
+      ]);
+
+      if (!sender) throw new Error("Sender not found");
+      if (!recipient) throw new Error("Recipient not found");
+      if (owedShares.length === 0) {
+        throw new Error("No pending shares found for this user");
+      }
+
+      const totalOutstanding = owedShares.reduce((sum: number, share: any) => {
+        const shareAmount = Number(share.shareAmount) || 0;
+        const paidAmount = Number(share.paidAmount) || 0;
+        return sum + Math.max(shareAmount - paidAmount, 0);
+      }, 0);
+
+      if (totalOutstanding <= 0) {
+        throw new Error("No pending shares found for this user");
+      }
+
+      const uniqueGroupNames = Array.from(
+        new Set(
+          owedShares
+            .map((share: any) => share.expense?.group?.name)
+            .filter(Boolean),
+        ),
+      ) as string[];
+
+      const senderName = sender.name || sender.username || "Someone";
+      const formattedAmount = (Math.round(totalOutstanding * 100) / 100).toFixed(2);
+      const body =
+        uniqueGroupNames.length > 0
+          ? `${senderName} reminded you to settle ₹${formattedAmount} in ${uniqueGroupNames.join(", ")}`
+          : `${senderName} reminded you to settle ₹${formattedAmount}`;
+
+      await sendNotification({
+        prisma,
+        recipientId: toUserId,
+        type: "payment_reminder",
+        title: "Payment Reminder",
+        body,
+        data: {
+          fromUserId: user.id,
+          outstandingAmount: formattedAmount,
+        },
+      });
+
+      sendPaymentReminderEmail({
+        to: recipient.email,
+        toName: recipient.name || recipient.username || "there",
+        fromName: senderName,
+        amount: totalOutstanding,
+        expenseCount: owedShares.length,
+        groupNames: uniqueGroupNames,
+      }).catch((error: any) => {
+        console.error("Payment reminder email failed:", error?.message || error);
+      });
+
+      return true;
     },
   },
 };

@@ -30,6 +30,8 @@ function getNotificationIcon(type: string) {
       return <Icon name="UserCheck" width={22} height={22} color="#047faf" style={styles.icon} />;
     case 'group_invitation':
       return <Icon name="Invitation" width={22} height={22} color="#047faf" style={styles.icon} />;
+    case 'payment_reminder':
+      return <Icon name="MoneyWallet" width={22} height={22} color="#ca8a04" style={styles.icon} />;
     default:
       return <Icon name="Bell" width={22} height={22} color="#534f4e" style={styles.icon} />;
   }

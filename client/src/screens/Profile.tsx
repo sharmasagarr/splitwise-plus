@@ -288,7 +288,6 @@ const Profile: React.FC = () => {
       <View style={styles.center}>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#667eea" />
-          <AppText style={styles.loadingText}>Loading profile...</AppText>
         </View>
       </View>
     );

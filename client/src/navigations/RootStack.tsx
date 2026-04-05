@@ -9,6 +9,7 @@ import ChatScreen from '../screens/ChatScreen';
 import Notifications from '../screens/Notifications';
 import ExpenseDetail from '../screens/ExpenseDetail';
 import SettleUserShares from '../screens/SettleUserSharesScreen';
+import OwedUserShares from '../screens/OwedUserSharesScreen';
 import Transactions from '../screens/Transactions';
 
 export type RootStackParamList = {
@@ -26,6 +27,11 @@ export type RootStackParamList = {
   SettleUserShares: {
     toUserId: string;
     toUserName: string;
+    totalAmount: number;
+  };
+  OwedUserShares: {
+    fromUserId: string;
+    fromUserName: string;
     totalAmount: number;
   };
 };
@@ -98,6 +104,15 @@ export default function RootStack() {
         component={SettleUserShares}
         options={{
           headerTitle: 'Settle Shares',
+          headerBackTitle: 'Settle Up',
+          headerShadowVisible: false,
+        }}
+      />
+      <Stack.Screen
+        name="OwedUserShares"
+        component={OwedUserShares}
+        options={{
+          headerTitle: 'Request Payment',
           headerBackTitle: 'Settle Up',
           headerShadowVisible: false,
         }}

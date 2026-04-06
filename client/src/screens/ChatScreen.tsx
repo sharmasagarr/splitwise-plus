@@ -4,6 +4,7 @@ import {
   Animated,
   FlatList,
   Image,
+  Keyboard,
   KeyboardAvoidingView,
   PanResponder,
   Platform,
@@ -28,6 +29,7 @@ import {
 import { useAppSelector } from '../store/hooks';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigations/RootStack';
+
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ChatScreen'>;
 
@@ -91,46 +93,33 @@ const REPLY_TRIGGER_DISTANCE = 54;
 const formatTime = (value: string) => {
   const numeric = Number(value);
   const date = Number.isFinite(numeric) ? new Date(numeric) : new Date(value);
-
   if (Number.isNaN(date.getTime())) return '';
-
-  return date.toLocaleTimeString([], {
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 };
 
-const getReplyPreviewText = (message?: {
-  body?: string | null;
-  type?: string;
-}) => {
+const getReplyPreviewText = (message?: { body?: string | null; type?: string }) => {
   if (message?.body?.trim()) return message.body.trim();
-
   switch (message?.type) {
-    case 'image':
-      return 'Photo';
-    case 'payment_reminder':
-      return 'Payment reminder';
-    default:
-      return 'Message';
+    case 'image': return 'Photo';
+    case 'payment_reminder': return 'Payment reminder';
+    default: return 'Message';
   }
 };
 
 const getReplySenderLabel = (
-  message:
-    | ChatMessageItem
-    | ChatReplyPreview
-    | null
-    | undefined,
+  message: ChatMessageItem | ChatReplyPreview | null | undefined,
   currentUserId?: string,
 ) => {
   if (!message) return 'Unknown';
   return message.senderId === currentUserId ? 'You' : message.sender?.name || 'Unknown';
 };
 
+const getReplyBubbleMinWidth = (senderLabel: string) => {
+  return Math.min(260, Math.max(150, senderLabel.length * 8 + 52));
+};
+
 const ChatHeaderTitle = ({ imageUrl, title }: ChatHeaderTitleProps) => {
   const initial = (title || 'C').charAt(0).toUpperCase();
-
   return (
     <View style={styles.headerTitleWrap}>
       {imageUrl ? (
@@ -140,47 +129,43 @@ const ChatHeaderTitle = ({ imageUrl, title }: ChatHeaderTitleProps) => {
           <AppText style={styles.headerAvatarFallbackText}>{initial}</AppText>
         </View>
       )}
-      <AppText numberOfLines={1} style={styles.headerTitleText}>
-        {title}
-      </AppText>
+      <AppText numberOfLines={1} style={styles.headerTitleText}>{title}</AppText>
     </View>
   );
 };
 
 const ReplySwipeBubble = memo(
-  ({
-    currentUserId,
-    isMe,
-    item,
-    onReply,
-    showSenderName,
-  }: ReplySwipeBubbleProps) => {
+  ({ currentUserId, isMe, item, onReply, showSenderName }: ReplySwipeBubbleProps) => {
     const translateX = useRef(new Animated.Value(0)).current;
+    const replySenderLabel = item.replyToMessage
+      ? getReplySenderLabel(item.replyToMessage, currentUserId)
+      : null;
+    const replyBubbleMinWidth = replySenderLabel
+      ? getReplyBubbleMinWidth(replySenderLabel)
+      : undefined;
+
     const replyIndicatorOpacity = useMemo(
-      () =>
-        translateX.interpolate({
-          inputRange: [0, 10, 22, MAX_SWIPE_DISTANCE],
-          outputRange: [0, 0, 0.8, 1],
-          extrapolate: 'clamp',
-        }),
+      () => translateX.interpolate({
+        inputRange: [0, 10, 22, MAX_SWIPE_DISTANCE],
+        outputRange: [0, 0, 0.8, 1],
+        extrapolate: 'clamp',
+      }),
       [translateX],
     );
     const replyIndicatorScale = useMemo(
-      () =>
-        translateX.interpolate({
-          inputRange: [0, 14, MAX_SWIPE_DISTANCE],
-          outputRange: [0.72, 0.86, 1],
-          extrapolate: 'clamp',
-        }),
+      () => translateX.interpolate({
+        inputRange: [0, 14, MAX_SWIPE_DISTANCE],
+        outputRange: [0.72, 0.86, 1],
+        extrapolate: 'clamp',
+      }),
       [translateX],
     );
     const replyIndicatorTranslateX = useMemo(
-      () =>
-        translateX.interpolate({
-          inputRange: [0, MAX_SWIPE_DISTANCE],
-          outputRange: [-8, 0],
-          extrapolate: 'clamp',
-        }),
+      () => translateX.interpolate({
+        inputRange: [0, MAX_SWIPE_DISTANCE],
+        outputRange: [-8, 0],
+        extrapolate: 'clamp',
+      }),
       [translateX],
     );
 
@@ -197,34 +182,25 @@ const ReplySwipeBubble = memo(
       onReply(item);
       resetPosition();
     }, [item, onReply, resetPosition]);
-    
-    const panResponder = useMemo(
-      () =>
-        PanResponder.create({
-          onMoveShouldSetPanResponder: (_event, gestureState) => {
-            return (
-              gestureState.dx > 12 &&
-              Math.abs(gestureState.dx) > Math.abs(gestureState.dy) * 1.4
-            );
-          },
-          onPanResponderMove: (_event, gestureState) => {
-            const nextOffset = Math.min(
-              Math.max(gestureState.dx, 0),
-              MAX_SWIPE_DISTANCE,
-            );
-            translateX.setValue(nextOffset);
-          },
-          onPanResponderRelease: (_event, gestureState) => {
-            if (gestureState.dx >= REPLY_TRIGGER_DISTANCE) {
-              triggerReply();
-              return;
-            }
 
-            resetPosition();
-          },
-          onPanResponderTerminate: resetPosition,
-          onPanResponderTerminationRequest: () => true,
-        }),
+    const panResponder = useMemo(
+      () => PanResponder.create({
+        onMoveShouldSetPanResponder: (_event, gestureState) =>
+          gestureState.dx > 12 &&
+          Math.abs(gestureState.dx) > Math.abs(gestureState.dy) * 1.4,
+        onPanResponderMove: (_event, gestureState) => {
+          translateX.setValue(Math.min(Math.max(gestureState.dx, 0), MAX_SWIPE_DISTANCE));
+        },
+        onPanResponderRelease: (_event, gestureState) => {
+          if (gestureState.dx >= REPLY_TRIGGER_DISTANCE) {
+            triggerReply();
+            return;
+          }
+          resetPosition();
+        },
+        onPanResponderTerminate: resetPosition,
+        onPanResponderTerminationRequest: () => true,
+      }),
       [resetPosition, translateX, triggerReply],
     );
 
@@ -265,67 +241,31 @@ const ReplySwipeBubble = memo(
           <View
             style={[
               styles.bubble,
+              item.replyToMessage && styles.bubbleWithReply,
+              item.replyToMessage && replyBubbleMinWidth
+                ? { minWidth: replyBubbleMinWidth }
+                : null,
               isMe ? styles.bubbleSent : styles.bubbleReceived,
             ]}
           >
             {item.replyToMessage ? (
-              <View
-                style={[
-                  styles.replySnippet,
-                  isMe
-                    ? styles.replySnippetSent
-                    : styles.replySnippetReceived,
-                ]}
-              >
-                <View
-                  style={[
-                    styles.replySnippetAccent,
-                    isMe
-                      ? styles.replySnippetAccentSent
-                      : styles.replySnippetAccentReceived,
-                  ]}
-                />
+              <View style={[styles.replySnippet, isMe ? styles.replySnippetSent : styles.replySnippetReceived]}>
+                <View style={[styles.replySnippetAccent, isMe ? styles.replySnippetAccentSent : styles.replySnippetAccentReceived]} />
                 <View style={styles.replySnippetTextWrap}>
-                  <AppText
-                    numberOfLines={1}
-                    style={[
-                      styles.replySnippetName,
-                      isMe
-                        ? styles.replySnippetNameSent
-                        : styles.replySnippetNameReceived,
-                    ]}
-                  >
-                    {getReplySenderLabel(item.replyToMessage, currentUserId)}
+                  <AppText numberOfLines={1} style={[styles.replySnippetName, isMe ? styles.replySnippetNameSent : styles.replySnippetNameReceived]}>
+                    {replySenderLabel}
                   </AppText>
-                  <AppText
-                    numberOfLines={1}
-                    style={[
-                      styles.replySnippetBody,
-                      isMe
-                        ? styles.replySnippetBodySent
-                        : styles.replySnippetBodyReceived,
-                    ]}
-                  >
+                  <AppText numberOfLines={1} style={[styles.replySnippetBody, isMe ? styles.replySnippetBodySent : styles.replySnippetBodyReceived]}>
                     {getReplyPreviewText(item.replyToMessage)}
                   </AppText>
                 </View>
               </View>
             ) : null}
 
-            <AppText
-              style={[
-                styles.bubbleText,
-                isMe ? styles.bubbleTextSent : styles.bubbleTextReceived,
-              ]}
-            >
+            <AppText style={[styles.bubbleText, isMe ? styles.bubbleTextSent : styles.bubbleTextReceived]}>
               {item.body}
             </AppText>
-            <AppText
-              style={[
-                styles.bubbleTime,
-                isMe ? styles.bubbleTimeSent : styles.bubbleTimeReceived,
-              ]}
-            >
+            <AppText style={[styles.bubbleTime, isMe ? styles.bubbleTimeSent : styles.bubbleTimeReceived]}>
               {formatTime(item.createdAt)}
             </AppText>
           </View>
@@ -336,6 +276,7 @@ const ReplySwipeBubble = memo(
 );
 
 ReplySwipeBubble.displayName = 'ReplySwipeBubble';
+
 
 export default function ChatScreen({ route, navigation }: Props) {
   const { conversationId, title, type } = route.params;
@@ -350,10 +291,41 @@ export default function ChatScreen({ route, navigation }: Props) {
   const [inputText, setInputText] = useState('');
   const [replyingTo, setReplyingTo] = useState<ChatMessageItem | null>(null);
 
-  const inputBarInsetStyle = useMemo(
-    () => ({
-      paddingBottom: Platform.OS === 'ios' ? Math.max(insets.bottom, 4) : 0,
-    }),
+  // ─── Android keyboard avoidance ────────────────────────────────────────────
+  // KAV cannot reliably compute keyboard height on Android 15+ edge-to-edge.
+  // We bypass it entirely on Android: listen to raw keyboard events and animate
+  // a paddingBottom on the root container ourselves. iOS keeps using KAV.
+  const androidKeyboardPad = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (Platform.OS !== 'android') return;
+
+    const onShow = Keyboard.addListener('keyboardDidShow', e => {
+      Animated.timing(androidKeyboardPad, {
+        toValue: e.endCoordinates.height,
+        duration: 250,
+        useNativeDriver: false,
+      }).start();
+    });
+
+    const onHide = Keyboard.addListener('keyboardDidHide', () => {
+      Animated.timing(androidKeyboardPad, {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: false,
+      }).start();
+    });
+
+    return () => {
+      onShow.remove();
+      onHide.remove();
+    };
+  }, [androidKeyboardPad]);
+  // ───────────────────────────────────────────────────────────────────────────
+
+  // iOS only — home indicator inset. Android gesture bar is inside keyboard height.
+  const iosInputBarInset = useMemo(
+    () => ({ paddingBottom: Math.max(insets.bottom, 4) }),
     [insets.bottom],
   );
 
@@ -363,9 +335,7 @@ export default function ChatScreen({ route, navigation }: Props) {
   });
 
   const { data: conversationsData, refetch: refetchConversations } =
-    useGetConversations({
-      fetchPolicy: 'cache-first',
-    });
+    useGetConversations({ fetchPolicy: 'cache-first' });
 
   const [sendMessage, { loading: sendingMessage }] = useSendMessage();
 
@@ -412,11 +382,9 @@ export default function ChatScreen({ route, navigation }: Props) {
 
   useEffect(() => {
     const lastMessageId = messages[messages.length - 1]?.id ?? null;
-
     if (lastMessageId && lastMessageId !== lastRenderedMessageIdRef.current) {
       scrollToBottom(lastRenderedMessageIdRef.current !== null);
     }
-
     lastRenderedMessageIdRef.current = lastMessageId;
   }, [messages, scrollToBottom]);
 
@@ -435,51 +403,30 @@ export default function ChatScreen({ route, navigation }: Props) {
     [focusComposer],
   );
 
-  const clearReply = useCallback(() => {
-    setReplyingTo(null);
-  }, []);
+  const clearReply = useCallback(() => setReplyingTo(null), []);
 
   const writeMessageIntoCache = useCallback(
     (message: ChatMessageItem) => {
       try {
         const variables = { conversationId, limit: 50 };
-        const existing = client.readQuery<any>({
-          query: GET_MESSAGES,
-          variables,
-        });
-
+        const existing = client.readQuery<any>({ query: GET_MESSAGES, variables });
         if (existing?.getMessages) {
           const nextMessages = [
-            ...existing.getMessages.filter(
-              (item: ChatMessageItem) => item.id !== message.id,
-            ),
+            ...existing.getMessages.filter((item: ChatMessageItem) => item.id !== message.id),
             message,
           ]
             .sort((a: ChatMessageItem, b: ChatMessageItem) => a.seq - b.seq)
             .slice(-50);
-
-          client.writeQuery({
-            query: GET_MESSAGES,
-            variables,
-            data: {
-              getMessages: nextMessages,
-            },
-          });
+          client.writeQuery({ query: GET_MESSAGES, variables, data: { getMessages: nextMessages } });
         }
-      } catch {
-        // Query may not be in cache yet.
-      }
+      } catch {}
 
       try {
-        const existing = client.readQuery<any>({
-          query: GET_CONVERSATIONS,
-        });
-
+        const existing = client.readQuery<any>({ query: GET_CONVERSATIONS });
         if (existing?.getConversations) {
           const updated = existing.getConversations
             .map((conversation: any) => {
               if (conversation.id !== conversationId) return conversation;
-
               return {
                 ...conversation,
                 updatedAt: message.createdAt,
@@ -491,11 +438,7 @@ export default function ChatScreen({ route, navigation }: Props) {
                   type: message.type,
                   body: message.body,
                   createdAt: message.createdAt,
-                  sender: {
-                    __typename: 'User',
-                    id: message.sender.id,
-                    name: message.sender.name,
-                  },
+                  sender: { __typename: 'User', id: message.sender.id, name: message.sender.name },
                 },
               };
             })
@@ -504,17 +447,9 @@ export default function ChatScreen({ route, navigation }: Props) {
                 Number(b.lastMessage?.createdAt || b.updatedAt || 0) -
                 Number(a.lastMessage?.createdAt || a.updatedAt || 0),
             );
-
-          client.writeQuery({
-            query: GET_CONVERSATIONS,
-            data: {
-              getConversations: updated,
-            },
-          });
+          client.writeQuery({ query: GET_CONVERSATIONS, data: { getConversations: updated } });
         }
-      } catch {
-        // Conversations query may not be in cache yet.
-      }
+      } catch {}
     },
     [client, conversationId],
   );
@@ -566,20 +501,11 @@ export default function ChatScreen({ route, navigation }: Props) {
     scrollToBottom(true);
 
     sendMessage({
-      variables: {
-        conversationId,
-        body: trimmedBody,
-        type: 'text',
-        replyToSeq: replyTarget?.seq,
-      },
-      optimisticResponse: {
-        __typename: 'Mutation',
-        sendMessage: optimisticMessage,
-      },
+      variables: { conversationId, body: trimmedBody, type: 'text', replyToSeq: replyTarget?.seq },
+      optimisticResponse: { __typename: 'Mutation', sendMessage: optimisticMessage },
       update: (_cache, result) => {
         const nextMessage = result.data?.sendMessage;
         if (!nextMessage) return;
-
         writeMessageIntoCache(nextMessage as ChatMessageItem);
       },
       onCompleted: async () => {
@@ -591,32 +517,16 @@ export default function ChatScreen({ route, navigation }: Props) {
         setReplyingTo(replyTarget ?? null);
       },
     });
-  }, [
-    conversationId,
-    inputText,
-    messages,
-    refetchConversations,
-    replyingTo,
-    scrollToBottom,
-    sendMessage,
-    user?.id,
-    user?.imageUrl,
-    user?.name,
-    writeMessageIntoCache,
-  ]);
+  }, [conversationId, inputText, messages, refetchConversations, replyingTo, scrollToBottom, sendMessage, user?.id, user?.imageUrl, user?.name, writeMessageIntoCache]);
 
   const handleLoadEarlier = useCallback(() => {
     if (messages.length === 0) return;
-
     const firstSeq = messages[0]?.seq;
     fetchMore({
       variables: { conversationId, limit: 30, before: firstSeq },
       updateQuery: (previous: any, { fetchMoreResult }: any) => {
         if (!fetchMoreResult) return previous;
-
-        return {
-          getMessages: [...fetchMoreResult.getMessages, ...previous.getMessages],
-        };
+        return { getMessages: [...fetchMoreResult.getMessages, ...previous.getMessages] };
       },
     });
   }, [conversationId, fetchMore, messages]);
@@ -625,7 +535,6 @@ export default function ChatScreen({ route, navigation }: Props) {
     ({ item }: { item: ChatMessageItem }) => {
       const isMe = item.senderId === user?.id;
       const showSenderName = type === 'group' && !isMe;
-
       return (
         <ReplySwipeBubble
           currentUserId={user?.id}
@@ -639,380 +548,166 @@ export default function ChatScreen({ route, navigation }: Props) {
     [handleReplySelect, type, user?.id],
   );
 
-  return (
-    <SafeAreaView style={styles.safeArea} edges={['left', 'right']}>
-      <KeyboardAvoidingView
-        style={styles.container}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? headerHeight : 0}
-      >
-        {showInitialLoader ? (
-          <View style={styles.center}>
-            <ActivityIndicator size="large" color="#667eea" />
-          </View>
-        ) : (
-          <FlatList
-            ref={flatListRef}
-            data={messages}
-            keyExtractor={item => item.id}
-            renderItem={renderMessage}
-            keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
-            keyboardShouldPersistTaps="handled"
-            contentContainerStyle={[
-              styles.messageList,
-              messages.length === 0 && styles.messageListEmpty,
-            ]}
-            ListEmptyComponent={
-              <View style={styles.emptyState}>
-                <AppText style={styles.emptyTitle}>No messages yet</AppText>
-                <AppText style={styles.emptySubtitle}>
-                  Start the conversation with your first message.
-                </AppText>
-              </View>
-            }
-            ListHeaderComponent={
-              messages.length >= 50 ? (
-                <TouchableOpacity
-                  style={styles.loadMoreBtn}
-                  onPress={handleLoadEarlier}
-                >
-                  <AppText style={styles.loadMoreText}>
-                    Load earlier messages
-                  </AppText>
-                </TouchableOpacity>
-              ) : null
-            }
-          />
-        )}
-
-        <View style={[styles.inputBar, inputBarInsetStyle]}>
-          {replyingTo ? (
-            <View style={styles.replyComposerCard}>
-              <View style={styles.replyComposerAccent} />
-              <View style={styles.replyComposerTextWrap}>
-                <AppText style={styles.replyComposerTitle}>
-                  Replying to {getReplySenderLabel(replyingTo, user?.id)}
-                </AppText>
-                <AppText
-                  numberOfLines={1}
-                  style={styles.replyComposerBody}
-                >
-                  {getReplyPreviewText(replyingTo)}
-                </AppText>
-              </View>
-              <TouchableOpacity
-                onPress={clearReply}
-                style={styles.replyComposerClose}
-                hitSlop={10}
-              >
-                <Icon
-                  name="CrossCircle"
-                  width={18}
-                  height={18}
-                  color="#94a3b8"
-                />
-              </TouchableOpacity>
+  // Shared inner content (FlatList + input bar)
+  const chatContent = (
+    <>
+      {showInitialLoader ? (
+        <View style={styles.center}>
+          <ActivityIndicator size="large" color="#667eea" />
+        </View>
+      ) : (
+        <FlatList
+          ref={flatListRef}
+          data={messages}
+          keyExtractor={item => item.id}
+          renderItem={renderMessage}
+          keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={[
+            styles.messageList,
+            messages.length === 0 && styles.messageListEmpty,
+          ]}
+          ListEmptyComponent={
+            <View style={styles.emptyState}>
+              <AppText style={styles.emptyTitle}>No messages yet</AppText>
+              <AppText style={styles.emptySubtitle}>
+                Start the conversation with your first message.
+              </AppText>
             </View>
-          ) : null}
+          }
+          ListHeaderComponent={
+            messages.length >= 50 ? (
+              <TouchableOpacity style={styles.loadMoreBtn} onPress={handleLoadEarlier}>
+                <AppText style={styles.loadMoreText}>Load earlier messages</AppText>
+              </TouchableOpacity>
+            ) : null
+          }
+        />
+      )}
 
-          <View style={styles.composerRow}>
-            <AppTextInput
-              ref={inputRef}
-              style={styles.input}
-              placeholder="Type a message..."
-              value={inputText}
-              onChangeText={setInputText}
-              placeholderTextColor="#94a3b8"
-              multiline
-              onFocus={() => scrollToBottom(true)}
-            />
-
-            <TouchableOpacity
-              style={[
-                styles.sendBtn,
-                (!inputText.trim() || sendingMessage) && styles.sendBtnDisabled,
-              ]}
-              onPress={handleSend}
-              disabled={!inputText.trim() || sendingMessage}
-              activeOpacity={0.88}
-            >
-              <Icon name="Send" width={20} height={20} color="#ffffff" />
+      {/* Input bar — no paddingBottom on Android (handled by animated container) */}
+      <View style={[styles.inputBar, Platform.OS === 'ios' && iosInputBarInset]}>
+        {replyingTo ? (
+          <View style={styles.replyComposerCard}>
+            <View style={styles.replyComposerAccent} />
+            <View style={styles.replyComposerTextWrap}>
+              <AppText style={styles.replyComposerTitle}>
+                Replying to {getReplySenderLabel(replyingTo, user?.id)}
+              </AppText>
+              <AppText numberOfLines={1} style={styles.replyComposerBody}>
+                {getReplyPreviewText(replyingTo)}
+              </AppText>
+            </View>
+            <TouchableOpacity onPress={clearReply} style={styles.replyComposerClose} hitSlop={10}>
+              <Icon name="CrossCircle" width={18} height={18} color="#94a3b8" />
             </TouchableOpacity>
           </View>
+        ) : null}
+
+        <View style={styles.composerRow}>
+          <AppTextInput
+            ref={inputRef}
+            style={styles.input}
+            placeholder="Type a message..."
+            value={inputText}
+            onChangeText={setInputText}
+            placeholderTextColor="#94a3b8"
+            multiline
+            onFocus={() => scrollToBottom(true)}
+          />
+          <TouchableOpacity
+            style={[styles.sendBtn, (!inputText.trim() || sendingMessage) && styles.sendBtnDisabled]}
+            onPress={handleSend}
+            disabled={!inputText.trim() || sendingMessage}
+            activeOpacity={0.88}
+          >
+            <Icon name="Send" width={20} height={20} color="#ffffff" />
+          </TouchableOpacity>
         </View>
-      </KeyboardAvoidingView>
+      </View>
+    </>
+  );
+
+  return (
+    <SafeAreaView style={styles.safeArea} edges={['left', 'right']}>
+      {Platform.OS === 'ios' ? (
+        // iOS: KAV works perfectly — keep it
+        <KeyboardAvoidingView
+          style={styles.container}
+          behavior="padding"
+          keyboardVerticalOffset={headerHeight}
+        >
+          {chatContent}
+        </KeyboardAvoidingView>
+      ) : (
+        // Android: KAV is broken on Android 15+ edge-to-edge.
+        // Manual Animated.View listener reads the REAL keyboard height
+        // from the native event and animates paddingBottom directly.
+        <Animated.View style={[styles.container, { paddingBottom: androidKeyboardPad }]}>
+          {chatContent}
+        </Animated.View>
+      )}
     </SafeAreaView>
   );
 }
 
+
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: '#f0f2f5',
-  },
-  headerTitleWrap: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    maxWidth: 220,
-  },
-  headerAvatarImage: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: '#e2e8f0',
-    marginRight: 10,
-  },
-  headerAvatarFallback: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: '#dbeafe',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 10,
-  },
-  headerAvatarFallbackText: {
-    color: '#4338ca',
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  headerTitleText: {
-    color: '#1e293b',
-    fontSize: 17,
-    fontWeight: '700',
-  },
-  container: {
-    flex: 1,
-    backgroundColor: '#f0f2f5',
-  },
-  center: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  messageList: {
-    paddingHorizontal: 12,
-    paddingTop: 12,
-    paddingBottom: 8,
-  },
-  messageListEmpty: {
-    flexGrow: 1,
-    justifyContent: 'center',
-  },
-  emptyState: {
-    alignItems: 'center',
-    paddingHorizontal: 28,
-  },
-  emptyTitle: {
-    color: '#1e293b',
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  emptySubtitle: {
-    color: '#64748b',
-    fontSize: 13,
-    textAlign: 'center',
-    marginTop: 6,
-  },
-  messageRow: {
-    width: '100%',
-    position: 'relative',
-    marginBottom: 6,
-    justifyContent: 'center',
-  },
-  replyAction: {
-    position: 'absolute',
-    left: 4,
-    top: '50%',
-    marginTop: -18,
-  },
-  replyActionCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#e0e7ff',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  replyActionIconWrap: {
-    transform: [{ rotate: '90deg' }],
-  },
-  bubbleWrapper: {
-    maxWidth: '82%',
-  },
-  bubbleWrapperRight: {
-    alignSelf: 'flex-end',
-  },
-  bubbleWrapperLeft: {
-    alignSelf: 'flex-start',
-  },
-  senderName: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#667eea',
-    marginBottom: 2,
-    marginLeft: 12,
-  },
-  bubble: {
-    borderRadius: 18,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    minWidth: 88,
-  },
-  bubbleSent: {
-    backgroundColor: '#667eea',
-    borderBottomRightRadius: 4,
-  },
-  bubbleReceived: {
-    backgroundColor: '#ffffff',
-    borderBottomLeftRadius: 4,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-  },
-  replySnippet: {
-    flexDirection: 'row',
-    borderRadius: 12,
-    overflow: 'hidden',
-    marginBottom: 8,
-  },
-  replySnippetSent: {
-    backgroundColor: 'rgba(255,255,255,0.18)',
-  },
-  replySnippetReceived: {
-    backgroundColor: '#f8fafc',
-  },
-  replySnippetAccent: {
-    width: 4,
-  },
-  replySnippetAccentSent: {
-    backgroundColor: '#c7d2fe',
-  },
-  replySnippetAccentReceived: {
-    backgroundColor: '#667eea',
-  },
-  replySnippetTextWrap: {
-    flex: 1,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-  },
-  replySnippetName: {
-    fontSize: 12,
-    fontWeight: '700',
-    marginBottom: 2,
-  },
-  replySnippetNameSent: {
-    color: '#ffffff',
-  },
-  replySnippetNameReceived: {
-    color: '#4338ca',
-  },
-  replySnippetBody: {
-    fontSize: 12,
-    lineHeight: 16,
-  },
-  replySnippetBodySent: {
-    color: 'rgba(255,255,255,0.82)',
-  },
-  replySnippetBodyReceived: {
-    color: '#64748b',
-  },
-  bubbleText: {
-    fontSize: 15,
-    lineHeight: 20,
-  },
-  bubbleTextSent: {
-    color: '#ffffff',
-  },
-  bubbleTextReceived: {
-    color: '#1e293b',
-  },
-  bubbleTime: {
-    fontSize: 11,
-    marginTop: 4,
-    alignSelf: 'flex-end',
-  },
-  bubbleTimeSent: {
-    color: 'rgba(255,255,255,0.7)',
-  },
-  bubbleTimeReceived: {
-    color: '#94a3b8',
-  },
-  loadMoreBtn: {
-    alignItems: 'center',
-    paddingVertical: 12,
-  },
-  loadMoreText: {
-    color: '#667eea',
-    fontWeight: '600',
-    fontSize: 14,
-  },
-  inputBar: {
-    backgroundColor: '#ffffff',
-    paddingHorizontal: 10,
-    paddingTop: 8,
-    paddingBottom: 0,
-    borderTopWidth: 1,
-    borderTopColor: '#e2e8f0',
-    gap: 8,
-  },
-  replyComposerCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#f8fafc',
-    borderRadius: 18,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-  },
-  replyComposerAccent: {
-    width: 4,
-    height: '100%',
-    minHeight: 34,
-    borderRadius: 999,
-    backgroundColor: '#667eea',
-    marginRight: 10,
-  },
-  replyComposerTextWrap: {
-    flex: 1,
-  },
-  replyComposerTitle: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#4338ca',
-  },
-  replyComposerBody: {
-    fontSize: 13,
-    color: '#64748b',
-    marginTop: 2,
-  },
-  replyComposerClose: {
-    marginLeft: 8,
-  },
-  composerRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    gap: 8,
-  },
-  input: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    borderRadius: 22,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    fontSize: 15,
-    maxHeight: 110,
-    backgroundColor: '#f8fafc',
-    color: '#1e293b',
-  },
-  sendBtn: {
-    backgroundColor: '#667eea',
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  sendBtnDisabled: {
-    opacity: 0.5,
-  },
+  safeArea: { flex: 1, backgroundColor: '#f0f2f5' },
+  headerTitleWrap: { flexDirection: 'row', alignItems: 'center', maxWidth: 220 },
+  headerAvatarImage: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#e2e8f0', marginRight: 10 },
+  headerAvatarFallback: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#dbeafe', alignItems: 'center', justifyContent: 'center', marginRight: 10 },
+  headerAvatarFallbackText: { color: '#4338ca', fontSize: 14, fontWeight: '700' },
+  headerTitleText: { color: '#1e293b', fontSize: 17, fontWeight: '700' },
+  container: { flex: 1, backgroundColor: '#f0f2f5' },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  messageList: { paddingHorizontal: 12, paddingTop: 12, paddingBottom: 8 },
+  messageListEmpty: { flexGrow: 1, justifyContent: 'center' },
+  emptyState: { alignItems: 'center', paddingHorizontal: 28 },
+  emptyTitle: { color: '#1e293b', fontSize: 16, fontWeight: '700' },
+  emptySubtitle: { color: '#64748b', fontSize: 13, textAlign: 'center', marginTop: 6 },
+  messageRow: { width: '100%', position: 'relative', marginBottom: 6, justifyContent: 'center' },
+  replyAction: { position: 'absolute', left: 4, top: '50%', marginTop: -18 },
+  replyActionCircle: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#e0e7ff', alignItems: 'center', justifyContent: 'center' },
+  replyActionIconWrap: { transform: [{ rotate: '90deg' }] },
+  bubbleWrapper: { maxWidth: '82%' },
+  bubbleWrapperRight: { alignSelf: 'flex-end' },
+  bubbleWrapperLeft: { alignSelf: 'flex-start' },
+  senderName: { fontSize: 12, fontWeight: '600', color: '#667eea', marginBottom: 2, marginLeft: 12 },
+  bubble: { borderRadius: 18, paddingHorizontal: 14, paddingVertical: 10, minWidth: 88 },
+  bubbleWithReply: { minWidth: 150 },
+  bubbleSent: { backgroundColor: '#667eea', borderBottomRightRadius: 4 },
+  bubbleReceived: { backgroundColor: '#ffffff', borderBottomLeftRadius: 4, borderWidth: 1, borderColor: '#e2e8f0' },
+  replySnippet: { flexDirection: 'row', borderRadius: 12, overflow: 'hidden', marginBottom: 8 },
+  replySnippetSent: { backgroundColor: 'rgba(255,255,255,0.18)' },
+  replySnippetReceived: { backgroundColor: '#f8fafc' },
+  replySnippetAccent: { width: 4 },
+  replySnippetAccentSent: { backgroundColor: '#c7d2fe' },
+  replySnippetAccentReceived: { backgroundColor: '#667eea' },
+  replySnippetTextWrap: { flex: 1, paddingHorizontal: 10, paddingVertical: 8 },
+  replySnippetName: { fontSize: 12, fontWeight: '700', marginBottom: 2 },
+  replySnippetNameSent: { color: '#ffffff' },
+  replySnippetNameReceived: { color: '#4338ca' },
+  replySnippetBody: { fontSize: 12, lineHeight: 16 },
+  replySnippetBodySent: { color: 'rgba(255,255,255,0.82)' },
+  replySnippetBodyReceived: { color: '#64748b' },
+  bubbleText: { fontSize: 15, lineHeight: 20 },
+  bubbleTextSent: { color: '#ffffff' },
+  bubbleTextReceived: { color: '#1e293b' },
+  bubbleTime: { fontSize: 11, marginTop: 4, alignSelf: 'flex-end' },
+  bubbleTimeSent: { color: 'rgba(255,255,255,0.7)' },
+  bubbleTimeReceived: { color: '#94a3b8' },
+  loadMoreBtn: { alignItems: 'center', paddingVertical: 12 },
+  loadMoreText: { color: '#667eea', fontWeight: '600', fontSize: 14 },
+  inputBar: { backgroundColor: '#ffffff', paddingHorizontal: 10, paddingTop: 8, paddingBottom: 8, borderTopWidth: 1, borderTopColor: '#e2e8f0', gap: 8 },
+  replyComposerCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#f8fafc', borderRadius: 18, paddingHorizontal: 12, paddingVertical: 10 },
+  replyComposerAccent: { width: 4, height: '100%', minHeight: 34, borderRadius: 999, backgroundColor: '#667eea', marginRight: 10 },
+  replyComposerTextWrap: { flex: 1 },
+  replyComposerTitle: { fontSize: 13, fontWeight: '700', color: '#4338ca' },
+  replyComposerBody: { fontSize: 13, color: '#64748b', marginTop: 2 },
+  replyComposerClose: { marginLeft: 8 },
+  composerRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 8 },
+  input: { flex: 1, borderWidth: 1, borderColor: '#e2e8f0', borderRadius: 22, paddingHorizontal: 16, paddingVertical: 10, fontSize: 15, maxHeight: 110, backgroundColor: '#f8fafc', color: '#1e293b' },
+  sendBtn: { backgroundColor: '#667eea', width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center' },
+  sendBtnDisabled: { opacity: 0.5 },
 });

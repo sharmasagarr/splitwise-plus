@@ -45,6 +45,11 @@ type LabelProps = {
   label: string;
 };
 
+type TabBarLabelRenderProps = {
+  color: string;
+  focused: boolean;
+};
+
 const Tab = createMaterialTopTabNavigator();
 
 const formatMoney = (value: number) => `\u20B9${Number(value || 0).toFixed(2)}`;
@@ -180,6 +185,32 @@ const SettleTab = () => {
   const totalOwe = balancesData?.getMyBalances?.totalOwe || 0;
   const totalOwed = balancesData?.getMyBalances?.totalOwed || 0;
 
+  const renderOweTabLabel = React.useCallback(
+    ({ color, focused }: TabBarLabelRenderProps) => (
+      <SettleTabLabel
+        color={color}
+        count={oweList.length}
+        focused={focused}
+        iconName="Wallet"
+        label="Owe"
+      />
+    ),
+    [oweList.length],
+  );
+
+  const renderOwedTabLabel = React.useCallback(
+    ({ color, focused }: TabBarLabelRenderProps) => (
+      <SettleTabLabel
+        color={color}
+        count={owedList.length}
+        focused={focused}
+        iconName="MoneyWallet"
+        label="Owed"
+      />
+    ),
+    [owedList.length],
+  );
+
   return (
     <View style={styles.container}>
       <View style={styles.summaryRow}>
@@ -226,15 +257,7 @@ const SettleTab = () => {
           <Tab.Screen
             name="OweTab"
             options={{
-              tabBarLabel: ({ color, focused }) => (
-                <SettleTabLabel
-                  color={color}
-                  count={oweList.length}
-                  focused={focused}
-                  iconName="Wallet"
-                  label="Owe"
-                />
-              ),
+              tabBarLabel: renderOweTabLabel,
             }}
           >
             {() => (
@@ -261,15 +284,7 @@ const SettleTab = () => {
           <Tab.Screen
             name="OwedTab"
             options={{
-              tabBarLabel: ({ color, focused }) => (
-                <SettleTabLabel
-                  color={color}
-                  count={owedList.length}
-                  focused={focused}
-                  iconName="MoneyWallet"
-                  label="Owed"
-                />
-              ),
+              tabBarLabel: renderOwedTabLabel,
             }}
           >
             {() => (

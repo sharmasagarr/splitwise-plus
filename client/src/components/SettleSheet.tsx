@@ -13,6 +13,7 @@ import AppText from './AppText';
 import AppTextInput from './AppTextInput';
 import AppModal from './Modal';
 
+
 type SettleSheetProps = {
   visible: boolean;
   onClose: () => void;
@@ -26,6 +27,7 @@ type SettleSheetProps = {
   onSettle: () => void;
   paymentModes?: string[];
 };
+
 
 export default function SettleSheet({
   visible,
@@ -96,6 +98,7 @@ export default function SettleSheet({
         ref={bottomSheetRef}
         index={0}
         snapPoints={snapPoints}
+        enableDynamicSizing={false}
         animateOnMount
         enablePanDownToClose
         enableOverDrag={false}
@@ -110,74 +113,74 @@ export default function SettleSheet({
         onDismiss={onClose}
       >
         <BottomSheetView style={styles.bottomSheetContent}>
-            <AppText style={styles.modalTitle}>Complete Settlement</AppText>
-            <AppText style={styles.modalSubtitle}>
-              Choose amount and payment mode.
-            </AppText>
+          <AppText style={styles.modalTitle}>Complete Settlement</AppText>
+          <AppText style={styles.modalSubtitle}>
+            Choose amount and payment mode.
+          </AppText>
 
-            <AppText style={styles.label}>Amount to pay</AppText>
-            <AppTextInput
-              style={styles.input}
-              value={amount}
-              onChangeText={setAmount}
-              placeholder="0.00"
-              keyboardType="numeric"
-              placeholderTextColor="#94a3b8"
-            />
+          <AppText style={styles.label}>Amount to pay</AppText>
+          <AppTextInput
+            style={styles.input}
+            value={amount}
+            onChangeText={setAmount}
+            placeholder="0.00"
+            keyboardType="numeric"
+            placeholderTextColor="#94a3b8"
+          />
 
-            <AppText style={styles.label}>Payment mode</AppText>
-            <View style={styles.paymentModes}>
-              {paymentModes.map(mode => (
-                <TouchableOpacity
-                  key={mode}
+          <AppText style={styles.label}>Payment mode</AppText>
+          <View style={styles.paymentModes}>
+            {paymentModes.map(mode => (
+              <TouchableOpacity
+                key={mode}
+                style={[
+                  styles.modeBtn,
+                  paymentMode === mode && styles.modeBtnSelected,
+                ]}
+                onPress={() => setPaymentMode(mode)}
+                activeOpacity={0.85}
+              >
+                <AppText
                   style={[
-                    styles.modeBtn,
-                    paymentMode === mode && styles.modeBtnSelected,
+                    styles.modeBtnText,
+                    paymentMode === mode && styles.modeBtnTextSelected,
                   ]}
-                  onPress={() => setPaymentMode(mode)}
-                  activeOpacity={0.85}
                 >
-                  <AppText
-                    style={[
-                      styles.modeBtnText,
-                      paymentMode === mode && styles.modeBtnTextSelected,
-                    ]}
-                  >
-                    {mode.toUpperCase()}
+                  {mode.toUpperCase()}
+                </AppText>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          <View style={styles.alreadyPaidRow}>
+            <TouchableOpacity
+              style={styles.alreadyPaidToggle}
+              onPress={() => setAlreadyPaid(prev => !prev)}
+              activeOpacity={0.85}
+            >
+              <View
+                style={[
+                  styles.alreadyPaidCheckbox,
+                  alreadyPaid && styles.alreadyPaidCheckboxSelected,
+                ]}
+              >
+                {alreadyPaid ? (
+                  <AppText style={styles.alreadyPaidCheckboxTick}>
+                    {'\u2713'}
                   </AppText>
-                </TouchableOpacity>
-              ))}
-            </View>
+                ) : null}
+              </View>
+              <AppText style={styles.alreadyPaidText}>Already paid</AppText>
+            </TouchableOpacity>
 
-            <View style={styles.alreadyPaidRow}>
-              <TouchableOpacity
-                style={styles.alreadyPaidToggle}
-                onPress={() => setAlreadyPaid(prev => !prev)}
-                activeOpacity={0.85}
-              >
-                <View
-                  style={[
-                    styles.alreadyPaidCheckbox,
-                    alreadyPaid && styles.alreadyPaidCheckboxSelected,
-                  ]}
-                >
-                  {alreadyPaid ? (
-                    <AppText style={styles.alreadyPaidCheckboxTick}>
-                      {'\u2713'}
-                    </AppText>
-                  ) : null}
-                </View>
-                <AppText style={styles.alreadyPaidText}>Already paid</AppText>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.infoBtn}
-                onPress={() => setShowAlreadyPaidInfo(true)}
-                activeOpacity={0.85}
-              >
-                <AppText style={styles.infoBtnText}>i</AppText>
-              </TouchableOpacity>
-            </View>
+            <TouchableOpacity
+              style={styles.infoBtn}
+              onPress={() => setShowAlreadyPaidInfo(true)}
+              activeOpacity={0.85}
+            >
+              <AppText style={styles.infoBtnText}>i</AppText>
+            </TouchableOpacity>
+          </View>
         </BottomSheetView>
       </BottomSheetModal>
 
@@ -194,6 +197,7 @@ export default function SettleSheet({
     </>
   );
 }
+
 
 const styles = StyleSheet.create({
   bottomSheetBackground: {

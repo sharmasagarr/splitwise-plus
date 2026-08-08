@@ -5,7 +5,6 @@ const { app, httpServer } = await startServer();
 
 if (!process.env.VERCEL) {
   try {
-
     httpServer.listen(PORT, '0.0.0.0', () => {
       console.log(`🚀 GraphQL ready at http://localhost:${PORT}/graphql`);
     });
